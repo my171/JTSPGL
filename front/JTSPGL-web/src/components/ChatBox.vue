@@ -27,12 +27,13 @@
 
 <script setup>
 import { ref, nextTick } from 'vue';
+import axios from 'axios';
 
 const inputMessage = ref('');
 const messages = ref([]);
 const chatHistory = ref(null);
 
-const sendMessage = () => {
+const sendMessage = async () => {
   if (inputMessage.value.trim()) {
     messages.value.push({
       text: inputMessage.value,
@@ -41,7 +42,20 @@ const sendMessage = () => {
     
     scrollToBottom();
     
-    // 模拟回复
+    try {
+        const response = await axios.post('http://localhost:5000/asdhoif', {
+            text: inputMessage.value
+        });
+        messages.value.push({
+            text: response.data.result,
+            sender: 'receiver'
+        });
+    } catch (error) {
+        outputText.value = `处理出错: ${error.response?.data?.error || error.message}`;
+    }
+
+
+    /*
     setTimeout(() => {
       messages.value.push({
         text: `已收到您的消息：${inputMessage.value}`,
@@ -49,6 +63,8 @@ const sendMessage = () => {
       });
       scrollToBottom();
     }, 500);
+    */
+
     
     inputMessage.value = '';
   }

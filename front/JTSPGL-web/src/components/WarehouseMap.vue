@@ -24,6 +24,7 @@ const warehouses = [
 ];
 
 const showWarehouse = (id, name) => {
+  window.location.hash = "asdasf"
   emit('show-warehouse', id, name);
 };
 </script>
