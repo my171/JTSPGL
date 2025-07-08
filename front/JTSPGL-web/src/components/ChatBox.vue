@@ -1,101 +1,155 @@
 <template>
-    <div class="chat-box">
-        <div class="chat-history" id="chat-history"></div>
-            <div class="chat-input-area">
-                <div class="input-group">
-                <input
-                    type="text"
-                    class="form-control"
-                    id="chat-input"
-                    placeholder="请输入您的问题..."
-                />
-                <button class="btn btn-dark" onclick="sendMessage()">
-                    发送
-                </button>
-            </div>
-        </div>
+  <div class="chat-box">
+    <div class="chat-history" ref="chatHistory">
+      <div 
+        v-for="(message, index) in messages" 
+        :key="index"
+        class="chat-message-row"
+        :class="message.sender"
+      >
+        <div class="chat-message">{{ message.text }}</div>
+      </div>
     </div>
+    <div class="chat-input-area">
+      <div class="input-group">
+        <input
+          type="text"
+          class="form-control"
+          v-model="inputMessage"
+          placeholder="请输入您的问题..."
+          @keyup.enter="sendMessage"
+        />
+        <button class="btn btn-dark" @click="sendMessage">发送</button>
+      </div>
+    </div>
+  </div>
 </template>
 
-<script>
-export default {
-      sendMessage() {
-        const input = document.getElementById("chat-input");
-        const history = document.getElementById("chat-history");
-        if (input.value.trim()) {
-          const row = document.createElement("div");
-          row.className = "chat-message-row sender";
+<script setup>
+import { ref, nextTick } from 'vue';
 
-          const msg = document.createElement("div");
-          msg.className = "chat-message";
-          msg.textContent = input.value;
+const inputMessage = ref('');
+const messages = ref([]);
+const chatHistory = ref(null);
 
-          row.appendChild(msg);
-          history.appendChild(row);
+const sendMessage = () => {
+  if (inputMessage.value.trim()) {
+    messages.value.push({
+      text: inputMessage.value,
+      sender: 'sender'
+    });
+    
+    scrollToBottom();
+    
+    // 模拟回复
+    setTimeout(() => {
+      messages.value.push({
+        text: `已收到您的消息：${inputMessage.value}`,
+        sender: 'receiver'
+      });
+      scrollToBottom();
+    }, 500);
+    
+    inputMessage.value = '';
+  }
+};
 
-          // 添加模拟回复
-          setTimeout(() => {
-            const botRow = document.createElement("div");
-            botRow.className = "chat-message-row receiver";
-
-            const botMsg = document.createElement("div");
-            botMsg.className = "chat-message";
-            botMsg.textContent = "已收到您的消息：" + input.value;
-
-            botRow.appendChild(botMsg);
-            history.appendChild(botRow);
-
-            history.scrollTop = history.scrollHeight;
-          }, 500);
-
-          history.scrollTop = history.scrollHeight;
-          input.value = "";
-        }
-      }
+const scrollToBottom = () => {
+  nextTick(() => {
+    chatHistory.value.scrollTop = chatHistory.value.scrollHeight;
+  });
 };
 </script>
 
 <style scoped>
-    .chat-box {
-        background-color: #fff;
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        height: 230px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        position: relative;
-        z-index: 0;
-    }
-    .chat-history {
-        flex: 1;
-        overflow-y: auto;
-        margin-bottom: 8px;
-        padding-right: 5px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-    .chat-message-row {
-        display: flex;
-        flex-direction: row;
-    }
-    .chat-message {
-        background-color: #e0f0ff;
-        padding: 8px 12px;
-        border-radius: 10px;
-        max-width: 80%;
-        word-break: break-word;
-    }
-    .chat-input-area {
-        display: flex;
-        gap: 8px;
-    }
+.chat-box {
+  background-color: #fff;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  height: 230px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  z-index: 0;
+}
 
-    .input-group {
-        border-radius: 10px;
-        overflow: hidden;
-        border: 1px solid #ced4da;
-    }
+.chat-history {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 8px;
+  padding-right: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.chat-message-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.chat-message-row.receiver {
+  justify-content: flex-start;
+}
+
+.chat-message-row.sender {
+  justify-content: flex-end;
+}
+
+.chat-message {
+  padding: 8px 12px;
+  border-radius: 10px;
+  max-width: 80%;
+  word-break: break-word;
+}
+
+.receiver .chat-message {
+  background-color: #e0f0ff;
+  border-top-left-radius: 0;
+}
+
+.sender .chat-message {
+  background-color: #d1e7dd;
+  border-top-right-radius: 0;
+}
+
+.chat-input-area {
+  display: flex;
+  gap: 8px;
+}
+
+.input-group {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #ced4da;
+}
+
+.input-group .form-control {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 15px;
+}
+
+.input-group .form-control:focus {
+  box-shadow: none;
+  outline: none;
+}
+
+.input-group .btn {
+  border-radius: 8px;
+  padding: 10px 20px;
+  background-color: #4a86e8;
+  color: white;
+  border: none;
+  transition: background-color 0.3s;
+}
+
+.input-group .btn:hover {
+  background-color: #3a76d8;
+}
 </style>

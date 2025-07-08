@@ -1,0 +1,13 @@
+body {
+  background-color: #f5f7fa;
+  font-family: "Segoe UI", sans-serif;
+  overflow: hidden;
+}
+
+.btn-group-sm button {
+  font-size: 13px;
+}
+
+.input-group .btn {
+  z-index: 1;
+}
