@@ -13,20 +13,18 @@
         font-family: "Segoe UI", sans-serif;
         overflow: hidden;
       }
-      /*
             .map-area {
         flex: 1;
-        background-color: #e6ecf2; /* 如果图片加载失败，则显示这个背景色 
+        background-color: #e6ecf2; /* 如果图片加载失败，则显示这个背景色 */
         border: 1px solid #ccc;
         border-radius: 10px;
         position: relative;
         margin-bottom: 15px;
-        background-image: url('map.png'); /*新增背景图片 
-        background-size: cover; /* 使背景图片覆盖整个区域 
+        background-image: url('map.png'); /*新增背景图片 */
+        background-size: cover; /* 使背景图片覆盖整个区域 */
         background-repeat: no-repeat;
         background-position: center;
         }
-      */
       
       .input-group .btn:hover {
         background-color: #3a76d8;
@@ -47,7 +45,6 @@
         overflow-y: auto;
         transition: transform 0.3s ease-in-out;
       }
-      /*
       .header-time {
         font-size: 28px;
         font-weight: bold;
@@ -55,7 +52,6 @@
         text-align: center;
         margin-bottom: 10px;
       }
-        */
       .map-area {
         flex: 1;
         background-color: #e6ecf2;
@@ -64,7 +60,6 @@
         position: relative;
         margin-bottom: 15px;
       }
-      /*
       .warehouse {
         position: absolute;
         cursor: pointer;
@@ -75,12 +70,10 @@
         color: white;
         font-size: 14px;
       }
-        */
       .warehouse:hover {
         background-color: #0077f7;
         transform: scale(1.05);
       }
-      /*
       .chat-box {
         background-color: #fff;
         padding: 10px;
@@ -113,7 +106,6 @@
         max-width: 80%;
         word-break: break-word;
       }
-        */
       .popup-panel {
         position: fixed;
         top: 0;
@@ -231,7 +223,6 @@
       }
 
       /* 新增的圆角输入区域样式 */
-      /*
       .chat-input-area {
         display: flex;
         gap: 8px;
@@ -242,7 +233,6 @@
         overflow: hidden;
         border: 1px solid #ced4da;
       }
-        */
 
       .input-group .form-control {
         border: none;
@@ -297,8 +287,7 @@
       <div class="row">
         <div class="col-md-9 left-panel">
           <div>
-            <!--div class="header-time" id="current-time">北京时间：</div-->
-            <!--
+            <div class="header-time" id="current-time">北京时间：</div>
             <div class="map-area">
               <div
                 class="warehouse"
@@ -336,9 +325,7 @@
                 东北冷链仓
               </div>
             </div>
-          -->
           </div>
-          <!--
           <div class="chat-box">
             <div class="chat-history" id="chat-history"></div>
             <div class="chat-input-area">
@@ -355,7 +342,6 @@
               </div>
             </div>
           </div>
-          -->
         </div>
         <div class="col-md-3 right-panel" id="right-panel">
           <h5>AI 实时预警</h5>
@@ -415,7 +401,6 @@
       <div id="popup-content">加载中...</div>
     </div>
     <script>
-      /*
       function updateTime() {
         const now = new Date();
         document.getElementById("current-time").innerText =
@@ -423,7 +408,6 @@
       }
       setInterval(updateTime, 1000);
       updateTime();
-      */
       function showWarehouseInfo(id, name) {
         document.getElementById("right-panel").style.transform =
           "translateX(-400px)";
@@ -466,7 +450,7 @@
         document.getElementById("right-panel").style.transform =
           "translateX(0)";
       }
-      /*
+
       function sendMessage() {
         const input = document.getElementById("chat-input");
         const history = document.getElementById("chat-history");
@@ -500,7 +484,7 @@
           input.value = "";
         }
       }
-*/
+
       function showApprovalDetail(productId) {
         document.getElementById("right-panel").style.transform =
           "translateX(-400px)";

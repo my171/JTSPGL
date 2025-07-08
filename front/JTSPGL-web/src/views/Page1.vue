@@ -56,6 +56,7 @@ button:hover {
     <ClockBlock />
     <Map />
     <ChatBox />
+    <RightPanel />
     <!--ClockBlock/-->
   </div>
 </template>
@@ -64,6 +65,7 @@ button:hover {
   import ClockBlock from '@components/ClockBlock.vue';
   import Map from '@/components/Map.vue';
   import ChatBox from '@/components/ChatBox.vue';
+  import RightPanel from '@/components/RightPanel.vue';
 </script>
 
 <style>

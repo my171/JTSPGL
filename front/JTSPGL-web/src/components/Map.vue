@@ -34,6 +34,7 @@ const handleButtonClick = (action) => {
   console.log(`点击了按钮，执行操作: ${action}`);
   // 可以在这里添加按钮逻辑，比如 emit 事件或调用方法
   if (action === 'action1') {
+    window.location.hash = "asdf";
     //TODO:编写按钮按下后的逻辑1
   } else if (action === 'action2') {
     //TODO:编写按钮按下后的逻辑2
