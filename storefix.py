@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
-load_dotenv()  # 这行需要放在所有代码之前
+load_dotenv()
 import os
-# 配置环境变量
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 os.environ["HF_HUB_OFFLINE"] = "0"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
@@ -12,139 +11,113 @@ os.environ["DB_PATH"] = os.getenv("DB_PATH", "store.db")
 import sqlite3
 import json
 import hashlib
-import fitz  # PyMuPDF
+import fitz
 import numpy as np
 import faiss
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from sentence_transformers import SentenceTransformer
 from langchain_openai import ChatOpenAI
+import re
 
 class Config:
     """系统配置类"""
-    def __init__(self, db_path: Optional[str] = None):
-        # 嵌入模型配置
-        self.embedding_model = "paraphrase-multilingual-MiniLM-L12-v2"
-        # LLM配置
+    def __init__(self):
+        self.embedding_model = "paraphrase-multilingual-mpnet-base-v2"
         self.llm_model = os.getenv("MODEL_NAME")
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
         self.openai_base_url = os.getenv("OPENAI_API_URL")
-        
-        # 数据库配置 (新增)
-        self.warehouse_db_path = db_path or os.getenv("DB_PATH")
-        
-        # 知识库配置
         self.pdf_knowledge_dir = "./knowledge_pdfs"
-        self.index_dim = 384  # 嵌入模型维度
-        
-        # 检索配置
-        self.top_k = 3
-        self.rag_threshold = 0.8  # 提高到80%匹配度
-        self.cache_expiry = 86400  # 24小时
+        self.index_dim = 768
+        self.top_k = 20
+        self.rag_threshold = 0.5
+        self.chunk_size = 500
+        self.chunk_overlap = 50
+        self.cache_expiry = 86400
 
-class DatabaseImporter:
-    """数据库导入器，用于查询导入的数据库"""
+class TextProcessor:
+    @staticmethod
+    def chunk_text(text: str, chunk_size: int, overlap: int) -> List[str]:
+        chunks = []
+        start = 0
+        while start < len(text):
+            end = min(start + chunk_size, len(text))
+            chunks.append(text[start:end])
+            if end == len(text):
+                break
+            start = end - overlap
+        return chunks
     
-    def __init__(self, db_path: str):
-        self.db_path = db_path
-        self._verify_database()
-    
-    def _verify_database(self):
-        """验证数据库文件是否有效"""
-        if not os.path.exists(self.db_path):
-            raise FileNotFoundError(f"数据库文件不存在: {self.db_path}")
-        
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            tables = cursor.fetchall()
-            if not tables:
-                raise ValueError("数据库中没有表")
-            conn.close()
-        except sqlite3.Error as e:
-            raise ValueError(f"无效的数据库文件: {str(e)}")
-    
-    def execute_query(self, query: str, params: tuple = None) -> List[Dict]:
-        """执行查询并返回格式化结果"""
-        conn = None
-        try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute(query, params or ())
-            return [dict(row) for row in cursor.fetchall()]
-        except sqlite3.Error as e:
-            print(f"数据库查询错误: {e}")
-            return []
-        finally:
-            if conn:
-                conn.close()
-    
-    def get_table_info(self) -> Dict:
-        """获取数据库表结构信息"""
-        conn = None
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # 获取所有表名
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            tables = [row[0] for row in cursor.fetchall()]
-            
-            # 获取每个表的结构
-            table_info = {}
-            for table in tables:
-                cursor.execute(f"PRAGMA table_info({table});")
-                columns = [{"name": row[1], "type": row[2]} for row in cursor.fetchall()]
-                table_info[table] = columns
-            
-            return table_info
-        except sqlite3.Error as e:
-            print(f"获取表结构失败: {e}")
-            return {}
-        finally:
-            if conn:
-                conn.close()
+    @staticmethod
+    def clean_text(text: str) -> str:
+        text = ' '.join(text.split())
+        return text.strip()
 
 class PDFKnowledgeExtractor:
-    """PDF知识提取器"""
     def __init__(self, config: Config):
         self.config = config
         self.embedder = SentenceTransformer(config.embedding_model)
+        self.text_processor = TextProcessor()
     
     def extract_text(self, pdf_path: str) -> List[Dict]:
-        """提取PDF文本内容"""
         doc = fitz.open(pdf_path)
         chunks = []
+        
         for page in doc:
             text = page.get_text()
-            if text.strip():
+            if not text.strip():
+                continue
+                
+            text = self.text_processor.clean_text(text)
+            text_chunks = self.text_processor.chunk_text(
+                text, 
+                self.config.chunk_size, 
+                self.config.chunk_overlap
+            )
+            
+            for chunk in text_chunks:
                 chunks.append({
-                    "content": text,
+                    "content": chunk,
                     "metadata": {
                         "source": os.path.basename(pdf_path),
-                        "page": page.number + 1
+                        "page": page.number + 1,
+                        "chunk_id": hashlib.md5(chunk.encode()).hexdigest()[:8]
                     }
                 })
         return chunks
     
     def process_pdf_directory(self) -> List[Dict]:
-        """处理PDF目录中的所有文件"""
         if not os.path.exists(self.config.pdf_knowledge_dir):
             os.makedirs(self.config.pdf_knowledge_dir)
             return []
         
         all_chunks = []
+        processed_files = set()
+        
+        if os.path.exists("pdf_processing.log"):
+            with open("pdf_processing.log", "r") as f:
+                processed_files = set(line.strip() for line in f)
+        
+        new_files = False
+        
         for filename in os.listdir(self.config.pdf_knowledge_dir):
-            if filename.endswith(".pdf"):
+            if filename.endswith(".pdf") and filename not in processed_files:
                 pdf_path = os.path.join(self.config.pdf_knowledge_dir, filename)
-                chunks = self.extract_text(pdf_path)
-                all_chunks.extend(chunks)
+                try:
+                    chunks = self.extract_text(pdf_path)
+                    all_chunks.extend(chunks)
+                    with open("pdf_processing.log", "a") as f:
+                        f.write(f"{filename}\n")
+                    new_files = True
+                except Exception as e:
+                    print(f"处理PDF文件失败: {filename}, 错误: {str(e)}")
+        
+        if new_files:
+            print(f"已处理 {len(all_chunks)} 个新文本块")
+        
         return all_chunks
 
 class KnowledgeBase:
-    """知识库管理类"""
     def __init__(self, config: Config):
         self.config = config
         self.embedder = SentenceTransformer(config.embedding_model)
@@ -161,20 +134,46 @@ class KnowledgeBase:
         self._initialize_base_knowledge()
     
     def _init_vector_index(self):
-        """初始化FAISS向量索引"""
         try:
             index = faiss.read_index("vector_db.index")
             print("加载已有向量索引")
+            return index  # 已经是IDMap2类型，直接返回
         except:
             index = faiss.IndexFlatIP(self.config.index_dim)
             print("创建新向量索引")
-        return index
+            return faiss.IndexIDMap2(index)
     
     def _init_local_db(self):
-        """初始化SQLite知识库"""
+        """初始化SQLite知识库，处理数据库迁移"""
         conn = sqlite3.connect("knowledge.db")
         cursor = conn.cursor()
         
+        # 检查knowledge表是否存在并处理迁移
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='knowledge';")
+        if cursor.fetchone():
+            # 检查knowledge表列
+            cursor.execute("PRAGMA table_info(knowledge);")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'vector_id' not in columns:
+                try:
+                    cursor.execute("ALTER TABLE knowledge ADD COLUMN vector_id INTEGER;")
+                    conn.commit()
+                except sqlite3.OperationalError as e:
+                    print(f"添加vector_id列失败: {e}")
+        
+        # 检查search_cache表是否存在并处理迁移
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='search_cache';")
+        if cursor.fetchone():
+            cursor.execute("PRAGMA table_info(search_cache);")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'query_text' not in columns:
+                try:
+                    cursor.execute("ALTER TABLE search_cache ADD COLUMN query_text TEXT;")
+                    conn.commit()
+                except sqlite3.OperationalError as e:
+                    print(f"添加query_text列失败: {e}")
+        
+        # 创建或更新表结构
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS knowledge (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -183,7 +182,8 @@ class KnowledgeBase:
             embedding BLOB,
             source TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            hash TEXT UNIQUE
+            hash TEXT UNIQUE,
+            vector_id INTEGER UNIQUE
         )
         ''')
         
@@ -191,15 +191,19 @@ class KnowledgeBase:
         CREATE TABLE IF NOT EXISTS search_cache (
             query_hash TEXT PRIMARY KEY,
             results TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            query_text TEXT
         )
         ''')
+        
+        # 创建索引
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_knowledge_hash ON knowledge(hash)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_knowledge_vector_id ON knowledge(vector_id)')
         
         conn.commit()
         return conn
     
     def _init_pdf_knowledge(self):
-        """初始化PDF知识"""
         pdf_chunks = self.pdf_extractor.process_pdf_directory()
         for chunk in pdf_chunks:
             self.add_knowledge(
@@ -209,17 +213,21 @@ class KnowledgeBase:
             )
     
     def _initialize_base_knowledge(self):
-        """初始化基础仓库知识"""
         base_knowledge = [
             {
                 "content": "仓库管理最佳实践包括定期盘点库存、优化存储布局和建立安全协议。",
-                "metadata": {"source": "仓库管理手册"},
+                "metadata": {"source": "仓库管理手册", "type": "best_practice"},
                 "source": "manual"
             },
             {
                 "content": "库存周转率是衡量仓库效率的重要指标，计算公式为:销售成本/平均库存。",
-                "metadata": {"source": "供应链管理指南"},
+                "metadata": {"source": "供应链管理指南", "type": "metric"},
                 "source": "guide"
+            },
+            {
+                "content": "ABC分类法将库存分为三类:A类(高价值低数量)、B类(中等价值中等数量)、C类(低价值高数量)。",
+                "metadata": {"source": "库存管理原理", "type": "methodology"},
+                "source": "textbook"
             }
         ]
         
@@ -227,27 +235,38 @@ class KnowledgeBase:
             self.add_knowledge(**knowledge)
     
     def add_knowledge(self, content: str, metadata: dict = None, source: str = "local") -> bool:
-        """添加知识条目"""
         content_hash = hashlib.md5(content.encode()).hexdigest()
         cursor = self.local_db.cursor()
         
         try:
-            cursor.execute("SELECT 1 FROM knowledge WHERE hash=?", (content_hash,))
-            if cursor.fetchone():
+            cursor.execute("SELECT id, vector_id FROM knowledge WHERE hash=?", (content_hash,))
+            existing = cursor.fetchone()
+            
+            if existing:
                 return False
             
             embedding = self.embedder.encode(content)
             embedding_bytes = embedding.tobytes()
             
+            cursor.execute("SELECT MAX(vector_id) FROM knowledge")
+            max_id = cursor.fetchone()[0] or 0
+            new_vector_id = max_id + 1
+            
             cursor.execute('''
-            INSERT INTO knowledge (content, metadata, embedding, source, hash)
-            VALUES (?, ?, ?, ?, ?)
-            ''', (content, json.dumps(metadata) if metadata else None, 
-                 embedding_bytes, source, content_hash))
+            INSERT INTO knowledge (content, metadata, embedding, source, hash, vector_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                content, 
+                json.dumps(metadata) if metadata else None, 
+                embedding_bytes, 
+                source, 
+                content_hash,
+                new_vector_id
+            ))
             
             embedding = embedding.reshape(1, -1).astype('float32')
             faiss.normalize_L2(embedding)
-            self.vector_index.add(embedding)
+            self.vector_index.add_with_ids(embedding, np.array([new_vector_id]))
             
             self.local_db.commit()
             return True
@@ -256,8 +275,14 @@ class KnowledgeBase:
             print(f"添加知识失败: {e}")
             return False
     
-    def search_local(self, query: str) -> List[Dict]:
-        """本地知识检索"""
+    def search_local(self, query: str, use_cache: bool = True) -> List[Dict]:
+        query_hash = hashlib.md5(query.encode()).hexdigest()
+        
+        if use_cache:
+            cache_result = self._check_cache(query_hash)
+            if cache_result:
+                return cache_result
+        
         query_embedding = self.embedder.encode(query)
         query_embedding = query_embedding.reshape(1, -1).astype('float32')
         faiss.normalize_L2(query_embedding)
@@ -266,122 +291,182 @@ class KnowledgeBase:
         
         cursor = self.local_db.cursor()
         results = []
+        
         for idx, distance in zip(indices[0], distances[0]):
-            if idx < 0:
+            if idx == -1:
                 continue
             
-            cursor.execute("SELECT content, metadata, source FROM knowledge WHERE id=?", (idx+1,))
+            cursor.execute("""
+                SELECT id, content, metadata, source 
+                FROM knowledge 
+                WHERE vector_id=?
+            """, (int(idx),))
+            
             row = cursor.fetchone()
             if row:
                 results.append({
-                    "content": row[0],
-                    "metadata": json.loads(row[1]) if row[1] else {},
-                    "source": row[2],
+                    "id": row[0],
+                    "content": row[1],
+                    "metadata": json.loads(row[2]) if row[2] else {},
+                    "source": row[3],
                     "score": float(distance)
                 })
         
-        # 按匹配度排序
         results.sort(key=lambda x: x["score"], reverse=True)
+        
+        if use_cache and results:
+            self._cache_results(query_hash, query, results)
+        
         return results
     
+    def _check_cache(self, query_hash: str) -> Optional[List[Dict]]:
+        cursor = self.local_db.cursor()
+        cursor.execute("""
+            SELECT results, timestamp 
+            FROM search_cache 
+            WHERE query_hash=?
+        """, (query_hash,))
+        
+        row = cursor.fetchone()
+        if row:
+            results_json, timestamp = row
+            cache_time = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+            if (datetime.now() - cache_time).total_seconds() < self.config.cache_expiry:
+                return json.loads(results_json)
+        return None
+    
+    def _cache_results(self, query_hash: str, query_text: str, results: List[Dict]):
+        try:
+            cursor = self.local_db.cursor()
+            # 检查表是否有query_text列
+            cursor.execute("PRAGMA table_info(search_cache);")
+            columns = [column[1] for column in cursor.fetchall()]
+            has_query_text = 'query_text' in columns
+            
+            if has_query_text:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO search_cache (query_hash, results, query_text, timestamp)
+                    VALUES (?, ?, ?, datetime('now'))
+                """, (query_hash, json.dumps(results), query_text))
+            else:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO search_cache (query_hash, results, timestamp)
+                    VALUES (?, ?, datetime('now'))
+                """, (query_hash, json.dumps(results)))
+            
+            self.local_db.commit()
+        except Exception as e:
+            print(f"缓存失败: {e}")
+    
     def hybrid_search(self, query: str) -> Tuple[List[Dict], bool]:
-        """增强版混合检索策略"""
-        # 本地检索
         local_results = self.search_local(query)
-        
-        # 检查是否有高匹配度结果
         has_high_match = any(res.get("score", 0) >= self.config.rag_threshold for res in local_results)
-        
         return local_results, has_high_match
     
+    def generate_response(self, query: str, context: List[Dict] = None) -> str:
+        # 多轮迭代RAG召回
+        filtered_context = iterative_rag_search(self, query)
+        # 构建更明确的提示模板
+        context_str = "\n\n".join([
+            f"来源: {res['metadata'].get('source', res['source'])}\n内容: {res['content']}\n相关度: {res['score']:.2f}"
+            for res in filtered_context
+        ])
+        messages = [{
+            "role": "system",
+            "content": f"""你是一个专业的仓库知识助手。请根据以下上下文信息回答问题。注意：
+1. 必须严格基于提供的上下文信息回答
+2. 如果上下文中有直接相关的内容，必须优先使用
+3. 保持回答专业、准确、简洁
+4. 如有相关明细请直接列举，没有则说明无数据
+
+上下文信息:
+{context_str}
+
+问题: {query}
+
+请直接回答问题，不要添加无关信息。"""
+        }, {
+            "role": "user",
+            "content": query
+        }]
+        response = self.llm.invoke(messages)
+        return response.content
+    
     def save_vector_index(self):
-        """保存向量索引"""
         faiss.write_index(self.vector_index, "vector_db.index")
         print("向量索引已保存")
 
-class IntentClassifier:
-    """增强版意图分类器"""
-    def __init__(self, llm):
-        self.llm = llm
-        self.default_response = {
-            "is_db_query": False,
-            "query_type": None,
-            "target_id": None,
-            "operation": "query"  # query/insert/update/delete
-        }
-    
-    def classify(self, query: str) -> Dict:
-        """识别查询意图"""
-        try:
-            # 简化意图识别，只判断是否需要数据库查询
-            return {
-                "is_db_query": False,
-                "query_type": None,
-                "target_id": None,
-                "operation": "query"
-            }
-        except Exception as e:
-            print(f"意图分类失败: {e}")
-            return self.default_response
+def filter_context_by_keywords(context, query, min_count=3):
+    # 简单分词，提取长度大于1的词
+    keywords = [w for w in query.replace('，', ' ').replace('。', ' ').split() if len(w) > 1]
+    filtered = [c for c in context if any(k in c['content'] for k in keywords)]
+    if len(filtered) < min_count:
+        filtered += [c for c in context if c not in filtered][:min_count - len(filtered)]
+    return filtered
+
+def extract_keywords(query):
+    # 优先提取门店、产品等实体（可根据实际业务扩展）
+    # 这里简单用正则匹配“店”、“中心”、“产品”等关键词
+    keywords = set()
+    # 匹配“XX店”
+    keywords.update(re.findall(r"[\u4e00-\u9fa5]{2,}店", query))
+    # 匹配“XX中心”
+    keywords.update(re.findall(r"[\u4e00-\u9fa5]{2,}中心", query))
+    # 匹配“产品XX”
+    keywords.update(re.findall(r"产品[\u4e00-\u9fa5A-Za-z0-9]+", query))
+    # 也可加入其它业务关键词
+    # 若无匹配，退回分词法
+    if not keywords:
+        keywords = set([w for w in query.replace('，', ' ').replace('。', ' ').split() if len(w) > 1])
+    return list(keywords)
+
+def iterative_rag_search(self, query):
+    # 首轮：原始query向量检索
+    context = self.search_local(query)
+    print("\n[RAG首轮召回片段]:")
+    for res in context:
+        print(res['content'])
+    # 提取关键词
+    keywords = extract_keywords(query)
+    # 二轮：用关键词分别检索补充
+    extra_context = []
+    for kw in keywords:
+        kw_context = self.search_local(kw, use_cache=False)
+        print(f"\n[RAG关键词召回片段 - 关键词:{kw}]:")
+        for res in kw_context:
+            print(res['content'])
+        extra_context.extend(kw_context)
+    # 合并去重
+    all_context = {res['content']: res for res in context + extra_context}
+    merged_context = list(all_context.values())
+    # 关键词过滤
+    filtered_context = filter_context_by_keywords(merged_context, query, min_count=3)
+    print("\n[最终用于大模型的上下文片段]:")
+    for res in filtered_context:
+        print(res['content'])
+    return filtered_context
 
 class WarehouseRAGSystem:
-    """完整的智能仓库管理系统"""
-    def __init__(self, db_path: Optional[str] = None):
-        self.config = Config(db_path)
+    def __init__(self):
+        self.config = Config()
         self.knowledge_base = KnowledgeBase(self.config)
-        self.intent_classifier = IntentClassifier(self.knowledge_base.llm)
-        
-        # 初始化数据库导入器
-        self.db_importer = None
-        if db_path and os.path.exists(db_path):
-            try:
-                self.db_importer = DatabaseImporter(db_path)
-                print(f"已加载数据库: {db_path}")
-            except Exception as e:
-                print(f"加载数据库失败: {str(e)}")
     
     def process_query(self, query: str) -> Dict:
-        """处理用户查询"""
-        intent = self.intent_classifier.classify(query)
-        
-        # 如果有数据库且查询需要数据库信息
-        if self.db_importer and self._should_use_database(query):
-            return self._handle_db_aware_query(query)
-        
-        # 否则使用知识库查询
-        return self._handle_knowledge_query(query)
-    
-    def _should_use_database(self, query: str) -> bool:
-        """判断是否需要使用数据库信息"""
-        db_keywords = ["库存", "销售", "供应", "产品", "仓库", "门店", "员工"]
-        return any(keyword in query for keyword in db_keywords)
-    
-    def _handle_knowledge_query(self, query: str) -> Dict:
-        """处理知识库查询"""
         try:
-            # 使用混合检索策略
             results, has_high_match = self.knowledge_base.hybrid_search(query)
             
-            if has_high_match:
-                # 使用本地高匹配度结果生成回答
-                context = "\n".join([result["content"] for result in results[:3]])
-                response = self.knowledge_base.llm.invoke([{
-                    "role": "system",
-                    "content": f"基于以下本地知识库信息回答用户问题:\n{context}"
-                }, {
-                    "role": "user",
-                    "content": query
-                }])
+            if results:  # 只要有结果就使用，不一定要达到阈值
+                answer = self.knowledge_base.generate_response(query, results[:3])
                 
                 return {
                     "question": query,
-                    "answer": response.content,
-                    "sources": [result["source"] for result in results],
+                    "answer": answer,
+                    "sources": [res["metadata"].get("source", res["source"]) for res in results],
                     "context": results,
-                    "source_type": "local"
+                    "source_type": "local",
+                    "confidence": min(1.0, max(0.0, results[0]["score"]))
                 }
             else:
-                # 没有高匹配度结果，直接使用LLM回答
                 response = self.knowledge_base.llm.invoke([{
                     "role": "user",
                     "content": query
@@ -391,111 +476,48 @@ class WarehouseRAGSystem:
                     "question": query,
                     "answer": response.content,
                     "sources": [],
-                    "source_type": "llm"
+                    "source_type": "llm",
+                    "confidence": 0.7
                 }
         except Exception as e:
             return {
                 "question": query,
                 "answer": f"查询失败: {str(e)}",
-                "sources": []
+                "sources": [],
+                "source_type": "error"
             }
-    
-    def _handle_db_aware_query(self, query: str) -> Dict:
-        """处理需要结合数据库知识的查询"""
-        try:
-            # 1. 获取数据库结构
-            db_structure = self.db_importer.get_table_info()
-            
-            # 2. 使用LLM生成SQL查询
-            prompt = f"""你是一个SQL专家。根据以下数据库结构和问题，生成可直接执行的SQL查询:
-
-数据库结构:
-{json.dumps(db_structure, indent=2, ensure_ascii=False)}
-
-问题: {query}
-
-请返回可直接执行的SQL语句，不要包含任何解释或注释。"""
-            
-            sql_response = self.knowledge_base.llm.invoke([{
-                "role": "system", 
-                "content": prompt
-            }])
-            
-            # 3. 执行SQL查询
-            sql_query = sql_response.content
-            query_results = self.db_importer.execute_query(sql_query)
-            
-            # 4. 使用LLM解释结果
-            explanation_prompt = f"""根据以下SQL查询结果，用自然语言解释:
-
-查询: {sql_query}
-
-结果:
-{json.dumps(query_results, indent=2, ensure_ascii=False)}
-
-问题: {query}
-
-请提供清晰、专业的解释:"""
-            
-            explanation = self.knowledge_base.llm.invoke([{
-                "role": "system",
-                "content": explanation_prompt
-            }])
-            
-            return {
-                "question": query,
-                "answer": explanation.content,
-                "sources": ["database"],
-                "data": query_results,
-                "sql_query": sql_query,
-                "source_type": "database"
-            }
-            
-        except Exception as e:
-            print(f"数据库查询失败: {str(e)}")
-            # 失败时回退到知识库查询
-            return self._handle_knowledge_query(query)
     
     def close(self):
-        """关闭系统"""
         self.knowledge_base.save_vector_index()
         self.knowledge_base.local_db.close()
 
 def display_result(result: Dict):
-    """格式化显示结果"""
     print("\n=== 回答 ===")
     print(result['answer'])
     
     if result.get('source_type') == "local":
+        print(f"\n=== 置信度: {result.get('confidence', 0):.1%} ===")
         print("\n=== 信息来源 ===")
-        pdf_names = [item["metadata"]["source"] for item in result.get('context', []) if "metadata" in item and "source" in item["metadata"]]
-        for name in set(pdf_names):
-            print(f"- PDF文档: {name}")
-    elif result.get('source_type') == "database":
-        print("\n=== 数据库查询结果 ===")
-        if result.get('data'):
-            print("\n=== 数据详情 ===")
-            if isinstance(result['data'], list) and len(result['data']) > 0:
-                sample = result['data'][0]
-                if isinstance(sample, dict):
-                    # 显示表格形式的字段和值
-                    print("\n".join(f"{k}: {v}" for k, v in sample.items()))
-            else:
-                print(json.dumps(result['data'], indent=2, ensure_ascii=False))
+        
+        sources = {}
+        for item in result.get('context', []):
+            source = item.get('metadata', {}).get('source', item.get('source', '未知'))
+            if source not in sources:
+                sources[source] = 1
+        
+        for source in sources:
+            print(f"- {source}")
     elif result.get('source_type') == "llm":
         print("\n=== 信息来自大模型生成 ===")
+    elif result.get('source_type') == "error":
+        print("\n=== 查询出错 ===")
 
 def main():
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='仓库智能管理系统')
-    parser.add_argument('--db', help='数据库文件路径(可选)')
-    args = parser.parse_args()
-    
-    print("=== 仓库智能管理系统 ===")
+    print("=== RAG仓库知识管理系统 ===")
     print("请输入您的查询：")
     print("输入'退出'或'quit'结束会话\n")
-    system = WarehouseRAGSystem(args.db)
+    
+    system = WarehouseRAGSystem()
     
     try:
         while True:
@@ -513,19 +535,10 @@ def main():
         print("\n系统已关闭")
 
 if __name__ == "__main__":
-    # 检查依赖
     try:
         from langchain_openai import ChatOpenAI
     except ImportError:
-        print("请先安装依赖: pip install langchain-openai pymupdf sentence-transformers faiss-cpu")
-        exit(1)
-    
-    main()
-    # 检查依赖
-    try:
-        from langchain_openai import ChatOpenAI
-    except ImportError:
-        print("请先安装依赖: pip install langchain-openai pymupdf sentence-transformers faiss-cpu")
+        print("请先安装依赖: pip install langchain-openai pymupdf sentence-transformers faiss-cpu python-dotenv")
         exit(1)
     
     main()
