@@ -21,6 +21,9 @@ locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 app = Flask(__name__)
 app.config.from_object(Config)
 
+def get_result(input_text):
+    return f""""Original Text: {input_text}"""
+
 @app.route('/')
 def dashboard():
     warehouses = Warehouse.get_all()
@@ -232,6 +235,20 @@ def product_search():
                              'total': total,
                              'pages': (total + per_page - 1) // per_page
                          })
+
+@app.route('/chatting', methods = ['POST'])
+def Reply():
+    try:
+        input_text = request.get_json().get('text', '')
+        
+        if not input_text:
+            return jsonify({'error': '输入文本为空'}), 400
+        
+        result = get_result(input_text)
+        return jsonify({'result': result})
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

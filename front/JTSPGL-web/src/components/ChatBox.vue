@@ -43,7 +43,7 @@ const sendMessage = async () => {
     scrollToBottom();
     
     try {
-        const response = await axios.post('http://localhost:5000/asdhoif', {
+        const response = await axios.post('http://localhost:5000/chatting', {
             text: inputMessage.value
         });
         messages.value.push({
