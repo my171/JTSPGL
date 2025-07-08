@@ -54,12 +54,14 @@ button:hover {
 <template>
   <div class="page1">
     <ClockBlock />
+    <ChatBox />
     <!--ClockBlock/-->
   </div>
 </template>
 
 <script setup>
-  import ClockBlock from '@components/ClockBlock.vue';
+  import ChatBox from '@/components/ChatBox.vue';
+import ClockBlock from '@components/ClockBlock.vue';
 </script>
 
 <style>
