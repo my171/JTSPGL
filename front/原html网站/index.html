@@ -76,6 +76,7 @@
         background-color: #0077f7;
         transform: scale(1.05);
       }
+      /*
       .chat-box {
         background-color: #fff;
         padding: 10px;
@@ -108,6 +109,7 @@
         max-width: 80%;
         word-break: break-word;
       }
+        */
       .popup-panel {
         position: fixed;
         top: 0;
@@ -225,6 +227,7 @@
       }
 
       /* 新增的圆角输入区域样式 */
+      /*
       .chat-input-area {
         display: flex;
         gap: 8px;
@@ -235,6 +238,7 @@
         overflow: hidden;
         border: 1px solid #ced4da;
       }
+        */
 
       .input-group .form-control {
         border: none;
@@ -289,7 +293,7 @@
       <div class="row">
         <div class="col-md-9 left-panel">
           <div>
-            <div class="header-time" id="current-time">北京时间：</div>
+            <!--div class="header-time" id="current-time">北京时间：</div-->
             <div class="map-area">
               <div
                 class="warehouse"
@@ -328,6 +332,7 @@
               </div>
             </div>
           </div>
+          <!--
           <div class="chat-box">
             <div class="chat-history" id="chat-history"></div>
             <div class="chat-input-area">
@@ -344,6 +349,7 @@
               </div>
             </div>
           </div>
+          -->
         </div>
         <div class="col-md-3 right-panel" id="right-panel">
           <h5>AI 实时预警</h5>
@@ -454,7 +460,7 @@
         document.getElementById("right-panel").style.transform =
           "translateX(0)";
       }
-
+      /*
       function sendMessage() {
         const input = document.getElementById("chat-input");
         const history = document.getElementById("chat-history");
@@ -488,7 +494,7 @@
           input.value = "";
         }
       }
-
+*/
       function showApprovalDetail(productId) {
         document.getElementById("right-panel").style.transform =
           "translateX(-400px)";
