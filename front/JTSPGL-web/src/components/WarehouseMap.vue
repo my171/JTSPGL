@@ -1,6 +1,6 @@
 <template>
-  <div class="map-container" ref="mapContainer">
-    <div class="map-area">
+  <div class="map-container">
+    <div class="map-area" ref="mapContainer">
       <div
         v-for="warehouse in warehouses"
         :key="warehouse.id"
