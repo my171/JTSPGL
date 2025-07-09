@@ -83,12 +83,14 @@ const infoMap = {
 const showWarehouseInfo = (id, name) => {
   let html = `<h5>${name} - 商店列表</h5>`;
   stores[id].forEach((store) => {
-    html += `<button class='store-button' onclick="this.dispatchEvent(new CustomEvent('store-click', { detail: '${store}', bubbles: true }))">${store}</button>`;
+    html += `<button class='btn btn-sm btn-outline-secondary mb-3' onclick="this.dispatchEvent(new CustomEvent('store-click', { detail: '${store}', bubbles: true }))">${store}</button>`;
   });
   content.value = html;
   isVisible.value = true;
 };
 
+/*
+似乎暂无作用
 const showStoreOptions = (store) => {
   let html = `<h5>${store} - 操作选项</h5>
     <div class='query-options'>
@@ -103,6 +105,7 @@ const showStoreOptions = (store) => {
     </div>`;
   content.value = html;
 };
+*/
 
 const showApprovalDetail = (productId) => {
   const item = infoMap[productId] || {
@@ -159,7 +162,19 @@ defineExpose({
 .popup-panel.show {
   transform: translateX(0);
 }
-
+.store-button {
+  width: 100%;
+  text-align: left;
+  display: inline-block;
+  padding: 6px 12px;
+  margin: 5px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: none;
+  font-size: 14px;
+  transition: 0.2s;
+}
+/*
 .store-button {
   display: inline-block;
   padding: 6px 12px;
@@ -172,6 +187,7 @@ defineExpose({
   background-color: #f8f9fa;
   border: 1px solid #ccc;
 }
+  */
 
 .store-button:hover {
   background-color: #e2e6ea;
