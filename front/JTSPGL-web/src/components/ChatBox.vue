@@ -47,7 +47,7 @@ const sendMessage = async () => {
     
     try {
         const response = await axios.post('http://localhost:5000/chatting', {
-            text: inputMessage.value
+            text: sentText
         });
         messages.value.push({
             text: response.data.result,
@@ -56,7 +56,7 @@ const sendMessage = async () => {
     } catch (error) {
         outputText.value = `处理出错: ${error.response?.data?.error || error.message}`;
     }
-    inputMessage.value = '';
+    //inputMessage.value = '';之前清空过，此处多余
   }
 };
 

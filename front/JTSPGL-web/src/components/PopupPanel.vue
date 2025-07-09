@@ -9,19 +9,34 @@
 
 <script setup>
 import { ref } from 'vue';
+import axios from 'axios';
 
 const emit = defineEmits(['close']);
 
 const isVisible = ref(false);
 const content = ref('加载中...');
 
-const stores = {
-  WH001: ["北京王府井旗舰店", "武汉武商广场店"],
-  WH002: ["上海徐家汇店", "南京新街口店", "杭州西湖店"],
-  WH003: ["广州天河城店", "深圳万象城店"],
-  WH004: ["成都春熙路店", "重庆解放碑店"],
-  WH005: ["西安钟楼店"],
+const showWarehouseInfo = async (id, name) => {
+  content.value = `<h5>${name} - 商店列表</h5><p>加载中...</p>`;
+  isVisible.value = true;
+
+  try {
+    //调用后端接口加载该仓库的商店列表
+    const response = await axios.get(`http://localhost:5000/api/warehouses/${id}/stores`);
+    const storeList = response.data; // 返回格式 ["上海徐家汇店", "广州天河城店"]
+
+    //动态生成按钮
+    let html = `<h5>${name} - 商店列表</h5>`;
+    storeList.forEach((store) => {
+      html += `<button class='btn btn-sm btn-outline-secondary mb-3' onclick="this.dispatchEvent(new CustomEvent('store-click', { detail: '${store}', bubbles: true }))">${store}</button>`;
+    });
+    content.value = html;
+
+  } catch (err) {
+    content.value = `<p class="text-danger">加载失败：${err.message}</p>`;
+  }
 };
+
 
 const infoMap = {
   P10001: {
@@ -80,17 +95,8 @@ const infoMap = {
   },
 };
 
-const showWarehouseInfo = (id, name) => {
-  let html = `<h5>${name} - 商店列表</h5>`;
-  stores[id].forEach((store) => {
-    html += `<button class='btn btn-sm btn-outline-secondary mb-3' onclick="this.dispatchEvent(new CustomEvent('store-click', { detail: '${store}', bubbles: true }))">${store}</button>`;
-  });
-  content.value = html;
-  isVisible.value = true;
-};
 
-/*
-似乎暂无作用
+
 const showStoreOptions = (store) => {
   let html = `<h5>${store} - 操作选项</h5>
     <div class='query-options'>
@@ -105,7 +111,7 @@ const showStoreOptions = (store) => {
     </div>`;
   content.value = html;
 };
-*/
+
 
 const showApprovalDetail = (productId) => {
   const item = infoMap[productId] || {
