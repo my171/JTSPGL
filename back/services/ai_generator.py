@@ -1,0 +1,531 @@
+import os
+import sys
+import re
+import time
+import json
+import shutil
+import subprocess
+import sqlite3
+from httpx import ReadTimeout
+from openai import OpenAI, APIConnectionError, APIError
+from datetime import datetime
+# from database import DBPool  # 已移除无效导入
+
+import numpy as np
+import faiss
+import pickle
+from contextlib import contextmanager
+from psycopg2.pool import ThreadedConnectionPool
+import mysql.connector  # 新增MySQL支持
+from mysql.connector.pooling import MySQLConnectionPool  # 新增MySQL连接池
+
+# 修复数据库连接池问题
+class FixedDBPool:
+    _connection_pool = None
+    
+    @classmethod
+    def init_pool(cls, db_type=None, **kwargs):
+        if db_type == 'sqlite':
+            cls._connection_pool = SQLiteConnectionPool(kwargs['sqlite_path'], kwargs.get('maxconn', 5))
+        elif db_type == 'postgres':  # 明确区分PostgreSQL
+            cls._connection_pool = ThreadedConnectionPool(
+                minconn=kwargs.get('minconn', 3),
+                maxconn=kwargs.get('maxconn', 20),
+                host=kwargs['host'],
+                port=kwargs['port'],
+                database=kwargs['database'],
+                user=kwargs['user'],
+                password=kwargs['password']
+            )
+        elif db_type == 'mysql':  # 新增MySQL支持
+            cls._connection_pool = MySQLConnectionPoolWrapper(
+                host=kwargs['host'],
+                port=kwargs['port'],
+                user=kwargs['user'],
+                password=kwargs['password'],
+                database=kwargs['database'],
+                pool_size=kwargs.get('maxconn', 20)
+            )
+    
+    @classmethod
+    @contextmanager
+    def get_connection(cls):
+        conn = cls._connection_pool.getconn()
+        try:
+            yield conn
+        finally:
+            cls._connection_pool.putconn(conn)
+    
+    @classmethod
+    def close_all(cls):
+        if cls._connection_pool:
+            cls._connection_pool.closeall()
+
+# SQLite连接池实现
+class SQLiteConnectionPool:
+    def __init__(self, db_path, maxconn=5):
+        self.db_path = db_path
+        self.maxconn = maxconn
+        self.pool = []
+        
+    def getconn(self):
+        if not self.pool:
+            return sqlite3.connect(self.db_path)
+        return self.pool.pop()
+    
+    def putconn(self, conn):
+        if len(self.pool) < self.maxconn:
+            self.pool.append(conn)
+        else:
+            conn.close()
+    
+    def closeall(self):
+        for conn in self.pool:
+            conn.close()
+        self.pool = []
+
+# 新增MySQL连接池包装类
+class MySQLConnectionPoolWrapper:
+    def __init__(self, host, port, user, password, database, pool_size=10):
+        self.pool = MySQLConnectionPool(
+            pool_name="mysql_pool",
+            pool_size=pool_size,
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            database=database,
+            autocommit=False
+        )
+    
+    def getconn(self):
+        return self.pool.get_connection()
+    
+    def putconn(self, conn):
+        conn.close()  # 实际是归还连接到池中
+    
+    def closeall(self):
+        # MySQL连接池会自动管理关闭
+        pass
+
+# 使用修复后的连接池
+DBPool = FixedDBPool
+
+# 初始化 OpenAI 客户端
+client = OpenAI(api_key="sk-3f5e62ce34084f25ba2772f0f2958f75", base_url="https://api.deepseek.com")
+
+class NLDatabaseManager:
+    def __init__(self, db_path: str, indexer):
+        self.db_path = db_path
+        self.indexer = indexer
+
+    def process_nl(self, command: str):
+        prompt = (
+            "将以下自然语言指令解析为 JSON，对应 action(create/read/update/delete),"
+            " table, conditions, data 键，无多余文字输出："
+            f"\n指令: {command}\nJSON:")
+        try:
+            resp = client.chat.completions.create(
+                model="deepseek-reasoner",
+                messages=[{"role":"user", "content": prompt}]
+            )
+            parsed = json.loads(resp.choices[0].message.content)
+        except Exception as e:
+            return f"解析指令失败: {str(e)}"
+
+        action = parsed.get("action")
+        table = parsed.get("table")
+        cond = parsed.get("conditions", "1=1")
+        data = parsed.get("data", {})
+
+        try:
+            with DBPool.get_connection() as conn:
+                cur = conn.cursor()
+                if action == "create":
+                    cols, vals = zip(*data.items())
+                    placeholders = ",".join(["?" for _ in vals])
+                    cur.execute(
+                        f"INSERT INTO {table} ({','.join(cols)}) VALUES ({placeholders})",
+                        tuple(vals)
+                    )
+                elif action == "read":
+                    cur.execute(f"SELECT * FROM {table} WHERE {cond}")
+                    return cur.fetchall()
+                elif action == "update":
+                    sets = ",".join([f"{k}=?" for k in data])
+                    cur.execute(
+                        f"UPDATE {table} SET {sets} WHERE {cond}",
+                        tuple(data.values())
+                    )
+                elif action == "delete":
+                    cur.execute(f"DELETE FROM {table} WHERE {cond}")
+                else:
+                    raise ValueError(f"未知操作: {action}")
+                conn.commit()
+        except Exception as e:
+            return f"执行SQL失败: {str(e)}"
+
+        try:
+            self.indexer.reindex_table(table)
+            self.indexer.save()
+            return f"操作 {action} 完成，并更新了 {table} 的向量索引。"
+        except Exception as e:
+            return f"操作 {action} 完成，但更新索引失败: {str(e)}"
+
+class UniversalDbVectorIndexer:
+    def __init__(self, db_path, openai_api_key, embedding_model="text-embedding",
+                 index_path="universal_faiss.index", idmap_path="universal_faiss_ids.pkl"):
+        self.db_path = db_path
+        self.embedding_model = embedding_model
+        self.index_path = index_path
+        self.idmap_path = idmap_path
+        self.index = None
+        self.id_map = {}
+        self.dimension = 0
+
+    def _init_index(self, dim):
+        base = faiss.IndexFlatL2(dim)
+        self.index = faiss.IndexIDMap(base)
+        self.dimension = dim
+
+    def _embed(self, texts):
+        try:
+            resp = client.embeddings.create(
+                model=self.embedding_model,
+                input=texts
+            )
+            return np.array([r.embedding for r in resp.data], dtype='float32')
+        except Exception as e:
+            print(f"Embedding失败: {str(e)}")
+            return np.zeros((len(texts), 768))
+
+    def index_all(self):
+        try:
+            with DBPool.get_connection() as conn:
+                if isinstance(conn, sqlite3.Connection):
+                    cur = conn.cursor()
+                    cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                    tables = [r[0] for r in cur.fetchall()]
+                elif 'psycopg2' in str(type(conn)):
+                    cur = conn.cursor()
+                    cur.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public';")
+                    tables = [r[0] for r in cur.fetchall()]
+                elif 'mysql' in str(type(conn)):
+                    cur = conn.cursor()
+                    cur.execute("SHOW TABLES;")
+                    tables = [r[0] for r in cur.fetchall()]
+                else:
+                    print("未知数据库类型，无法索引")
+                    return
+
+            self.index = None
+            self.id_map.clear()
+            all_embs, all_ids = [], []
+            for tbl in tables:
+                embs, ids = self._embed_table(tbl)
+                all_embs.append(embs)
+                all_ids.extend(ids)
+            if all_embs:
+                all_embs = np.vstack(all_embs)
+                self._init_index(all_embs.shape[1])
+                self.index.add_with_ids(all_embs, np.array(all_ids))
+                for rid in all_ids:
+                    self.id_map[rid] = tbl
+        except Exception as e:
+            print(f"索引创建失败: {str(e)}")
+
+    def _embed_table(self, table):
+        try:
+            with DBPool.get_connection() as conn:
+                cur = conn.cursor()
+                
+                if isinstance(conn, sqlite3.Connection):
+                    cur.execute(f"PRAGMA table_info('{table}');")
+                    cols = [c[1] for c in cur.fetchall()]
+                elif 'psycopg2' in str(type(conn)):
+                    cur.execute(
+                        "SELECT column_name FROM information_schema.columns WHERE table_name = %s;",
+                        (table,)
+                    )
+                    cols = [c[0] for c in cur.fetchall()]
+                elif 'mysql' in str(type(conn)):
+                    cur.execute(f"DESCRIBE {table};")
+                    cols = [c[0] for c in cur.fetchall()]
+                
+                cur.execute(f"SELECT * FROM {table} LIMIT 100")
+                rows = cur.fetchall()
+                columns = [d[0] for d in cur.description] if cur.description else []
+
+            texts, ids = [], []
+            for r in rows:
+                texts.append(" | ".join(str(v) for v in r if v is not None))
+                ids.append(abs(hash(f"{table}.{r}")))
+            return self._embed(texts), ids
+        except Exception as e:
+            print(f"表嵌入失败: {str(e)}")
+            return np.zeros((0, 768)), []
+
+    def reindex_table(self, table):
+        self.index_all()
+
+    def save(self):
+        if self.index:
+            faiss.write_index(self.index, self.index_path)
+            with open(self.idmap_path, 'wb') as f:
+                pickle.dump(self.id_map, f)
+
+    def load(self):
+        if os.path.exists(self.index_path) and os.path.exists(self.idmap_path):
+            self.index = faiss.read_index(self.index_path)
+            with open(self.idmap_path, 'rb') as f:
+                self.id_map = pickle.load(f)
+            self.dimension = self.index.d
+
+    def search(self, query, top_k=5):
+        emb = self._embed([query])
+        if self.index is None:
+            return []
+        d, idxs = self.index.search(emb, top_k)
+        return [(self.id_map.get(int(i)), float(dist)) for i, dist in zip(idxs[0], d[0])]
+
+def init_db_pool():
+    db_info = {}
+    db_type = input("请选择数据库类型 (sqlite/postgres/mysql): ").strip().lower()
+    db_info['db_type'] = db_type
+    if db_type == 'sqlite':
+        db_path = input("请输入 sqlite 数据库文件路径: ").strip()
+        if not os.path.isfile(db_path):
+            print(f"错误: sqlite 文件 {db_path} 不存在")
+            sys.exit(1)
+        DBPool.init_pool(db_type='sqlite', sqlite_path=db_path, maxconn=5)
+        db_info['db_path'] = db_path
+    elif db_type == 'postgres':
+        host = input("host: ").strip()
+        port = input("port: ").strip()
+        user = input("user: ").strip()
+        password = input("password: ").strip()
+        dbname = input("dbname: ").strip()
+        DBPool.init_pool(
+            db_type='postgres',
+            host=host,
+            port=int(port),
+            user=user,
+            password=password,
+            database=dbname
+        )
+        db_info.update({'host': host, 'port': port, 'user': user, 'password': password, 'database': dbname})
+    elif db_type == 'mysql':
+        host = input("host: ").strip()
+        port = input("port: ").strip() or "3306"
+        user = input("user: ").strip()
+        password = input("password: ").strip()
+        dbname = input("database: ").strip()
+        DBPool.init_pool(
+            db_type='mysql',
+            host=host,
+            port=int(port),
+            user=user,
+            password=password,
+            database=dbname,
+            maxconn=20
+        )
+        db_info.update({'host': host, 'port': port, 'user': user, 'password': password, 'database': dbname})
+    else:
+        print("错误: 不支持的数据库类型")
+        sys.exit(1)
+    return db_info
+
+def get_schema_and_samples(limit=5):
+    schema = {}
+    samples = {}
+    with DBPool.get_connection() as conn:
+        if isinstance(conn, sqlite3.Connection):
+            table_sql = "SELECT name FROM sqlite_master WHERE type='table';"
+        elif 'psycopg2' in str(type(conn)):
+            table_sql = (
+                "SELECT tablename as name "
+                "FROM pg_catalog.pg_tables "
+                "WHERE schemaname='public';"
+            )
+        elif 'mysql' in str(type(conn)):
+            table_sql = "SHOW TABLES;"
+        else:
+            print("未知数据库类型")
+            return {}, {}
+
+        cur = conn.cursor()
+        try:
+            cur.execute(table_sql)
+            tables = [row[0] for row in cur.fetchall()]
+        finally:
+            cur.close()
+
+        for tbl in tables:
+            cur = conn.cursor()
+            try:
+                if isinstance(conn, sqlite3.Connection):
+                    cur.execute(f"PRAGMA table_info('{tbl}');")
+                    cols = [(row[1], row[2]) for row in cur.fetchall()]
+                elif 'psycopg2' in str(type(conn)):
+                    cur.execute(
+                        """
+                        SELECT column_name, data_type
+                        FROM information_schema.columns
+                        WHERE table_name = %s;
+                        """, (tbl,)
+                    )
+                    cols = cur.fetchall()
+                elif 'mysql' in str(type(conn)):
+                    cur.execute(f"DESCRIBE {tbl};")
+                    cols = [(row[0], row[1]) for row in cur.fetchall()]
+                
+                schema[tbl] = cols
+                
+                cur.execute(f"SELECT * FROM {tbl} LIMIT {limit}")
+                rows = cur.fetchall()
+                columns = [d[0] for d in cur.description] if cur.description else []
+                samples[tbl] = {"columns": columns, "rows": rows}
+            except Exception as e:
+                print(f"获取表 {tbl} 信息失败: {str(e)}")
+            finally:
+                cur.close()
+    return schema, samples
+
+def print_schema(schema: dict):
+    print("[AI] 当前数据库表结构：")
+    for table, cols in schema.items():
+        print(f"- 表: {table}")
+        for col_name, col_type in cols:
+            print(f"    • {col_name}: {col_type}")
+    print()
+
+def generate_script(requirement: str, schema: dict, samples: dict,
+                    model: str = "deepseek-reasoner",
+                    max_retries: int = 2,
+                    initial_backoff: float = 1.0) -> str:
+    prompt = (
+        "# 数据库 schema:\n"
+        f"{json.dumps(schema, indent=2)}\n\n"
+        "# 示例数据 (每表前几行):\n"
+        # 使用 default=str 以序列化 date 等非标准类型
+        f"{json.dumps(samples, indent=2, default=str)}\n\n"
+        "# 请根据以下需求生成完整的、可直接运行的 Python 脚本，"
+        "需在脚本中使用 DBPool 获取连接并执行必要的 SQL。"
+        "脚本中包含失败时的错误处理和执行成功的提示。\n\n"
+        f"需求: {requirement}\n"
+    )
+    
+    backoff = initial_backoff
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "你是数据库操作专家，输出可直接运行的 Python 脚本。"},
+                    {"role": "user", "content": prompt}
+                ],
+                stream=False,
+                timeout=300
+            )
+
+            if response.choices and response.choices[0].message.content:
+                return response.choices[0].message.content
+            else:
+                raise RuntimeError("API 返回空响应")
+
+        except (APIConnectionError, APIError, ReadTimeout) as e:
+            print(f"[尝试 {attempt}/{max_retries}] 调用失败，{backoff}s 后重试… 详情: {str(e)}")
+            time.sleep(backoff)
+            backoff *= 2
+
+        except Exception as e:
+            raise RuntimeError(f"脚本生成过程出现不可恢复错误：{str(e)}") from e
+
+    raise RuntimeError(f"调用 DeepSeek 接口失败，已重试 {max_retries} 次，请检查网络或稍后再试。")
+
+def main():
+    # 初始化数据库连接池
+    db_info = init_db_pool()
+    
+    # 初始化向量索引（支持SQLite和MySQL）
+    if db_info['db_type'] in ['sqlite', 'mysql']:
+        indexer = UniversalDbVectorIndexer(db_info.get('db_path', ''), client.api_key)
+        indexer.index_all()
+        mgr = NLDatabaseManager(db_info.get('db_path', ''), indexer)
+        
+        # 测试自然语言处理
+        try:
+            res = mgr.process_nl("新增客户，姓名张三，地址北京")
+            print(res)
+        except Exception as e:
+            print(f"自然语言处理测试失败: {str(e)}")
+    else:
+        print(f"[AI] 向量索引功能目前不支持 {db_info['db_type']} 数据库")
+        mgr = None
+
+    # 读取功能需求
+    requirement = input("请输入功能需求: ").strip()
+    if not requirement:
+        print("错误: 功能需求不能为空")
+        sys.exit(1)
+
+    # 获取 schema
+    print("[AI] 正在获取数据库 schema...")
+    schema, samples = get_schema_and_samples()
+    print(f"[AI] 已获取 {len(schema)} 张表的结构及示例数据。")
+    print_schema(schema)
+
+    # 调用模型生成脚本
+    print("[AI] 正在调用大模型生成脚本...")
+    script_content = generate_script(requirement, schema, samples)
+    
+    # 提取代码块
+    segments = re.split(r"```(?:python)?", script_content)
+    if len(segments) >= 3:
+        script_to_write = segments[1].split('```')[0].strip() + '\n'
+    else:
+        print("警告: 未检测到代码块，写入完整响应")
+        script_to_write = script_content
+
+    ts = datetime.now().strftime('%Y%m%d%H%M%S')
+    filename = f"generated_{ts}.py"
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(script_to_write)
+    print(f"[AI] 脚本已保存为 {filename}")
+
+    # 询问是否备份并执行
+    resp = input("是否现在备份并执行该脚本？(y/n): ").strip().lower()
+    if resp == 'y':
+        if db_info['db_type'] == 'sqlite':
+            bak_path = db_info['db_path'] + ".bak"
+            shutil.copy(db_info['db_path'], bak_path)
+            print(f"[AI] 已备份 SQLite 数据库到 {bak_path}")
+        elif db_info['db_type'] == 'mysql':
+            print("[AI] MySQL 不自动备份，请手动执行 mysqldump。")
+        else:
+            print("[AI] PostgreSQL 不自动备份，请手动执行 pg_dump。")
+
+        # 执行脚本
+        try:
+            result = subprocess.run(
+                [sys.executable, filename],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=30
+            )
+            print(result.stdout)
+            if result.returncode != 0:
+                print(f"[AI] 脚本执行失败，错误信息：\n{result.stderr}")
+                sys.exit(result.returncode)
+            else:
+                print("[AI] 脚本执行成功！")
+        except subprocess.TimeoutExpired:
+            print("[AI] 脚本执行超时，已终止")
+        except Exception as e:
+            print(f"[AI] 脚本执行出错: {str(e)}")
+    else:
+        print("已跳过自动执行。")
+               
+if __name__ == '__main__':
+    main()
