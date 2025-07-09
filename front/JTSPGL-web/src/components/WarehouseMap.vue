@@ -16,11 +16,11 @@
 const emit = defineEmits(['show-warehouse']);
 
 const warehouses = [
-  { id: 'WH001', name: '华北中心仓', top: '80px', left: '100px' },
-  { id: 'WH002', name: '华东智能仓', top: '120px', left: '280px' },
-  { id: 'WH003', name: '华南枢纽仓', top: '220px', left: '160px' },
-  { id: 'WH004', name: '西南分拨中心', top: '300px', left: '80px' },
-  { id: 'WH005', name: '东北冷链仓', top: '350px', left: '260px' }
+  { id: 'WH001', name: '华北中心仓', top: '280px', left: '700px' },
+  { id: 'WH002', name: '华东智能仓', top: '380px', left: '780px' },
+  { id: 'WH003', name: '华南枢纽仓', top: '505px', left: '680px' },
+  { id: 'WH004', name: '西南分拨中心', top: '410px', left: '550px' },
+  { id: 'WH005', name: '东北冷链仓', top: '160px', left: '870px' }
 ];
 
 const showWarehouse = (id, name) => {
@@ -37,7 +37,7 @@ const showWarehouse = (id, name) => {
   position: relative;
   margin-bottom: 15px;
   background-image: url('@images/MapImg.png');
-  background-size: cover;
+  background-size: 820px  600px;
   background-repeat: no-repeat;
   background-position: center;
 }
@@ -48,13 +48,13 @@ const showWarehouse = (id, name) => {
   transition: transform 0.2s, background-color 0.2s;
   padding: 6px 12px;
   border-radius: 8px;
-  background-color: #5baaff;
+  background-color: #4ad051;
   color: white;
   font-size: 14px;
 }
 
 .warehouse:hover {
-  background-color: #0077f7;
+  background-color: #54ea5b;
   transform: scale(1.05);
 }
 </style>
