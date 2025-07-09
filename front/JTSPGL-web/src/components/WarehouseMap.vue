@@ -37,7 +37,7 @@ const showWarehouse = (id, name) => {
   border-radius: 10px;
   position: relative;
   margin-bottom: 15px;
-  background-image: url('../assets/map.png');
+  background-image: url('@images/MapImg.png');
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
