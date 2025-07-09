@@ -10,6 +10,8 @@
 <script setup>
 import { ref } from 'vue';
 
+const emit = defineEmits(['close']);
+
 const isVisible = ref(false);
 const content = ref('加载中...');
 
