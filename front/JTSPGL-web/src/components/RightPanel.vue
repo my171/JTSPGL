@@ -26,12 +26,13 @@ const emit = defineEmits(['show-approval']);
 const panelTransform = ref('translateX(0)');
 
 const approvalItems = [
-  { id: 'P10006', statusText: '已完成', statusColor: 'green' },
-  { id: 'P10005', statusText: '待收货', statusColor: 'orange' },
-  { id: 'P10004', statusText: '发货中', statusColor: 'yellow' },
-  { id: 'P10003', statusText: '待出库', statusColor: 'blue' },
+  { id: 'P10001', statusText: '待审核', statusColor: 'gray' },
   { id: 'P10002', statusText: '审核不通过', statusColor: 'red' },
-  { id: 'P10001', statusText: '待审核', statusColor: 'gray' }
+  { id: 'P10003', statusText: '待出库', statusColor: 'yellow' },
+  { id: 'P10005', statusText: '待收货', statusColor: 'yellow' },
+  { id: 'P10004', statusText: '待收货', statusColor: 'yellow' },
+  { id: 'P10006', statusText: '已完成', statusColor: 'green' },
+
 ];
 
 const showApproval = (productId) => {
@@ -39,7 +40,7 @@ const showApproval = (productId) => {
 };
 
 const movePanel = () => {
-  panelTransform.value = 'translateX(-400px)';
+  panelTransform.value = 'translateX(-200px)';
 };
 
 const resetPanel = () => {
@@ -89,14 +90,14 @@ defineExpose({
 }
 
 .status-red {
-  background-color: #f8d7da;
+  background-color: #f58b8b;
   color: #842029;
   border: 1px solid #f8c4c9;
   transition: transform 0.1s ease;
 }
 
 .status-red:hover {
-  background-color: #f8c4c9;
+  background-color: #f65c5c;
   color: #842029;
   transform: scale(1.02);
 }
@@ -141,14 +142,14 @@ defineExpose({
 }
 
 .status-green {
-  background-color: #d1e7dd;
+  background-color: #d1e7d4;
   color: #0f5132;
   border: 1px solid #b6e9d2;
   transition: transform 0.1s ease;
 }
 
 .status-green:hover {
-  background-color: #b4e3ce;
+  background-color: rgb(154, 226, 172);
   color: #0f5132;
   transform: scale(1.02);
 }

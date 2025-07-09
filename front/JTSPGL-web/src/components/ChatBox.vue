@@ -40,6 +40,9 @@ const sendMessage = async () => {
       sender: 'sender'
     });
     
+    const sentText = inputMessage.value;
+    inputMessage.value = '';
+
     scrollToBottom();
     
     try {
@@ -53,19 +56,6 @@ const sendMessage = async () => {
     } catch (error) {
         outputText.value = `处理出错: ${error.response?.data?.error || error.message}`;
     }
-
-
-    /*
-    setTimeout(() => {
-      messages.value.push({
-        text: `已收到您的消息：${inputMessage.value}`,
-        sender: 'receiver'
-      });
-      scrollToBottom();
-    }, 500);
-    */
-
-    
     inputMessage.value = '';
   }
 };

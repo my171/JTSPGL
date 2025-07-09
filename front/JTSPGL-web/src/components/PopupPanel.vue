@@ -61,7 +61,7 @@ const infoMap = {
     to: "成都春熙路店",
   },
   P10004: {
-    status: "发货中",
+    status: "待收货",
     decisionTime: "2025-07-01 12:00",
     reviewTime: "2025-07-01 13:30",
     dispatchTime: "2025-07-02 10:00",
