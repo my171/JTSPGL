@@ -4,6 +4,8 @@ from models import Warehouse, Store, Product, Inventory, Sales, Supply
 from config import Config
 from datetime import datetime, timedelta
 from database import DBPool
+from flask_cors import CORS
+
 
 import sys
 import locale
@@ -19,6 +21,7 @@ else:
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 app = Flask(__name__)
+CORS(app)  # 允许跨域请求
 app.config.from_object(Config)
 
 @app.route('/')
@@ -260,8 +263,24 @@ warehouse_store_map = {
 
 @app.route('/api/warehouses/<warehouse_id>/stores', methods = ['GET'])
 def get_stores_by_warehouse_id(warehouse_id):
-    stores = warehouse_store_map(warehouse_id, [])
-    return jsonify(stores)
+    stores = warehouse_store_map[warehouse_id]
+
+    with DBPool.get_connection() as conn:
+        with conn.cursor() as cur:
+            query = f"""
+                SELECT store_name
+                FROM store
+                WHERE store.store_id in (
+                    SELECT store_id
+                    FROM supply
+                    WHERE supply.warehouse_id = '{warehouse_id}'
+                )
+            """
+
+            cur.execute(query)
+
+            columns = [desc[0] for desc in cur.description]
+            return jsonify([row for row in cur.fetchall()])
 
 if __name__ == '__main__':
     app.run(debug=True)
