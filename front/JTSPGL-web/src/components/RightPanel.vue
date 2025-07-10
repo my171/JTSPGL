@@ -126,5 +126,6 @@ defineExpose({
   background-color: rgb(154, 226, 172);
   color: #0f5132;
   transform: scale(1.02);
+  z-index: 10;
 }
 </style>

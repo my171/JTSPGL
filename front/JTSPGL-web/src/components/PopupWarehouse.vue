@@ -57,11 +57,31 @@
   const transferProduct = ref('');
   const transferQty = ref('');
   const selectedWarehouse = ref('');
+
+
+    const show = async (id, name) => {
+    content.value = `<h5>${name} - 商店列表</h5><p>加载中...</p>`;
+    isVisible.value = true;
   
+    try {
+      const response = await axios.get(`http://localhost:5000/api/warehouses/${id}/stores`);
+      const storeList = response.data;
+      let html = `<h5>${name} - 商店列表</h5>`;
+      storeList.forEach((store) => {
+        html += `<button class='btn btn-sm btn-outline-secondary mb-3' onclick="this.dispatchEvent(new CustomEvent('store-click', { detail: '${store}', bubbles: true }))">${store}</button>`;
+      });
+      content.value = html;
+    } catch (err) {
+      content.value = `<p class="text-danger">加载失败：${err.message}</p>`;
+    }
+  };
+
+
   const handleStoreClick = (e) => {
     const storeName = e.detail;
     alert(`点击了商店：${storeName}`);
   };
+  
   
   const queryProductInfo = async () => {
     try {
@@ -107,23 +127,6 @@
       alert('调货成功');
     } catch (err) {
       alert(`调货失败：${err.message}`);
-    }
-  };
-  
-  const show = async (id, name) => {
-    content.value = `<h5>${name} - 商店列表</h5><p>加载中...</p>`;
-    isVisible.value = true;
-  
-    try {
-      const response = await axios.get(`http://localhost:5000/api/warehouses/${id}/stores`);
-      const storeList = response.data;
-      let html = `<h5>${name} - 商店列表</h5>`;
-      storeList.forEach((store) => {
-        html += `<button class='btn btn-sm btn-outline-secondary mb-3' onclick="this.dispatchEvent(new CustomEvent('store-click', { detail: '${store}', bubbles: true }))">${store}</button>`;
-      });
-      content.value = html;
-    } catch (err) {
-      content.value = `<p class="text-danger">加载失败：${err.message}</p>`;
     }
   };
   
