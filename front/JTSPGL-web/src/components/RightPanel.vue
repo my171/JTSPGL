@@ -90,7 +90,7 @@ defineExpose({
 }
 
 .status-red {
-  background-color: #f58b8b;
+  background-color: #ff9090;
   color: #842029;
   border: 1px solid #f8c4c9;
   transition: transform 0.1s ease;
@@ -104,14 +104,14 @@ defineExpose({
 
 .status-blue {
   background-color: #dbe9f5;
-  color: #0d6efd;
+  color: #111111;
   border: 1px solid #c0dbf3;
   transition: transform 0.1s ease;
 }
 
 .status-blue:hover {
   background-color: #c0dbf3;
-  color: #0d6efd;
+  color: #111111;
   transform: scale(1.02);
 }
 
@@ -144,12 +144,12 @@ defineExpose({
 .status-green {
   background-color: #d1e7d4;
   color: #0f5132;
-  border: 1px solid #b6e9d2;
+  border: 1px solid #bfffbf;
   transition: transform 0.1s ease;
 }
 
 .status-green:hover {
-  background-color: rgb(154, 226, 172);
+  background-color: rgb(157, 240, 157);
   color: #0f5132;
   transform: scale(1.02);
 }

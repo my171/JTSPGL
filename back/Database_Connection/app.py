@@ -4,6 +4,8 @@ from models import Warehouse, Store, Product, Inventory, Sales, Supply
 from config import Config
 from datetime import datetime, timedelta
 from database import DBPool
+from flask_cors import CORS
+
 
 import sys
 import locale
@@ -19,10 +21,8 @@ else:
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 app = Flask(__name__)
+CORS(app)  # 允许跨域请求
 app.config.from_object(Config)
-
-def get_result(input_text):
-    return f""""Original Text: {input_text}"""
 
 @app.route('/')
 def dashboard():
@@ -236,6 +236,9 @@ def product_search():
                              'pages': (total + per_page - 1) // per_page
                          })
 
+def get_result(input_text):
+    return f""""Original Text: {input_text}"""
+
 @app.route('/chatting', methods = ['POST'])
 def Reply():
     try:
@@ -249,6 +252,33 @@ def Reply():
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+warehouse_store_map = {
+    'WH001' : ["北京王府井旗舰店"],
+    'WH002' : ["上海徐家汇店", "南京新街口路", "杭州西湖店", "武汉武商广场店"],
+    'WH003' : ["广州天河城店", "深圳万象城店"],
+    'WH004' : ["成都春熙路店", "重庆解放碑店", "西安钟楼店"],
+    'WH005' : []
+}
+
+@app.route('/api/warehouses/<warehouse_id>/stores', methods = ['GET'])
+def get_stores_by_warehouse_id(warehouse_id):
+    stores = warehouse_store_map[warehouse_id]
+
+    with DBPool.get_connection() as conn:
+        with conn.cursor() as cur:
+            query = f"""
+                SELECT store_name
+                FROM store
+                WHERE store.store_id in (
+                    SELECT store_id
+                    FROM supply
+                    WHERE supply.warehouse_id = %s
+                )
+            """
+
+            cur.execute(query, (warehouse_id,))
+            return jsonify([row for row in cur.fetchall()])
 
 if __name__ == '__main__':
     app.run(debug=True)
