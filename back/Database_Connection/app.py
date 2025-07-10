@@ -258,7 +258,7 @@ warehouse_store_map = {
     'WH005' : []
 }
 
-@app.route('/api/warehouses/<warehouse_id>/stores', methods = ['POST'])
+@app.route('/api/warehouses/<warehouse_id>/stores', methods = ['GET'])
 def get_stores_by_warehouse_id(warehouse_id):
     stores = warehouse_store_map(warehouse_id, [])
     return jsonify(stores)
