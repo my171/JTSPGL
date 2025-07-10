@@ -1,2 +1,7 @@
 /back/Database_Connection/__pycache__
-/back/Database_Connection/config.py
+/back/Database_Connection/config.pyknowledge.db
+store.db
+vector_db.index
+knowledge.db
+store.db
+vector_db.index
