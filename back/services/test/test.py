@@ -86,7 +86,7 @@ def execute_sql_file():
         
         # 执行每条SQL语句
         for stmt in statements:
-            .
+            
             if not stmt:  # 跳过空语句
                 continue
                 
