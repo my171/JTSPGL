@@ -12,7 +12,10 @@ from datetime import datetime
 from db_pool import FixedDBPool as DBPool
 
 # 初始化 OpenAI 客户端
-client = OpenAI(api_key="sk-3f5e62ce34084f25ba2772f0f2958f75", base_url="https://api.deepseek.com")
+
+client = OpenAI(api_key="sk-ubjkrzodjlihepttrgdmmqsxaulmoktrzvmvzzwpkaftmtcn", 
+                base_url="https://api.siliconflow.cn/v1")
+#client = OpenAI(api_key="sk-3f5e62ce34084f25ba2772f0f2958f75", base_url="https://api.deepseek.com")
 
 def init_db_pool(db_type: str, **kwargs) -> dict:
     """
@@ -120,6 +123,16 @@ def get_sql(requirement: str, model: str = 'deepseek-reasoner', max_retries: int
     for attempt in range(1, max_retries + 1):
         try:
             resp = client.chat.completions.create(
+                # model='Pro/deepseek-ai/DeepSeek-R1',
+                model="Qwen/Qwen2.5-72B-Instruct",
+                messages=[
+                    {'role': 'system', 'content': '你是数据库操作专家。'},
+                    {'role': 'user', 'content': prompt}
+                ],
+                timeout=300
+            )
+            '''
+            resp = client.chat.completions.create(
                 model=model,
                 messages=[
                     {'role': 'system', 'content': '你是数据库操作专家。'},
@@ -127,6 +140,7 @@ def get_sql(requirement: str, model: str = 'deepseek-reasoner', max_retries: int
                 ],
                 timeout=300
             )
+            '''
             content = resp.choices[0].message.content
             return extract_sql(content)
         except (APIConnectionError, APIError, ReadTimeout) as e:
