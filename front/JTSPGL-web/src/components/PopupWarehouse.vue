@@ -11,7 +11,6 @@
       <div class="input-group mb-2">
         <input class="form-control" v-model="queryInput" placeholder="输入商品ID或名称" />
         <button class="btn btn-primary" @click="queryProductInfo">查询信息</button>
-        <button class="btn btn-info" @click="querySalesHistory">查询往期销量</button>
       </div>
       <div v-if="productResult">
         <pre>{{ productResult }}</pre>
@@ -20,18 +19,18 @@
       <!-- 补货 -->
       <h5 class="mt-4">补货操作</h5>
       <div class="input-group mb-2">
-        <input class="form-control" v-model="replenishProduct" placeholder="商品名称或ID" />
+        <input class="form-control" v-model="replenishProduct" placeholder="商品ID" />
         <input class="form-control" v-model="replenishQty" placeholder="补货数量" />
         <button class="btn btn-success" @click="replenish">补货</button>
       </div>
   
       <!-- 调货 -->
-      <h5 class="mt-4">调货操作</h5>
+      <h5 class="mt-4">调货申请</h5>
       <div class="input-group mb-2">
-        <input class="form-control" v-model="transferProduct" placeholder="商品名称或ID" />
+        <input class="form-control" v-model="transferProduct" placeholder="商品ID" />
         <input class="form-control" v-model="transferQty" placeholder="调货数量" />
         <select class="form-select" v-model="selectedWarehouse">
-          <option disabled value="">选择调出仓库</option>
+          <option disabled value="">调出仓库</option>
           <option v-for="wh in warehouseList" :key="wh.id" :value="wh.id">{{ wh.name }}</option>
         </select>
         <button class="btn btn-warning" @click="transfer">调货</button>

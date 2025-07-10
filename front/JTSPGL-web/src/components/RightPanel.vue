@@ -102,19 +102,6 @@ defineExpose({
   transform: scale(1.02);
 }
 
-.status-blue {
-  background-color: #dbe9f5;
-  color: #0d6efd;
-  border: 1px solid #c0dbf3;
-  transition: transform 0.1s ease;
-}
-
-.status-blue:hover {
-  background-color: #c0dbf3;
-  color: #0d6efd;
-  transform: scale(1.02);
-}
-
 .status-yellow {
   background-color: #fff3cd;
   color: #664d03;
@@ -125,19 +112,6 @@ defineExpose({
 .status-yellow:hover {
   background-color: #f8e6a8;
   color: #664d03;
-  transform: scale(1.02);
-}
-
-.status-orange {
-  background-color: #ffe5b4;
-  color: #a75d00;
-  border: 1px solid #ffd1a1;
-  transition: transform 0.1s ease;
-}
-
-.status-orange:hover {
-  background-color: #ffd1a1;
-  color: #a75d00;
   transform: scale(1.02);
 }
 
