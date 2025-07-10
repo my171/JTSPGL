@@ -5,8 +5,8 @@ import sys
 def main():
     # 1. 初始化连接池（以 SQLite 为例）
     # init_db_pool('sqlite', sqlite_path='F:\\pycode\\JTSPGL\\back\\services\\mysqldemos.db')
-    init_db_pool('mysql', host='127.0.0.1',port='3306',
-                         user='root', password='DSds178200++', database='mysqldemo')
+    init_db_pool('postgres', host='127.0.0.1',port='5432',
+                         user='postgres', password='DSds178200++', database='postgres')
 
     # 2. 生成 SQL
     requirement = input("请输入功能需求: ").strip()
