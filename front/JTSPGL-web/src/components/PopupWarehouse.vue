@@ -59,14 +59,6 @@
   const transferQty = ref('');
   const selectedWarehouse = ref('');
   
-  const warehouseList = [
-    { id: 'WH001', name: '华北中心仓' },
-    { id: 'WH002', name: '华东智能仓' },
-    { id: 'WH003', name: '华南枢纽仓' },
-    { id: 'WH004', name: '西南分拨中心' },
-    { id: 'WH005', name: '东北冷链仓' }
-  ];
-  
   const handleStoreClick = (e) => {
     const storeName = e.detail;
     alert(`点击了商店：${storeName}`);
