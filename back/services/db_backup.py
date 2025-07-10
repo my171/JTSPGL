@@ -26,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger('DBBackupTool')
 
 class DatabaseBackupTool:
-    def __init__(self, config_file='db_config.ini'):
+    def __init__(self, config_file=r'F:\pycode\JTSPGL\back\services\db_config.ini'):  # 修改配置文件路径
         self.config = self.load_config(config_file)
         self.init_db_pool()
         
@@ -40,12 +40,14 @@ class DatabaseBackupTool:
                 'host': '127.0.0.1',
                 'port': '3306',
                 'user': 'root',
-                'password': '',
-                'database': 'your_database',
-                'backup_dir': '/var/db_backups',
-                'sqlite_path': '/path/to/sqlite.db',  # 仅SQLite需要
+                'password': 'DSds178200++',
+                'database': 'mysqlddemo',
+                'backup_dir': r'F:\pycode\JTSPGL\back\services\backups',  # 更新备份目录路径
+                'sqlite_path': r'F:\pycode\JTSPGL\back\services\mysqldemos.db',  # 仅SQLite需要
                 'pool_size': '10'  # 连接池大小
             }
+            # 确保目录存在
+            os.makedirs(os.path.dirname(config_file), exist_ok=True)
             with open(config_file, 'w') as f:
                 config.write(f)
             logger.error(f"配置文件已创建: {config_file}，请修改后重新运行")
@@ -374,7 +376,9 @@ def main():
     args = parser.parse_args()
     
     try:
-        tool = DatabaseBackupTool()
+        # 使用新的配置文件路径
+        config_path = r'F:\pycode\JTSPGL\back\services\db_config.ini'
+        tool = DatabaseBackupTool(config_file=config_path)
         
         if args.command == 'backup':
             tool.backup_database(compress=not args.no_compress)

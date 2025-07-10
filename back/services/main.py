@@ -1,5 +1,6 @@
 from sql_generator import init_db_pool, get_sql
 from db_pool import FixedDBPool as DBPool
+import subprocess
 import sys
 
 def main():
@@ -16,6 +17,23 @@ def main():
     sql = get_sql(requirement)
     print("[DEBUG] Generated SQL:\n", sql)
 
+    #
+    script_path = "back/services/db_backup.py"
+    if sys.platform.startswith("win"):
+        script_path = script_path.replace("/","\\")  # Windows 使用反斜杠
+
+    # 执行命令
+    result = subprocess.run(
+        [sys.executable, script_path, "backup"],  # sys.executable 确保使用当前 Python 解释器
+        capture_output=True,
+        text=True
+    )
+
+    # 输出结果
+    print("Return code:", result.returncode)
+    print("Output:", result.stdout)
+    if result.stderr:
+        print("Error:", result.stderr)
     # 3. 直接执行 SQL 并打印结果
     with DBPool.get_connection() as conn:
         cur = conn.cursor()
