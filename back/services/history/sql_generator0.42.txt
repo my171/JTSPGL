@@ -1,0 +1,187 @@
+# import os
+# import sys
+# import re
+# import time
+# import json
+# import shutil
+# import subprocess
+# import sqlite3
+# from httpx import ReadTimeout
+# from openai import OpenAI, APIConnectionError, APIError
+# from datetime import datetime
+
+# # 从外部脚本引入连接池
+# from db_pool import FixedDBPool as DBPool
+
+# # 初始化 OpenAI 客户端
+# client = OpenAI(api_key="sk-3f5e62ce34084f25ba2772f0f2958f75", base_url="https://api.deepseek.com")
+
+# def init_db_pool():
+#     db_type = input("请选择数据库类型 (sqlite/postgres/mysql): ").strip().lower()
+#     if db_type == 'sqlite':
+#         db_path = input("请输入 sqlite 数据库文件路径: ").strip()
+#         if not os.path.isfile(db_path):
+#             print(f"错误: sqlite 文件 {db_path} 不存在")
+#             sys.exit(1)
+#         DBPool.init_pool(db_type='sqlite', sqlite_path=db_path, maxconn=5)
+#         return {'db_type': 'sqlite', 'db_path': db_path}
+
+#     elif db_type == 'postgres':
+#         host = input("host: ").strip()
+#         port = int(input("port: ").strip())
+#         user = input("user: ").strip()
+#         password = input("password: ").strip()
+#         dbname = input("dbname: ").strip()
+#         DBPool.init_pool(
+#             db_type='postgres',
+#             host=host, port=port,
+#             user=user, password=password,
+#             database=dbname
+#         )
+#         return {'db_type': 'postgres', 'host': host, 'port': port,
+#                 'user': user, 'password': password, 'database': dbname}
+
+#     elif db_type == 'mysql':
+#         host = input("host: ").strip()
+#         port = int(input("port: ").strip() or 3306)
+#         user = input("user: ").strip()
+#         password = input("password: ").strip()
+#         dbname = input("database: ").strip()
+#         DBPool.init_pool(
+#             db_type='mysql',
+#             host=host, port=port,
+#             user=user, password=password,
+#             database=dbname, maxconn=20
+#         )
+#         return {'db_type': 'mysql', 'host': host, 'port': port,
+#                 'user': user, 'password': password, 'database': dbname}
+
+#     else:
+#         print("错误: 不支持的数据库类型")
+#         sys.exit(1)
+
+# def get_schema_and_samples(limit=5):
+#     schema = {}
+#     samples = {}
+#     with DBPool.get_connection() as conn:
+#         # 根据不同连接类型选择 SQL
+#         if isinstance(conn, sqlite3.Connection):
+#             table_sql = "SELECT name FROM sqlite_master WHERE type='table';"
+#         elif 'psycopg2' in str(type(conn)):
+#             table_sql = (
+#                 "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public';"
+#             )
+#         else:
+#             table_sql = "SHOW TABLES;"
+#         cur = conn.cursor()
+#         cur.execute(table_sql)
+#         tables = [row[0] for row in cur.fetchall()]
+#         cur.close()
+
+#         for tbl in tables:
+#             cur = conn.cursor()
+#             # 获取列信息
+#             if isinstance(conn, sqlite3.Connection):
+#                 cur.execute(f"PRAGMA table_info('{tbl}');")
+#                 cols = [(r[1], r[2]) for r in cur.fetchall()]
+#             elif 'psycopg2' in str(type(conn)):
+#                 cur.execute(
+#                     "SELECT column_name,data_type FROM information_schema.columns WHERE table_name=%s;",
+#                     (tbl,)
+#                 )
+#                 cols = cur.fetchall()
+#             else:
+#                 cur.execute(f"DESCRIBE {tbl};")
+#                 cols = [(r[0], r[1]) for r in cur.fetchall()]
+#             schema[tbl] = cols
+
+#             # 获取样本数据
+#             cur.execute(f"SELECT * FROM {tbl} LIMIT {limit}")
+#             rows = cur.fetchall()
+#             cols_names = [d[0] for d in cur.description] if cur.description else []
+#             samples[tbl] = {"columns": cols_names, "rows": rows}
+#             cur.close()
+
+#     return schema, samples
+
+# def print_schema(schema: dict):
+#     print("[AI] 当前数据库表结构：")
+#     for table, cols in schema.items():
+#         print(f"- 表: {table}")
+#         for name, typ in cols:
+#             print(f"    • {name}: {typ}")
+#     print()
+
+# def generate_script(requirement: str, schema: dict, samples: dict,
+#                     model: str="deepseek-reasoner", max_retries: int=2):
+#     prompt = (
+#         "# 数据库 schema:\n" +
+#         json.dumps(schema, indent=2) + "\n\n" +
+#         "# 示例数据:\n" +
+#         json.dumps(samples, indent=2, default=str) + "\n\n" +
+#         f"需求: {requirement}\n"
+#     )
+#     backoff = 1.0
+#     for attempt in range(1, max_retries+1):
+#         try:
+#             resp = client.chat.completions.create(
+#                 model=model,
+#                 messages=[
+#                     {"role": "system", "content": "你是数据库操作专家。"},
+#                     {"role": "user", "content": prompt}
+#                 ],
+#                 timeout=300
+#             )
+#             return resp.choices[0].message.content
+#         except (APIConnectionError, APIError, ReadTimeout) as e:
+#             print(f"[{attempt}/{max_retries}] 调用失败，{backoff}s 后重试… 错误: {e}")
+#             time.sleep(backoff)
+#             backoff *= 2
+#     raise RuntimeError("模型调用失败，多次重试未果。")
+
+# def main():
+#     db_info = init_db_pool()
+
+#     requirement = input("请输入功能需求: ").strip()
+#     if not requirement:
+#         print("错误: 功能需求不能为空")
+#         sys.exit(1)
+
+#     print("[AI] 获取数据库结构...")
+#     schema, samples = get_schema_and_samples()
+#     print_schema(schema)
+
+#     print("[AI] 调用模型生成脚本...")
+#     script = generate_script(requirement, schema, samples)
+
+#     # 提取并保存脚本
+#     parts = re.split(r"```(?:python)?", script)
+#     code = parts[1] if len(parts) >= 3 else script
+#     filename = f"generated_{datetime.now().strftime('%Y%m%d%H%M%S')}.py"
+#     with open(filename, 'w', encoding='utf-8') as f:
+#         f.write(code.strip())
+#     print(f"[AI] 脚本已保存为 {filename}")
+
+#     # 是否执行
+#     if input("是否备份并执行？(y/n): ").strip().lower() == 'y':
+#         if db_info['db_type'] == 'sqlite':
+#             bak = db_info['db_path'] + ".bak"
+#             shutil.copy(db_info['db_path'], bak)
+#             print(f"[AI] 已备份 SQLite 数据库到 {bak}")
+#         else:
+#             print("[AI] 请手动备份数据库。")
+
+#         try:
+#             res = subprocess.run([sys.executable, filename],
+#                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+#                                  text=True, timeout=30)
+#             print(res.stdout)
+#             if res.returncode != 0:
+#                 print(f"[AI] 执行失败：\n{res.stderr}")
+#                 sys.exit(res.returncode)
+#             print("[AI] 执行成功！")
+#         except Exception as e:
+#             print(f"[AI] 脚本执行出错: {e}")
+
+# if __name__ == '__main__':
+#     main()
