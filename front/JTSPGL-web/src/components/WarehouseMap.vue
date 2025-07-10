@@ -143,15 +143,18 @@ const showWarehouse = (id, name) => {
   cursor: pointer;
   transition: transform 0.2s, background-color 0.2s;
   padding: 6px 12px;
-  border-radius: 8px;
-  background-color: #4455dd;
+  border-radius: 12px;
+  background-color: #4ad051;
   color: white;
   font-size: 14px;
   white-space: nowrap;
+  transform: translate(-50%, -50%) scale(1);
+  transform-origin: center;
 }
 
 .warehouse:hover {
-  background-color: #6677ff;
-  transform: translate(-50%, -50%) scale(1.05);
+  background-color: #54ea5b;
+  transform: scale(1.05);
+  /*z-index: 10; /* 悬停时置于上层 */
 }
 </style>
