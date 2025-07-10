@@ -104,14 +104,14 @@ defineExpose({
 
 .status-blue {
   background-color: #dbe9f5;
-  color: #0d6efd;
+  color: #111111;
   border: 1px solid #c0dbf3;
   transition: transform 0.1s ease;
 }
 
 .status-blue:hover {
   background-color: #c0dbf3;
-  color: #0d6efd;
+  color: #111111;
   transform: scale(1.02);
 }
 

@@ -54,7 +54,7 @@ const sendMessage = async () => {
             sender: 'receiver'
         });
     } catch (error) {
-        outputText.value = `处理出错: ${error.response?.data?.error || error.message}`;
+        messages.value = `处理出错: ${error.response?.data?.error || error.message}`;
     }
     //inputMessage.value = '';之前清空过，此处多余
   }
