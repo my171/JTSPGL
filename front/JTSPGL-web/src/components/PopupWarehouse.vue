@@ -118,7 +118,6 @@
     try {
       const response = await axios.get(`http://localhost:5000/api/warehouses/${id}/stores`);
       const storeList = response.data;
-  
       let html = `<h5>${name} - 商店列表</h5>`;
       storeList.forEach((store) => {
         html += `<button class='btn btn-sm btn-outline-secondary mb-3' onclick="this.dispatchEvent(new CustomEvent('store-click', { detail: '${store}', bubbles: true }))">${store}</button>`;
