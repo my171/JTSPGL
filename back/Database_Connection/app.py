@@ -273,13 +273,11 @@ def get_stores_by_warehouse_id(warehouse_id):
                 WHERE store.store_id in (
                     SELECT store_id
                     FROM supply
-                    WHERE supply.warehouse_id = '{warehouse_id}'
+                    WHERE supply.warehouse_id = %s
                 )
             """
 
-            cur.execute(query)
-
-            columns = [desc[0] for desc in cur.description]
+            cur.execute(query, (warehouse_id,))
             return jsonify([row for row in cur.fetchall()])
 
 if __name__ == '__main__':
