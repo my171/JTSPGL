@@ -108,8 +108,12 @@ def get_sql(requirement: str, model: str = 'deepseek-reasoner', max_retries: int
     """
     schema, samples = get_schema_and_samples()
     prompt = (
-        "# 数据库 schema:\n" + json.dumps(schema, indent=2) + "\n\n"
-        "# 示例数据:\n" + json.dumps(samples, indent=2, default=str) + "\n\n"
+        "# 数据库 schema:\n"
+        f"{json.dumps(schema, indent=2)}\n\n"
+        "# 示例数据 (每表前几行):\n"
+        f"{json.dumps(samples, indent=2, default=str)}\n\n"
+        "# 请根据以下需求生成完整的、可直接运行的SQL脚本,无需其他格式内容"
+        "\n\n"
         f"需求: {requirement}\n"
     )
     backoff = 1.0
