@@ -74,8 +74,12 @@
     isVisible.value = false;
     emit('close');
   };
+
+  const relatedclose = () => {
+    isVisible.value = false;
+  };
   
-  defineExpose({ show });
+  defineExpose({ show, relatedclose });
   </script>
   
   <style scoped>

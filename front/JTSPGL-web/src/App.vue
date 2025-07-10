@@ -43,11 +43,13 @@ const popupApproval = ref(null);
 const showWarehouseInfo = (id, name) => {
   rightPanel.value.movePanel();
   popupWarehouse.value.show(id, name); 
+  popupApproval.value.relatedclose(); 
 };
 
 const showApprovalDetail = (productId) => {
   rightPanel.value.movePanel();
   popupApproval.value.show(productId); 
+  popupWarehouse.value.relatedclose(); 
 };
 
 const closeWarehousePopup = () => {
