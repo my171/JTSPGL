@@ -144,14 +144,14 @@ const showWarehouse = (id, name) => {
   transition: transform 0.2s, background-color 0.2s;
   padding: 6px 12px;
   border-radius: 8px;
-  background-color: #4ad051;
+  background-color: #4455dd;
   color: white;
   font-size: 14px;
   white-space: nowrap;
 }
 
 .warehouse:hover {
-  background-color: #54ea5b;
+  background-color: #6677ff;
   transform: translate(-50%, -50%) scale(1.05);
 }
 </style>
