@@ -32,6 +32,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue';
+import router from '@/router'
 
 const props = defineProps({
   title: {
@@ -49,7 +50,7 @@ const errorMessage = ref('');
 
 const emit = defineEmits(['submit']);
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   // 简单的验证逻辑
   if (!form.username || !form.password) {
     errorMessage.value = '请输入用户名和密码';
@@ -57,10 +58,21 @@ const handleSubmit = () => {
   }
 
   // 示例验证 - 实际项目中应该调用API
-  if (form.username === 'admin' && form.password === '123456') {
+  if (form.username === 'first' && form.password === '123456') {
     errorMessage.value = '';
     emit('submit', { success: true, data: form });
-    alert('登录成功！');
+    localStorage.setItem('authenticated_UserType1', 'true');
+    await router.push('/page_USER1')
+  } else  if (form.username === 'second' && form.password === '123456') {
+    errorMessage.value = '';
+    emit('submit', { success: true, data: form });
+    localStorage.setItem('authenticated_UserType2', 'true');
+    await router.push('/page_USER2')
+  } else  if (form.username === 'third' && form.password === '123456') {
+    errorMessage.value = '';
+    emit('submit', { success: true, data: form });
+    localStorage.setItem('authenticated_UserType3', 'true');
+    await router.push('/page_USER3')
   } else {
     errorMessage.value = '用户名或密码错误';
     emit('submit', { success: false, error: '验证失败' });
