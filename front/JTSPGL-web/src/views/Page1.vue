@@ -8,10 +8,10 @@
         <ChatBox />
       </div>
 
-      <RightPanel 
+      <RightPanel
         ref="rightPanel"
         :approvalRequests="approvalRequests"
-        @show-approval="showApprovalDetail" 
+        @show-approval="showApprovalDetail"
       />
     </div>
 
@@ -21,31 +21,31 @@
       @close="closeStorePopup"
       @new-approval="handleNewApproval"
     />
-    <PopupWarehouse 
+    <PopupWarehouse
       ref="popupWarehouse"
-      @close="closeWarehousePopup" 
+      @close="closeWarehousePopup"
       @show-store="showStorePopup"
       @new-approval="handleNewApproval"
     />
-    <PopupApproval 
+    <PopupApproval
       ref="popupApproval"
       :approvalRequests="approvalRequests"
       :selectedApprovalId="selectedApprovalId"
-      @close="closeApprovalPopup" 
+      @close="closeApprovalPopup"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive } from "vue";
 
-import HeaderTime from '@components/HeaderTime.vue';
-import WarehouseMap from '@components/WarehouseMap.vue';
-import ChatBox from '@components/ChatBox.vue';
-import RightPanel from '@components/RightPanel.vue';
-import PopupWarehouse from '@components/PopupWarehouse.vue';
-import PopupApproval from '@components/PopupApproval.vue';
-import PopupStore from '@components/PopupStore.vue';
+import HeaderTime from "@components/HeaderTime.vue";
+import WarehouseMap from "@components/WarehouseMap.vue";
+import ChatBox from "@components/ChatBox.vue";
+import RightPanel from "@components/RightPanel.vue";
+import PopupWarehouse from "@components/PopupWarehouse.vue";
+import PopupApproval from "@components/PopupApproval.vue";
+import PopupStore from "@components/PopupStore.vue";
 
 const rightPanel = ref(null);
 const popupStore = ref(null);
@@ -57,26 +57,25 @@ const selectedApprovalId = ref(null);
 
 const showWarehouseInfo = (id, name) => {
   rightPanel.value.movePanel();
-  popupWarehouse.value.show(id, name); 
-  popupApproval.value.relatedclose(); 
+  popupWarehouse.value.show(id, name);
+  popupApproval.value.relatedclose();
   popupStore.value.relatedclose();
 };
 
 const showApprovalDetail = (approvalId) => {
   rightPanel.value.movePanel();
-  popupApproval.value.show(approvalId); 
-  popupWarehouse.value.relatedclose(); 
+  popupApproval.value.show(approvalId);
+  popupWarehouse.value.relatedclose();
   popupStore.value.relatedclose();
 };
 
 const showStorePopup = (storeName) => {
   rightPanel.value.movePanel();
   popupStore.value.show(storeName);
-  popupWarehouse.value.relatedclose(); 
-  popupApproval.value.relatedclose(); 
+  popupWarehouse.value.relatedclose();
+  popupApproval.value.relatedclose();
   console.log("显示商店弹窗：", storeName);
 };
-
 
 const handleNewApproval = (record) => {
   approvalRequests.push(record);

@@ -127,7 +127,6 @@ const transferIn = async () => {
       from: fromWarehouseName,
       to: storeName.value,
     });
-    
   } catch (err) {
     alert(`调货失败：${err.message}`);
   }

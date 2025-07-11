@@ -4,9 +4,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted } from "vue";
 
-const currentTime = ref('北京时间：');
+const currentTime = ref("北京时间：");
 
 const updateTime = () => {
   const now = new Date();

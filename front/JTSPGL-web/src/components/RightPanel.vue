@@ -38,7 +38,7 @@ const panelTransform = ref("translateX(0)");
 
 const statusColorMap = {
   待审核: "gray",
-  "审核不通过": "red",
+  审核不通过: "red",
   待出库: "yellow",
   待收货: "yellow",
   已完成: "green",

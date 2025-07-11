@@ -2,8 +2,8 @@
 <template>
   <div class="chat-box">
     <div class="chat-history" ref="chatHistory">
-      <div 
-        v-for="(message, index) in messages" 
+      <div
+        v-for="(message, index) in messages"
         :key="index"
         class="chat-message-row"
         :class="message.sender"
@@ -27,10 +27,10 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue';
-import axios from 'axios';
+import { ref, nextTick } from "vue";
+import axios from "axios";
 
-const inputMessage = ref('');
+const inputMessage = ref("");
 const messages = ref([]);
 const chatHistory = ref(null);
 
@@ -38,24 +38,26 @@ const sendMessage = async () => {
   if (inputMessage.value.trim()) {
     messages.value.push({
       text: inputMessage.value,
-      sender: 'sender'
+      sender: "sender",
     });
-    
+
     const sentText = inputMessage.value;
-    inputMessage.value = '';
+    inputMessage.value = "";
 
     scrollToBottom();
-    
+
     try {
-        const response = await axios.post('http://localhost:5000/chatting', {
-            text: sentText
-        });
-        messages.value.push({
-            text: response.data.result,
-            sender: 'receiver'
-        });
+      const response = await axios.post("http://localhost:5000/chatting", {
+        text: sentText,
+      });
+      messages.value.push({
+        text: response.data.result,
+        sender: "receiver",
+      });
     } catch (error) {
-        messages.value = `处理出错: ${error.response?.data?.error || error.message}`;
+      messages.value = `处理出错: ${
+        error.response?.data?.error || error.message
+      }`;
     }
     //inputMessage.value = '';之前清空过，此处多余
   }

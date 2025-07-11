@@ -1,3 +1,4 @@
+<!--PopupApporval.vue-->
 <template>
   <div class="popup-panel" :class="{ show: isVisible }">
     <button class="btn btn-sm btn-outline-secondary mb-3" @click="close">
@@ -6,11 +7,19 @@
 
     <h5>审批详情</h5>
     <div v-if="approval">
-      <p><strong>审批ID：</strong> {{ approval.id }}</p>
-      <p><strong>状态：</strong> {{ approval.status }}</p>
-      <p><strong>详情：</strong> {{ approval.display }}</p>
-      <p><strong>发起仓库/商店：</strong> {{ approval.from }}</p>
-      <p><strong>接收仓库/商店：</strong> {{ approval.to }}</p>
+      <p><strong>审批ID: </strong> {{ approval.id }}</p>
+      <p><strong>当前状态:</strong> {{ approval.status }}</p>
+      <p><strong>发起仓库 / 商店:</strong> {{ approval.from }}</p>
+      <p><strong>接收仓库 / 商店:</strong> {{ approval.to }}</p>
+      <p><strong>商品编号:</strong> {{ approval.product || "未知" }}</p>
+      <p><strong>商品数量:</strong> {{ approval.quantity || "未知" }}</p>
+      <hr />
+
+      <h6>时间记录</h6>
+      <p><strong>申请发出时间:</strong> {{ approval.createdAt || "暂无" }}</p>
+      <p><strong>审核时间:</strong> {{ approval.approvedAt || "暂无" }}</p>
+      <p><strong>发货时间:</strong> {{ approval.shippedAt || "暂无" }}</p>
+      <p><strong>收货时间:</strong> {{ approval.receivedAt || "暂无" }}</p>
     </div>
     <div v-else>
       <p>未选择审批项</p>
@@ -41,7 +50,8 @@ watch(
   () => props.selectedApprovalId,
   (newId) => {
     if (newId) {
-      approval.value = props.approvalRequests.find((a) => a.id === newId) || null;
+      approval.value =
+        props.approvalRequests.find((a) => a.id === newId) || null;
       isVisible.value = true;
     } else {
       isVisible.value = false;
