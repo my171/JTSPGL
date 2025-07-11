@@ -13,7 +13,7 @@ const handleLogin = (result) => {
 </script>
 
 <style>
-body {
+.app {
   font-family: Arial, sans-serif;
   background-color: #f5f5f5;
   display: flex;
@@ -21,9 +21,6 @@ body {
   align-items: center;
   height: 100vh;
   margin: 0;
-}
-
-.app {
   width: 100%;
   display: flex;
   justify-content: center;
