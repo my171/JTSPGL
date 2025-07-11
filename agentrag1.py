@@ -1,13 +1,12 @@
-import os# 如果没有设置环境变量不要设置HF_ENDPOINT（删除下面三行），从官网下载模型或者使用本地模型文件
+import os# 如果下载出问题或者没有设置环境变量不要设置HF_ENDPOINT（删除下面三行），从官网下载模型或者使用本地模型文件
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 os.environ["HF_HUB_OFFLINE"] = "0"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
 
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "sk-FxhjDpv1D62n33JGICef3aVagezAr73GFnoXmSQ4ikMpf9Hb")#其他api密钥直接改这里，如果closeai的欠费了用这个密钥：sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
 os.environ["OPENAI_API_URL"] = os.getenv("OPENAI_API_URL", "https://api.openai-proxy.org/v1")
-os.environ["MODEL_NAME"] = os.getenv("MODEL_NAME", "gpt-4.1-nano")#使用的是closeai 的deeepseek-chat模型
-#EMBEDDING_MODEL = "./models/paraphrase-multilingual-mpnet-base-v2"  # 下载到本地的嵌入模型路径
-EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+os.environ["MODEL_NAME"] = os.getenv("MODEL_NAME", "gpt-4.1-nano")#使用的是closeai 的(    )模型
+EMBEDDING_MODEL = "./models/paraphrase-multilingual-mpnet-base-v2"  # 下载到本地的嵌入模型路径
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
 rag = None  # FastAPI全局变量
 import psycopg2
@@ -27,12 +26,19 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from collections import deque
 import re
-# PostgreSQL配置
-PG_HOST = os.getenv('PG_HOST', '192.168.28.135')
-PG_PORT = os.getenv('PG_PORT', '5432')
-PG_NAME = os.getenv('PG_NAME', 'companylink')
-PG_USER = os.getenv('PG_USER', 'myuser')
-PG_PASSWORD = os.getenv('PG_PASSWORD', '123456abc.')
+# PostgreSQL配置（测试数据库）
+PG_HOST = os.getenv('PG_HOST', 'yd.frp-era.com')
+PG_PORT = os.getenv('PG_PORT', '11103')
+PG_NAME = os.getenv('PG_NAME', 'postgres')
+PG_USER = os.getenv('PG_USER', 'u3')
+PG_PASSWORD = os.getenv('PG_PASSWORD', 'abcd1234')
+
+#PG_HOST = os.getenv('PG_HOST', '192.168.28.135')
+#PG_PORT = os.getenv('PG_PORT', '5432')
+#PG_NAME = os.getenv('PG_NAME', 'companylink')
+#PG_USER = os.getenv('PG_USER', 'myuser')
+#PG_PASSWORD = os.getenv('PG_PASSWORD', '123456abc.')
+
 #本地知识库所需要pdf文件路径
 PDF_DIR = './knowledge_pdfs'
 
@@ -144,7 +150,7 @@ class UniversalDatabaseAgent:
     
     def __init__(self):
         self.llm = ChatOpenAI(
-            model_name=os.getenv("MODEL_NAME", "deepseek-chat"),
+            model_name=os.getenv("MODEL_NAME", "gpt-4.1-nano"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_api_base=os.getenv("OPENAI_API_URL"),
             temperature=0.3
@@ -170,6 +176,7 @@ class UniversalDatabaseAgent:
 3. 如果涉及多表，使用适当的JOIN
 4. 确保SQL语法正确
 5. 如果问题不明确，返回NULL
+6. 优先使用聚合函数进行统计分析
 SQL查询：
 """)
             
@@ -199,38 +206,267 @@ SQL查询：
             print(f"❌ SQL执行失败: {e}")
             return []
     
+    def get_column_names(self, sql: str) -> List[str]:
+        """获取查询结果的列名"""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            column_names = [desc[0] for desc in cursor.description]
+            cursor.close()
+            return column_names
+        except Exception as e:
+            print(f"❌ 获取列名失败: {e}")
+            return []
+    
+    def analyze_data_statistics(self, rows: List[Tuple], column_names: List[str]) -> Dict:
+        """分析数据统计信息"""
+        if not rows or not column_names:
+            return {}
+        
+        stats = {}
+        try:
+            # 转换为DataFrame格式进行分析
+            data_dict = {}
+            for i, col_name in enumerate(column_names):
+                data_dict[col_name] = [row[i] for row in rows]
+            
+            # 数值型列统计
+            numeric_stats = {}
+            for col_name, values in data_dict.items():
+                try:
+                    # 尝试转换为数值
+                    numeric_values = []
+                    for val in values:
+                        if val is not None:
+                            try:
+                                numeric_values.append(float(val))
+                            except (ValueError, TypeError):
+                                continue
+                    
+                    if numeric_values:
+                        numeric_stats[col_name] = {
+                            'count': len(numeric_values),
+                            'min': min(numeric_values),
+                            'max': max(numeric_values),
+                            'avg': sum(numeric_values) / len(numeric_values),
+                            'sum': sum(numeric_values)
+                        }
+                except Exception:
+                    continue
+            
+            # 分类列统计
+            categorical_stats = {}
+            for col_name, values in data_dict.items():
+                if col_name not in numeric_stats:
+                    try:
+                        value_counts = {}
+                        for val in values:
+                            if val is not None:
+                                val_str = str(val)
+                                value_counts[val_str] = value_counts.get(val_str, 0) + 1
+                        
+                        if value_counts:
+                            categorical_stats[col_name] = {
+                                'unique_count': len(value_counts),
+                                'top_values': sorted(value_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+                            }
+                    except Exception:
+                        continue
+            
+            stats = {
+                'total_rows': len(rows),
+                'numeric_columns': numeric_stats,
+                'categorical_columns': categorical_stats
+            }
+            
+        except Exception as e:
+            print(f"⚠️ 数据统计分析失败: {e}")
+        
+        return stats
+    
+    def analyze_data_trends(self, rows: List[Tuple], column_names: List[str]) -> Dict:
+        """分析数据趋势"""
+        if not rows or not column_names:
+            return {}
+        
+        trends = {}
+        try:
+            # 查找时间相关列
+            time_columns = []
+            for col_name in column_names:
+                if any(keyword in col_name.lower() for keyword in ['time', 'date', 'created', 'updated', 'timestamp']):
+                    time_columns.append(col_name)
+            
+            if time_columns:
+                # 分析时间趋势
+                for time_col in time_columns:
+                    try:
+                        time_idx = column_names.index(time_col)
+                        time_values = [row[time_idx] for row in rows if row[time_idx] is not None]
+                        
+                        if time_values:
+                            # 简单的时间趋势分析
+                            trends[time_col] = {
+                                'earliest': min(time_values),
+                                'latest': max(time_values),
+                                'total_periods': len(time_values)
+                            }
+                    except Exception:
+                        continue
+            
+            # 分析数值趋势
+            data_dict = {}
+            for i, col_name in enumerate(column_names):
+                data_dict[col_name] = [row[i] for row in rows]
+            
+            for col_name, values in data_dict.items():
+                try:
+                    numeric_values = []
+                    for val in values:
+                        if val is not None:
+                            try:
+                                numeric_values.append(float(val))
+                            except (ValueError, TypeError):
+                                continue
+                    
+                    if len(numeric_values) > 1:
+                        # 计算趋势（简单线性趋势）
+                        sorted_values = sorted(numeric_values)
+                        if sorted_values[0] != sorted_values[-1]:
+                            trend_direction = "上升" if sorted_values[-1] > sorted_values[0] else "下降"
+                            trends[f"{col_name}_trend"] = {
+                                'direction': trend_direction,
+                                'range': f"{sorted_values[0]} - {sorted_values[-1]}",
+                                'variation': sorted_values[-1] - sorted_values[0]
+                            }
+                except Exception:
+                    continue
+                    
+        except Exception as e:
+            print(f"⚠️ 趋势分析失败: {e}")
+        
+        return trends
+    
+    def analyze_data_relationships(self, rows: List[Tuple], column_names: List[str]) -> Dict:
+        """分析数据关联关系"""
+        if not rows or not column_names:
+            return {}
+        
+        relationships = {}
+        try:
+            # 分析外键关系
+            for table_name, rels in self.schema_analyzer.table_relationships.items():
+                for rel in rels:
+                    relationships[f"{table_name}.{rel['column']}"] = {
+                        'references': f"{rel['foreign_table']}.{rel['foreign_column']}",
+                        'type': 'foreign_key'
+                    }
+            
+            # 分析数据中的关联模式
+            data_dict = {}
+            for i, col_name in enumerate(column_names):
+                data_dict[col_name] = [row[i] for row in rows]
+            
+            # 查找可能的关联列（相同值的列）
+            for col1 in column_names:
+                for col2 in column_names:
+                    if col1 != col2:
+                        try:
+                            values1 = set(str(data_dict[col1][i]) for i in range(len(rows)) if data_dict[col1][i] is not None)
+                            values2 = set(str(data_dict[col2][i]) for i in range(len(rows)) if data_dict[col2][i] is not None)
+                            
+                            # 计算重叠度
+                            overlap = len(values1.intersection(values2))
+                            if overlap > 0 and len(values1) > 0 and len(values2) > 0:
+                                overlap_ratio = overlap / min(len(values1), len(values2))
+                                if overlap_ratio > 0.3:  # 30%以上重叠认为有关联
+                                    relationships[f"{col1}_vs_{col2}"] = {
+                                        'overlap_count': overlap,
+                                        'overlap_ratio': overlap_ratio,
+                                        'type': 'data_overlap'
+                                    }
+                        except Exception:
+                            continue
+                            
+        except Exception as e:
+            print(f"⚠️ 关联关系分析失败: {e}")
+        
+        return relationships
+    
     def analyze_results(self, question: str, rows: List[Tuple], sql: str) -> str:
-        """分析查询结果"""
+        """深度分析查询结果"""
         if not rows:
             return "未找到相关数据"
         
         try:
-            # 将结果格式化为文本
-            result_text = "\n".join([str(row) for row in rows[:5]])  # 只显示前5行
+            # 获取列名
+            column_names = self.get_column_names(sql)
+            if not column_names:
+                column_names = [f"column_{i}" for i in range(len(rows[0]) if rows else 0)]
             
-            prompt = PromptTemplate.from_template("""
-基于以下查询结果，为用户问题提供专业的业务分析：
+            # 进行多维度分析
+            statistics = self.analyze_data_statistics(rows, column_names)
+            trends = self.analyze_data_trends(rows, column_names)
+            relationships = self.analyze_data_relationships(rows, column_names)
+            
+            # 格式化分析结果
+            analysis_text = f"数据概览：共找到 {len(rows)} 条记录\n\n"
+            
+            # 统计信息
+            if statistics.get('numeric_columns'):
+                analysis_text += "📊 数值统计：\n"
+                for col, stats in statistics['numeric_columns'].items():
+                    analysis_text += f"  {col}: 平均{stats['avg']:.2f}, 范围{stats['min']}-{stats['max']}, 总计{stats['sum']:.2f}\n"
+            
+            if statistics.get('categorical_columns'):
+                analysis_text += "\n📋 分类统计：\n"
+                for col, stats in statistics['categorical_columns'].items():
+                    analysis_text += f"  {col}: {stats['unique_count']}个不同值\n"
+                    if stats['top_values']:
+                        top_val = stats['top_values'][0]
+                        analysis_text += f"    最常见: {top_val[0]} ({top_val[1]}次)\n"
+            
+            # 趋势信息
+            if trends:
+                analysis_text += "\n📈 趋势分析：\n"
+                for trend_name, trend_info in trends.items():
+                    if 'trend' in trend_name:
+                        analysis_text += f"  {trend_name}: {trend_info['direction']}趋势, 变化范围{trend_info['range']}\n"
+            
+            # 关联信息
+            if relationships:
+                analysis_text += "\n🔗 关联关系：\n"
+                for rel_name, rel_info in relationships.items():
+                    if rel_info['type'] == 'foreign_key':
+                        analysis_text += f"  {rel_name} → {rel_info['references']}\n"
+            
+            # 使用LLM进行业务洞察
+            insight_prompt = PromptTemplate.from_template("""
+基于以下数据分析结果，为用户问题提供专业的业务洞察和建议：
+
 用户问题：{question}
 执行的SQL：{sql}
-查询结果：
-{result_text}
+数据概览：{analysis_text}
+
 请提供：
-1. 数据概览和关键指标
-2. 业务洞察和建议
-3. 数据趋势分析（如果适用）
-回答要简洁专业，不超过200字。
+1. 关键业务指标解读
+2. 数据异常或趋势分析
+3. 业务建议和优化方向
+4. 风险提示（如果适用）
+
+回答要简洁专业，不超过300字。
 """)
             
-            response = self.llm.invoke(prompt.format(
+            response = self.llm.invoke(insight_prompt.format(
                 question=question,
                 sql=sql,
-                result_text=result_text
+                analysis_text=analysis_text
             ))
             
-            return response.content
+            return f"{analysis_text}\n\n💡 业务洞察：\n{response.content.strip()}"
             
         except Exception as e:
-            return f"结果分析失败: {str(e)}"
+            return f"数据分析失败: {str(e)}"
     
     def query(self, question: str, context: str = "") -> str:
         """通用数据库查询接口"""
@@ -243,7 +479,7 @@ SQL查询：
             # 2. 执行查询
             rows = self.execute_query(sql)
             
-            # 3. 分析结果
+            # 3. 深度分析结果
             analysis = self.analyze_results(question, rows, sql)
             
             return analysis
@@ -251,14 +487,40 @@ SQL查询：
         except Exception as e:
             return f"数据库查询失败: {str(e)}"
     
+    def get_database_summary(self) -> str:
+        """获取数据库整体摘要"""
+        try:
+            summary = []
+            summary.append(f"数据库连接：{PG_HOST}:{PG_PORT}/{PG_NAME}")
+            summary.append(f"表数量：{len(self.schema_analyzer.schema_info)}")
+            
+            # 统计每个表的数据量
+            for table_name in self.schema_analyzer.schema_info.keys():
+                try:
+                    cursor = self.conn.cursor()
+                    cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+                    count = cursor.fetchone()[0]
+                    cursor.close()
+                    summary.append(f"  {table_name}: {count} 条记录")
+                except Exception:
+                    summary.append(f"  {table_name}: 无法获取记录数")
+            
+            return "\n".join(summary)
+        except Exception as e:
+            return f"数据库摘要获取失败: {str(e)}"
+    
     def close(self):
         self.conn.close()
-
 class InMemoryKnowledgeBase:
     def __init__(self):
         self.documents: List[Document] = []
         self.embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
         self.vectorstore = None
+        self.db_agent = None  # 添加数据库Agent引用
+
+    def set_db_agent(self, db_agent):
+        """设置数据库Agent引用"""
+        self.db_agent = db_agent
 
     def load_from_postgres(self):
         """动态加载PostgreSQL数据到知识库"""
@@ -271,9 +533,9 @@ class InMemoryKnowledgeBase:
             # 为每个表生成知识片段
             for table_name, columns in schema_analyzer.schema_info.items():
                 try:
-                    # 获取表的前50行数据作为示例
+                    # 获取表的前100行数据作为示例（增加数据量）
                     cursor = conn.cursor()
-                    cursor.execute(f"SELECT * FROM {table_name} LIMIT 50")
+                    cursor.execute(f"SELECT * FROM {table_name} LIMIT 100")
                     rows = cursor.fetchall()
                     cursor.close()
                     
@@ -286,13 +548,40 @@ class InMemoryKnowledgeBase:
                             metadata={"type": "table_schema", "table": table_name}
                         ))
                         
-                        # 生成数据示例
-                        for i, row in enumerate(rows[:3]):  # 只取前3行
+                        # 生成数据示例（增加更多行）
+                        for i, row in enumerate(rows[:10]):  # 增加到10行
                             data_desc = f"{table_name}表数据示例{i+1}：{dict(zip(col_names, row))}"
                             self.documents.append(Document(
                                 page_content=data_desc,
                                 metadata={"type": "table_data", "table": table_name, "row": i+1}
                             ))
+                        
+                        # 生成表统计信息
+                        try:
+                            cursor = conn.cursor()
+                            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+                            total_count = cursor.fetchone()[0]
+                            cursor.close()
+                            
+                            # 为数值列生成统计信息
+                            numeric_cols = [col['name'] for col in columns if 'int' in col['type'] or 'decimal' in col['type'] or 'float' in col['type']]
+                            if numeric_cols:
+                                for col in numeric_cols[:3]:  # 限制统计列数
+                                    try:
+                                        cursor = conn.cursor()
+                                        cursor.execute(f"SELECT AVG({col}), MIN({col}), MAX({col}) FROM {table_name} WHERE {col} IS NOT NULL")
+                                        stats = cursor.fetchone()
+                                        cursor.close()
+                                        if stats and stats[0] is not None:
+                                            stats_desc = f"{table_name}表{col}字段统计：平均{stats[0]:.2f}, 最小{stats[1]}, 最大{stats[2]}, 总记录{total_count}"
+                                            self.documents.append(Document(
+                                                page_content=stats_desc,
+                                                metadata={"type": "table_stats", "table": table_name, "column": col}
+                                            ))
+                                    except Exception:
+                                        continue
+                        except Exception:
+                            pass
                 
                 except Exception as e:
                     print(f"⚠️ 处理表 {table_name} 时出错: {e}")
@@ -302,6 +591,74 @@ class InMemoryKnowledgeBase:
             print(f"✅ 成功加载 {len(self.documents)} 个数据库知识片段")
         except Exception as e:
             print(f"❌ 数据库知识加载失败: {e}")
+
+    def get_realtime_data_context(self, question: str) -> str:
+        """获取实时数据库数据上下文"""
+        if not self.db_agent:
+            return ""
+        
+        try:
+            # 使用数据库Agent进行实时查询
+            db_result = self.db_agent.query(question)
+            if db_result and "未找到相关数据" not in db_result:
+                return f"实时数据库查询结果：\n{db_result}"
+        except Exception as e:
+            print(f"⚠️ 实时数据查询失败: {e}")
+        
+        return ""
+
+    def query_with_database_context(self, question: str) -> str:
+        """结合数据库上下文的知识库查询"""
+        try:
+            # 1. 获取知识库检索结果
+            if not self.vectorstore:
+                return "知识库未初始化"
+            
+            docs = self.vectorstore.similarity_search(question, k=5)
+            knowledge_context = self._format_knowledge_context(docs)
+            
+            # 2. 获取实时数据库上下文
+            realtime_context = self.get_realtime_data_context(question)
+            
+            # 3. 结合分析
+            if realtime_context:
+                combined_context = f"{knowledge_context}\n\n{realtime_context}"
+            else:
+                combined_context = knowledge_context
+            
+            return combined_context
+            
+        except Exception as e:
+            return f"知识库查询失败: {str(e)}"
+
+    def _format_knowledge_context(self, docs: List[Document]) -> str:
+        """格式化知识库上下文"""
+        if not docs:
+            return ""
+        
+        formatted_contexts = []
+        for i, doc in enumerate(docs[:3]):
+            content = doc.page_content.strip()
+            # 清理和格式化文本
+            content = re.sub(r'\n+', ' ', content)
+            content = re.sub(r'\s+', ' ', content)
+            content = content[:400] + "..." if len(content) > 400 else content
+            
+            # 添加元数据信息
+            metadata_info = ""
+            if doc.metadata.get("type") == "table_schema":
+                metadata_info = f" [表结构]"
+            elif doc.metadata.get("type") == "table_data":
+                metadata_info = f" [数据示例]"
+            elif doc.metadata.get("type") == "table_stats":
+                metadata_info = f" [统计信息]"
+            elif doc.metadata.get("type") == "pdf":
+                metadata_info = f" [PDF: {doc.metadata.get('source', 'unknown')}]"
+            
+            formatted_contexts.append(f"知识片段{i+1}{metadata_info}: {content}")
+        
+        return "\n".join(formatted_contexts)
+
     def load_from_pdfs(self, pdf_dir=PDF_DIR):
         if not os.path.exists(pdf_dir):
             print(f"⚠️ PDF目录不存在: {pdf_dir}")
@@ -322,12 +679,14 @@ class InMemoryKnowledgeBase:
                 doc.close()
             except Exception as e:
                 print(f"❌ 解析PDF失败: {fname} {e}")
+
     def build_vectorstore(self):
         if not self.documents:
             raise RuntimeError("没有知识片段可用于向量化")
         splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
         docs = splitter.split_documents(self.documents)
         self.vectorstore = FAISS.from_documents(docs, self.embeddings)
+
     def cleanup(self):
         self.documents.clear()
         self.vectorstore = None
@@ -353,7 +712,7 @@ class MemoryAgent:
         self.conversation_history = deque(maxlen=max_memory_size)
         self.context_summary = ""
         self.llm = ChatOpenAI(
-            model_name=os.getenv("MODEL_NAME", "deepseek-chat"),
+            model_name=os.getenv("MODEL_NAME", "gpt-4.1-nano"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_api_base=os.getenv("OPENAI_API_URL"),
             temperature=0.3
@@ -420,7 +779,7 @@ class TopAgent:
         self.pdf_agent = pdf_agent
         self.kb = kb
         self.llm = ChatOpenAI(
-            model_name=os.getenv("MODEL_NAME", "deepseek-chat"),
+            model_name=os.getenv("MODEL_NAME", "gpt-4.1-nano"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_api_base=os.getenv("OPENAI_API_URL"),
             temperature=0.3
@@ -625,10 +984,30 @@ class TopAgent:
         # 1. 语义检索增强
         enhanced_question = self._enhance_query_with_semantic_context(question)
         semantic_results = self._knn_semantic_search(question, k=3)
+        
         # 检查最高相关性
         max_similarity = max([r['similarity'] for r in semantic_results], default=0)
-        if max_similarity < 0.3:
-            # 相关性低，直接由大模型回答
+        
+        # 2. 分析查询意图
+        try:
+            intent = self.analyze_query_intent(enhanced_question, context)
+        except Exception as e:
+            print(f"⚠️ 意图分析失败: {e}")
+            intent = None
+        
+        # 如果意图分析失败，使用默认策略
+        if not intent or not isinstance(intent, dict) or not intent.get('primary_agent'):
+            intent = {
+                "requires_database": True,
+                "requires_pdf": True,
+                "requires_knowledge_base": True,
+                "primary_agent": "multi",
+                "reasoning": "默认多Agent协调模式"
+            }
+        
+        # 3. 根据意图和相关性决定策略
+        if max_similarity < 0.2:
+            # 相关性很低，直接由大模型回答
             llm_prompt = PromptTemplate.from_template("""
 你是智能仓储系统的专家，请直接、专业地回答下列用户问题：
 
@@ -643,7 +1022,7 @@ class TopAgent:
                 "db_result": "",
                 "pdf_result": "",
                 "source_type": "llm_fallback",
-                "confidence": 0.7,
+                "confidence": 0.6,
                 "agent_decision": {
                     "primary_agent": "llm_fallback",
                     "reasoning": "语义相关性低，直接由大模型回答",
@@ -654,70 +1033,56 @@ class TopAgent:
                 "semantic_results": semantic_results
             }
         
-        # 2. 分析查询意图
-        try:
-            intent = self.analyze_query_intent(enhanced_question, context)
-        except Exception as e:
-            intent = None
-        # 如果意图分析失败或返回空/无效，直接由LLM回答
-        if not intent or not isinstance(intent, dict) or not intent.get('primary_agent'):
-            llm_prompt = PromptTemplate.from_template("""
-你是智能仓储系统的专家，请直接、专业地回答下列用户问题：
-
-用户问题：{question}
-
-请用结构化、简明的方式作答。
-""")
-            answer = self.llm.invoke(llm_prompt.format(question=question)).content.strip()
-            return {
-                "answer": answer,
-                "knowledge_context": "",
-                "db_result": "",
-                "pdf_result": "",
-                "source_type": "llm_fallback",
-                "confidence": 0.7,
-                "agent_decision": {
-                    "primary_agent": "llm_fallback",
-                    "reasoning": "意图分析失败或无效，直接由大模型回答",
-                    "requires_database": False,
-                    "requires_pdf": False,
-                    "requires_knowledge_base": False
-                },
-                "semantic_results": semantic_results
-            }
-        
-        # 3. 根据意图调用相应Agent
+        # 4. 根据意图调用相应Agent
         results = {}
         
+        # 知识库查询（增强版）
         if intent.get("requires_knowledge_base", True):
             try:
-                docs = self.kb.vectorstore.similarity_search(question, k=5)
-                results["knowledge_context"] = self._format_knowledge_context(docs)
+                # 使用增强的知识库查询，包含数据库上下文
+                if hasattr(self.kb, 'query_with_database_context'):
+                    results["knowledge_context"] = self.kb.query_with_database_context(question)
+                else:
+                    # 回退到传统知识库查询
+                    docs = self.kb.vectorstore.similarity_search(question, k=5)
+                    results["knowledge_context"] = self._format_knowledge_context(docs)
             except Exception as e:
                 results["knowledge_context"] = f"知识库检索失败: {e}"
         
+        # 数据库查询（增强版）
         if intent.get("requires_database", True):
             try:
+                # 使用增强的数据库Agent进行深度分析
                 results["db_result"] = self.db_agent.query(question, context)
+                
+                # 如果数据库查询成功，获取数据库摘要信息
+                if "未找到相关数据" not in results["db_result"]:
+                    try:
+                        db_summary = self.db_agent.get_database_summary()
+                        results["db_summary"] = db_summary
+                    except Exception:
+                        pass
             except Exception as e:
                 results["db_result"] = f"数据库查询失败: {e}"
         
+        # PDF查询
         if intent.get("requires_pdf", True):
             try:
                 results["pdf_result"] = self.pdf_agent.query(question)
             except Exception as e:
                 results["pdf_result"] = f"PDF检索失败: {e}"
         
-        # 4. 生成综合回答
-        final_answer = self._generate_comprehensive_answer(question, results, intent)
+        # 5. 智能结果整合
+        final_answer = self._generate_intelligent_answer(question, results, intent, semantic_results)
         
         return {
             "answer": final_answer,
             "knowledge_context": results.get("knowledge_context", ""),
             "db_result": results.get("db_result", ""),
             "pdf_result": results.get("pdf_result", ""),
+            "db_summary": results.get("db_summary", ""),
             "source_type": "top_agent_coordinated",
-            "confidence": 0.9,
+            "confidence": min(0.9, 0.7 + max_similarity * 0.2),  # 基于相似度调整置信度
             "agent_decision": intent,
             "semantic_results": semantic_results
         }
@@ -734,19 +1099,38 @@ class TopAgent:
             content = re.sub(r'\n+', ' ', content)  # 将多个换行符替换为空格
             content = re.sub(r'\s+', ' ', content)  # 将多个空格替换为单个空格
             content = content[:300] + "..." if len(content) > 300 else content
-            
             formatted_contexts.append(f"知识片段{i+1}: {content}")
         
         return "\n".join(formatted_contexts)
     
-    def _generate_comprehensive_answer(self, question: str, results: Dict, intent: Dict) -> str:
-        """生成综合回答"""
+    def _generate_intelligent_answer(self, question: str, results: Dict, intent: Dict, semantic_results: List) -> str:
+        """智能生成综合回答"""
         try:
+            # 构建上下文信息
+            context_parts = []
+            
+            # 添加语义相关任务信息
+            if semantic_results:
+                relevant_tasks = []
+                for result in semantic_results[:2]:  # 取前2个最相关的
+                    if result['similarity'] > 0.4:
+                        candidate = result['candidate']
+                        relevant_tasks.append(f"{candidate['task']}: {candidate['text']}")
+                
+                if relevant_tasks:
+                    context_parts.append(f"相关任务: {'; '.join(relevant_tasks)}")
+            
+            # 添加数据库摘要
+            if results.get("db_summary"):
+                context_parts.append(f"数据库状态: {results['db_summary']}")
+            
+            # 构建综合提示
             synthesis_prompt = PromptTemplate.from_template("""
-作为智能仓储系统的中枢大脑，请基于以下信息生成专业、结构化的综合回答：
+作为智能仓储系统的中枢大脑，请基于以下多源信息生成专业、结构化的综合回答：
 
 用户问题：{question}
 Agent决策：{intent_reasoning}
+上下文信息：{context_info}
 
 【知识库信息】
 {knowledge_context}
@@ -760,15 +1144,25 @@ Agent决策：{intent_reasoning}
 请提供：
 1. 直接回答用户问题
 2. 基于多源信息的综合分析
-3. 如果有上下文关联，请体现连续性
-4. 回答要简洁、专业、结构化
+3. 数据驱动的业务洞察
+4. 具体的建议和优化方向
+5. 如果有上下文关联，请体现连续性
+
+要求：
+- 回答要简洁、专业、结构化
+- 充分利用数据库的具体数据
+- 结合知识库的理论指导
+- 体现智能分析能力
 
 综合回答：
 """)
             
+            context_info = "\n".join(context_parts) if context_parts else "无特殊上下文"
+            
             response = self.llm.invoke(synthesis_prompt.format(
                 question=question,
                 intent_reasoning=intent.get("reasoning", ""),
+                context_info=context_info,
                 knowledge_context=results.get("knowledge_context", "无相关信息"),
                 db_result=results.get("db_result", "无数据库结果"),
                 pdf_result=results.get("pdf_result", "无PDF结果")
@@ -777,24 +1171,41 @@ Agent决策：{intent_reasoning}
             return response.content.strip()
             
         except Exception as e:
-            return f"综合回答生成失败: {str(e)}"
+            return f"智能回答生成失败: {str(e)}"
 
 class AgenticRAGSystem:
     def __init__(self):
+        # 1. 初始化知识库
         self.kb = InMemoryKnowledgeBase()
+        
+        # 2. 初始化数据库Agent
+        self.db_agent = UniversalDatabaseAgent()
+        
+        # 3. 设置知识库的数据库Agent引用
+        self.kb.set_db_agent(self.db_agent)
+        
+        # 4. 加载数据到知识库
         self.kb.load_from_postgres()
         self.kb.load_from_pdfs()
         self.kb.build_vectorstore()
-        self.db_agent = UniversalDatabaseAgent()  # 使用通用数据库Agent
+        
+        # 5. 初始化其他Agent
         self.pdf_agent = PDFMultiAgent(self.kb)
-        self.memory_agent = MemoryAgent() # 添加记忆Agent
-        self.top_agent = TopAgent(self.memory_agent, self.db_agent, self.pdf_agent, self.kb) # 添加TopAgent
+        self.memory_agent = MemoryAgent()
+        self.top_agent = TopAgent(self.memory_agent, self.db_agent, self.pdf_agent, self.kb)
+        
+        # 6. 初始化LLM
         self.llm = ChatOpenAI(
             model_name=os.getenv("MODEL_NAME"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_api_base=os.getenv("OPENAI_API_URL"),
             temperature=0.3
         )
+        
+        print("✅ 智能多Agent RAG系统初始化完成")
+        print(f"📊 数据库连接: {PG_HOST}:{PG_PORT}/{PG_NAME}")
+        print(f"📚 知识库文档数: {len(self.kb.documents)}")
+        print(f"🧠 语义检索候选数: {len(self.top_agent.candidate_vectors) if self.top_agent.candidate_vectors else 0}")
 
     def process_query(self, query: str) -> Dict:
         # 1. 获取上下文
@@ -811,7 +1222,8 @@ class AgenticRAGSystem:
     def close(self):
         self.kb.cleanup()
         self.db_agent.close()
-        self.memory_agent.clear_memory() # 清理记忆
+        self.memory_agent.clear_memory()
+        print("🧹 系统资源已清理")
 
 # FastAPI接口
 app = FastAPI(title="智能多Agent RAG API")
@@ -886,6 +1298,11 @@ def display_result(result: Dict):
         print("🔄 重复查询检测")
     else:
         print("❓ 未知来源")
+    
+    # 数据库摘要信息
+    if 'db_summary' in result and result['db_summary']:
+        print("\n💾 数据库状态:")
+        print(result['db_summary'])
     
     # 详细上下文（可选）
     if 'knowledge_context' in result and result['knowledge_context']:
