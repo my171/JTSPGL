@@ -14,7 +14,7 @@
       <input
         class="form-control"
         v-model="queryInput"
-        placeholder="输入商品ID或名称"
+        placeholder="输入商品ID"
       />
       <button class="btn btn-primary" @click="queryProduct">
         查询信息
@@ -128,10 +128,12 @@ const handleStoreClick = (e) => {
 
 
 // 查询商品信息
+// 查询当前仓库库存
 const queryProduct = async () => {
   try {
-    const res = await axios.get('http://localhost:5000/api/product/full', {
-      params: { query: queryInput.value },
+    const res = await axios.get(`http://localhost:5000/api/warehouses/${currentWarehouseId.value}/products`, {
+      params: {
+        query: queryInput.value },
     });
     productResult.value = JSON.stringify(res.data, null, 2);
   } catch (err) {
