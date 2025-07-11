@@ -1,3 +1,4 @@
+<!--RightPanel.vue-->
 <template>
   <div class="col-md-3 right-panel" :style="{ transform: panelTransform }">
     <h5>AI 实时预警</h5>

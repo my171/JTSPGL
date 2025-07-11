@@ -1,3 +1,4 @@
+<!--PopupStore.vue-->
 <template>
   <div class="popup-panel" :class="{ show: isVisible }">
     <button class="btn btn-sm btn-outline-secondary mb-3" @click="close">

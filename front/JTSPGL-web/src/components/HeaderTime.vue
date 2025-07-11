@@ -1,3 +1,4 @@
+<!--HeaderTime.vue-->
 <template>
   <div class="header-time">{{ currentTime }}</div>
 </template>

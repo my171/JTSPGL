@@ -1,3 +1,4 @@
+<!--WarehouseMap.vue-->
 <template>
   <div class="map-container">
     <div class="map-area" ref="mapContainer">

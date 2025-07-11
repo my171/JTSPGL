@@ -1,3 +1,4 @@
+<!--ChatBox.vue-->
 <template>
   <div class="chat-box">
     <div class="chat-history" ref="chatHistory">
