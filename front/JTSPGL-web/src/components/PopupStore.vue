@@ -1,34 +1,159 @@
 <!--PopupStore.vue-->
 <template>
-    <div class="popup-panel" :class="{ show: isVisible }">
-      <button class="btn btn-sm btn-outline-secondary mb-3" @click="close">关闭</button>
-      <h5>商店：{{ storeName }}</h5>
-      <p>这里可以显示商店相关信息，例如商品列表、销售记录等</p>
+  <div class="popup-panel" :class="{ show: isVisible }">
+    <button class="btn btn-sm btn-outline-secondary mb-3" @click="close">
+      关闭
+    </button>
+    <h5>商店：{{ storeName }}</h5>
+
+    <hr />
+
+    <!-- 商品信息查询 -->
+    <h5>商品信息与销量</h5>
+    <div class="input-group mb-2">
+      <input
+        class="form-control"
+        v-model="queryInput"
+        placeholder="输入商品ID或名称"
+      />
+      <button class="btn btn-primary" @click="queryProduct">
+        查询信息
+      </button>
     </div>
-  </template>
-  
-  <script setup>
-  import { ref } from 'vue';
-  
-  const isVisible = ref(false);
-  const storeName = ref('');
-  
-  const emit = defineEmits(['close']);
-  
-  const show = (name) => {
-    storeName.value = name;
-    isVisible.value = true;
-  };
-  
-  const close = () => {
-    isVisible.value = false;
-    emit('close');
-  };
-  
-  defineExpose({ show });
-  </script>
-  
-  <style scoped>
-  @import './popup-style.css';
-  </style>
-  
+    <div v-if="productResult">
+      <pre>{{ productResult }}</pre>
+    </div>
+
+    <!-- 从仓库调货 -->
+    <h5 class="mt-4">从仓库调货</h5>
+    <div class="input-group mb-2">
+      <input
+        class="form-control"
+        v-model="transferProduct"
+        placeholder="商品ID"
+      />
+      <input
+        class="form-control"
+        v-model="transferQty"
+        placeholder="数量"
+      />
+      <select class="form-select" v-model="selectedWarehouse">
+        <option disabled value="">选择仓库</option>
+        <option v-for="wh in warehouseList" :key="wh.id" :value="wh.id">
+          {{ wh.name }}
+        </option>
+      </select>
+      <button class="btn btn-warning" @click="transferIn">调货</button>
+    </div>
+
+    <!-- 卖出商品 -->
+    <h5 class="mt-4">卖出商品</h5>
+    <div class="input-group mb-2">
+      <input
+        class="form-control"
+        v-model="sellProduct"
+        placeholder="商品ID"
+      />
+      <input
+        class="form-control"
+        v-model="sellQty"
+        placeholder="数量"
+      />
+      <button class="btn btn-success" @click="sell">卖出</button>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue';
+import axios from 'axios';
+
+const emit = defineEmits(['close']);
+const isVisible = ref(false);
+const storeName = ref('');
+
+const queryInput = ref('');
+const productResult = ref('');
+
+const transferProduct = ref('');
+const transferQty = ref('');
+const selectedWarehouse = ref('');
+const warehouseList = ref([]);
+
+const sellProduct = ref('');
+const sellQty = ref('');
+
+// 打开弹窗
+const show = async (name) => {
+  storeName.value = name;
+  isVisible.value = true;
+
+  // 加载仓库列表供选择（调货用）
+  try {
+    const res = await axios.get('http://localhost:5000/api/warehouses');
+    warehouseList.value = res.data;
+  } catch (err) {
+    console.error('加载仓库列表失败', err);
+  }
+};
+
+// 查询商品信息和销量
+const queryProduct = async () => {
+  try {
+    const res = await axios.get('http://localhost:5000/api/store/product/full', {
+      params: {
+        store: storeName.value,
+        query: queryInput.value
+      }
+    });
+    productResult.value = JSON.stringify(res.data, null, 2);
+  } catch (err) {
+    productResult.value = `查询失败：${err.message}`;
+  }
+};
+
+// 从仓库调货
+const transferIn = async () => {
+  try {
+    await axios.post('http://localhost:5000/api/store/transfer-in', {
+      store: storeName.value,
+      product: transferProduct.value,
+      quantity: Number(transferQty.value),
+      fromWarehouse: selectedWarehouse.value
+    });
+    alert('调货成功');
+  } catch (err) {
+    alert(`调货失败：${err.message}`);
+  }
+};
+
+// 卖出商品
+const sell = async () => {
+  try {
+    await axios.post('http://localhost:5000/api/store/sell', {
+      store: storeName.value,
+      product: sellProduct.value,
+      quantity: Number(sellQty.value)
+    });
+    alert('卖出成功');
+  } catch (err) {
+    alert(`卖出失败：${err.message}`);
+  }
+};
+
+// 关闭弹窗
+const close = () => {
+  isVisible.value = false;
+  emit('close');
+};
+
+const relatedclose = () => {
+  isVisible.value = false;
+};
+
+defineExpose({ show, relatedclose });
+</script>
+
+<style scoped>
+@import './popup-style.css';
+</style>

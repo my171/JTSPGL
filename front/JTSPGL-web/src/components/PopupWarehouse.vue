@@ -73,6 +73,9 @@ const emit = defineEmits(["close", "show-store"]);
 const isVisible = ref(false);
 const content = ref("加载中...");
 
+const currentWarehouseId = ref('');
+const currentWarehouseName = ref('');
+
 // 查询 & 操作表单
 const queryInput = ref("");
 const productResult = ref("");
@@ -84,7 +87,21 @@ const transferProduct = ref("");
 const transferQty = ref("");
 const selectedWarehouse = ref("");
 
+const warehouseList = ref([
+  { id: 'WH001', name: '华北中心仓' },
+  { id: 'WH002', name: '华东智能仓' },
+  { id: 'WH003', name: '华南枢纽仓' },
+  { id: 'WH004', name: '西南分拨中心' },
+  { id: 'WH005', name: '东北冷链仓' }
+]);
+
+
+// 弹窗显示
 const show = async (id, name) => {
+
+  currentWarehouseId.value = id;
+  currentWarehouseName.value = name;
+
   content.value = `<h5>${name} - 商店列表</h5><p>加载中...</p>`;
   isVisible.value = true;
 
@@ -103,12 +120,14 @@ const show = async (id, name) => {
   }
 };
 
+// 点击商店按钮
 const handleStoreClick = (e) => {
   const storeName = e.detail;
   emit('show-store', storeName);
 };
 
 
+// 查询商品信息
 const queryProduct = async () => {
   try {
     const res = await axios.get('http://localhost:5000/api/product/full', {
@@ -120,11 +139,12 @@ const queryProduct = async () => {
   }
 };
 
-
+// 补货请求
 const replenish = async () => {
-  /*直接给仓库加库存量，调用仓库流水表*/
+  /*直接给仓库加库存量，调用仓库流水表 和 库存表*/
   try {
     await axios.post("http://localhost:5000/api/replenish", {
+      warehouse_id: currentWarehouseId.value,
       product: replenishProduct.value,
       quantity: Number(replenishQty.value),
     });
@@ -134,13 +154,16 @@ const replenish = async () => {
   }
 };
 
+// 调货请求
 const transfer = async () => {
   /*仓库之间调货，调用仓库流水表，一加一减*/
   try {
+    const fromWarehouse = warehouseList.value.find(w => w.id === selectedWarehouseId.value)?.name || '';
     await axios.post("http://localhost:5000/api/transfer", {
+      warehouse_id: currentWarehouseId.value,
       product: transferProduct.value,
       quantity: Number(transferQty.value),
-      fromWarehouse: selectedWarehouse.value,
+      fromWarehouse,
     });
     alert("调货成功");
   } catch (err) {

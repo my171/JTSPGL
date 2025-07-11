@@ -15,7 +15,7 @@
       />
     </div>
 
-    <!-- 新增3个独立的弹出面板组件 -->
+    <!-- 3个独立的弹出面板组件 -->
      <PopupStore
       ref="popupStore"
       @close="closeWarehousePopup"
@@ -24,6 +24,7 @@
     <PopupWarehouse 
       ref="popupWarehouse"
       @close="closeWarehousePopup" 
+      @show-store="showStorePopup"
     />
     <PopupApproval 
       ref="popupApproval"
@@ -41,7 +42,7 @@ import ChatBox from '@components/ChatBox.vue';
 import RightPanel from '@components/RightPanel.vue';
 import PopupWarehouse from '@components/PopupWarehouse.vue';
 import PopupApproval from '@components/PopupApproval.vue';
-import PopupStore from './components/PopupStore.vue';
+import PopupStore from '@components/PopupStore.vue';
 
 const rightPanel = ref(null);
 const popupStore = ref(null);
@@ -52,12 +53,21 @@ const showWarehouseInfo = (id, name) => {
   rightPanel.value.movePanel();
   popupWarehouse.value.show(id, name); 
   popupApproval.value.relatedclose(); 
+  popupStore.value.relatedclose();
 };
 
 const showApprovalDetail = (productId) => {
   rightPanel.value.movePanel();
   popupApproval.value.show(productId); 
   popupWarehouse.value.relatedclose(); 
+};
+
+const showStorePopup = (storeName) => {
+  rightPanel.value.movePanel();
+  popupStore.value.show(storeName);
+  popupWarehouse.value.relatedclose(); 
+  popupApproval.value.relatedclose(); 
+  console.log("显示商店弹窗：", storeName);
 };
 
 const closeStorePopup = () => {
