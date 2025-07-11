@@ -239,8 +239,9 @@ def product_search():
 def get_result(input_text):
     return f""""Original Text: {input_text}"""
 
+# Chatting Box Routing
 @app.route('/chatting', methods = ['POST'])
-def Reply():
+def chatting():
     try:
         input_text = request.get_json().get('text', '')
         
@@ -253,18 +254,9 @@ def Reply():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-warehouse_store_map = {
-    'WH001' : ["北京王府井旗舰店"],
-    'WH002' : ["上海徐家汇店", "南京新街口路", "杭州西湖店", "武汉武商广场店"],
-    'WH003' : ["广州天河城店", "深圳万象城店"],
-    'WH004' : ["成都春熙路店", "重庆解放碑店", "西安钟楼店"],
-    'WH005' : []
-}
-
+# Search for stores by warehouse
 @app.route('/api/warehouses/<warehouse_id>/stores', methods = ['GET'])
 def get_stores_by_warehouse_id(warehouse_id):
-    stores = warehouse_store_map[warehouse_id]
-
     with DBPool.get_connection() as conn:
         with conn.cursor() as cur:
             query = f"""
@@ -281,6 +273,114 @@ def get_stores_by_warehouse_id(warehouse_id):
 
             columns = [desc[0] for desc in cur.description]
             return jsonify([row for row in cur.fetchall()])
+
+# Search for the store info
+@app.route('/api/product/full', methods = ['GET'])
+def get_product_info():
+    data = request.args.get('query', '').split()
+    if len(data) < 2:
+        return jsonify("error", "缺少查询参数")
+    product_id = data[0]
+    time = data[1].split('-')
+    year = time[0]
+    month = time[1]
+
+    try:
+        with DBPool.get_connection() as conn:
+            with conn.cursor() as cur:
+                query = f"""
+                    SELECT unit_price, quantity
+                    FROM sales
+                    WHERE product_id = {product_id}
+                    AND EXTRACT(YEAR FROM sale_date) = {year}
+                    AND EXTRACT(MONTH FROM sale_date) = {month}
+                """
+
+            cur.execute(query)
+
+            unit_price = cur.fetchall()[0][0]
+            quantity = cur.fetchall()[0][1]
+            return jsonify({
+                "unit_price": unit_price,
+                "quantity": quantity
+            })
+
+    except Exception as e:
+        return jsonify({"err": str(e)}), 500
+
+# Replenish Stocks
+@app.route('/api/replenish', methods = ['POST'])
+def replenish():
+    # Fetch the data
+    data = request.get_json()
+    product_id = data.get('product', '')
+    quantity = data.get('quantity', '')
+    warehouse_id = data.get('warehouse', '')
+
+    try:
+        # Update the database
+        with DBPool.get_connection() as conn:
+            with conn.cursor() as cur:
+                insert_sql = f"""
+                    INSERT INTO inventory_log (
+                        log_id
+                        product_id
+                        location_id
+                        change_type
+                        change_quantity
+                    )
+                    VALUES (%s, %s, %s, %s, %d)
+                """
+                cur.execute(insert_sql, (log_id, product_id, warehouse_id, 'IN', quantity))
+                update_sql = f"""
+                    UPDATE warehouse_inventory
+                    SET quantity = quantity + {quantity}
+                    WHERE warehouse_id = {warehouse_id} 
+                    AND product_id = {product_id}
+                    AND record_date = {record_date}
+                """
+                cur.execute(update_sql)
+                cur.commit()
+    except Exception as e:
+        return jsonify({"err": str(e)}), 500
+
+@app.route('/api/transfer', methods = ['POST'])
+def transfer():
+    # Fetch the data
+    data = request.get_json()
+    product_id = data.get('product', '')
+    quantity = data.get('quantity', '')
+    from_warehouse_id = data.get('fromWarehouse', '')
+    to_warehouse_id = data.get('toWarehouse', '')
+
+    try:
+        # Update the database
+        with DBPool.get_connection() as conn:
+            with conn.cursor() as cur:
+                insert_sql = f"""
+                    INSERT INTO inventory_log (
+                        log_id = {log_id}, 
+                        product_id = {product_id}, 
+                        location_id = {warehouse_id}, 
+                        change_type = 'IN', 
+                        change_quantity = {quantity}
+                    ) 
+                """
+                cur.execute(insert_sql)
+                update_sql = f"""
+                    UPDATE warehouse_inventory
+                    SET quantity = quantity + {quantity}
+                    WHERE warehouse_id = {to_warehouse_id} 
+                    AND product_id = {product_id}
+                    AND record_date = {record_date}
+                """
+                cur.execute(update_sql)
+                cur.commit()
+    except Exception as e:
+        return jsonify({"err": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)
 
 if __name__ == '__main__':
     app.run(debug=True)
