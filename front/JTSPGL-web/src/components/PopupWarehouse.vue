@@ -131,9 +131,8 @@ const handleStoreClick = (e) => {
 // 查询当前仓库库存
 const queryProduct = async () => {
   try {
-    const res = await axios.get('http://localhost:5000/api/product/full', {
+    const res = await axios.get(`http://localhost:5000/api/warehouses/${currentWarehouseId.value}/products`, {
       params: {
-        warehouse_id: currentWarehouseId.value,
         query: queryInput.value },
     });
     productResult.value = JSON.stringify(res.data, null, 2);
