@@ -55,6 +55,7 @@ import { ref } from "vue";
 import axios from "axios";
 
 const emit = defineEmits(["close"]);
+
 const isVisible = ref(false);
 const storeId = ref("");
 const storeName = ref("");
@@ -118,6 +119,15 @@ const transferIn = async () => {
       from_warehouse_name: fromWarehouseName,
     });
     alert("调货成功");
+
+    emit("new-approval", {
+      id: `P${Date.now()}`,
+      display: `${fromWarehouseName}-${transferProduct.value}-${transferQty.value}-待审核`,
+      status: "待审核",
+      from: fromWarehouseName,
+      to: storeName.value,
+    });
+    
   } catch (err) {
     alert(`调货失败：${err.message}`);
   }

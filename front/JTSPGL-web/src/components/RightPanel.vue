@@ -1,56 +1,75 @@
-<!--RightPanel.vue-->
 <template>
   <div class="col-md-3 right-panel" :style="{ transform: panelTransform }">
     <h5>AI 实时预警</h5>
     <textarea class="form-control mb-3" rows="3" readonly>暂无预警</textarea>
 
     <h5 class="mt-4">审批流进度</h5>
-    <div id="approval-status">
+
+    <div v-if="approvalRequests.length === 0">暂无审批流记录</div>
+
+    <div v-for="(group, status) in groupedApprovals" :key="status">
+      <h6 class="mt-3">{{ status }}</h6>
       <button
-        v-for="item in approvalItems"
+        v-for="item in group"
         :key="item.id"
         class="approval-button"
-        :class="`status-${item.statusColor}`"
+        :class="`status-${statusColorMap[item.status] || 'gray'}`"
         @click="showApproval(item.id)"
       >
-        商品 {{ item.id }} - {{ item.statusText }}
+        {{ item.display }}
       </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from "vue";
 
-const emit = defineEmits(['show-approval']);
+const emit = defineEmits(["show-approval"]);
 
-const panelTransform = ref('translateX(0)');
+const props = defineProps({
+  approvalRequests: {
+    type: Array,
+    required: true,
+  },
+});
 
-const approvalItems = [
-  { id: 'P10001', statusText: '待审核', statusColor: 'gray' },
-  { id: 'P10002', statusText: '审核不通过', statusColor: 'red' },
-  { id: 'P10003', statusText: '待出库', statusColor: 'yellow' },
-  { id: 'P10005', statusText: '待收货', statusColor: 'yellow' },
-  { id: 'P10004', statusText: '待收货', statusColor: 'yellow' },
-  { id: 'P10006', statusText: '已完成', statusColor: 'green' },
+const panelTransform = ref("translateX(0)");
 
-];
+const statusColorMap = {
+  待审核: "gray",
+  "审核不通过": "red",
+  待出库: "yellow",
+  待收货: "yellow",
+  已完成: "green",
+};
 
-const showApproval = (productId) => {
-  emit('show-approval', productId);
+const groupedApprovals = computed(() => {
+  const groups = {};
+  for (const item of props.approvalRequests) {
+    if (!groups[item.status]) {
+      groups[item.status] = [];
+    }
+    groups[item.status].push(item);
+  }
+  return groups;
+});
+
+const showApproval = (id) => {
+  emit("show-approval", id);
 };
 
 const movePanel = () => {
-  panelTransform.value = 'translateX(-200px)';
+  panelTransform.value = "translateX(-200px)";
 };
 
 const resetPanel = () => {
-  panelTransform.value = 'translateX(0)';
+  panelTransform.value = "translateX(0)";
 };
 
 defineExpose({
   movePanel,
-  resetPanel
+  resetPanel,
 });
 </script>
 
@@ -69,7 +88,7 @@ defineExpose({
   text-align: left;
   display: inline-block;
   padding: 6px 12px;
-  margin: 5px;
+  margin: 5px 0;
   border-radius: 8px;
   cursor: pointer;
   border: none;
@@ -103,19 +122,6 @@ defineExpose({
   transform: scale(1.02);
 }
 
-.status-blue {
-  background-color: #dbe9f5;
-  color: #111111;
-  border: 1px solid #c0dbf3;
-  transition: transform 0.1s ease;
-}
-
-.status-blue:hover {
-  background-color: #c0dbf3;
-  color: #111111;
-  transform: scale(1.02);
-}
-
 .status-yellow {
   background-color: #fff3cd;
   color: #664d03;
@@ -126,19 +132,6 @@ defineExpose({
 .status-yellow:hover {
   background-color: #f8e6a8;
   color: #664d03;
-  transform: scale(1.02);
-}
-
-.status-orange {
-  background-color: #ffe5b4;
-  color: #a75d00;
-  border: 1px solid #ffd1a1;
-  transition: transform 0.1s ease;
-}
-
-.status-orange:hover {
-  background-color: #ffd1a1;
-  color: #a75d00;
   transform: scale(1.02);
 }
 

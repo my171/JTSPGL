@@ -168,6 +168,16 @@ const transfer = async () => {
       fromWarehouse,
     });
     alert("调货成功");
+
+    // 触发新增审批流事件
+    emit("new-approval", {
+      id: `P${Date.now()}`,
+      display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`,
+      status: "待审核",
+      from: fromWarehouse,
+      to: currentWarehouseName.value,
+    });
+
   } catch (err) {
     alert(`调货失败：${err.message}`);
   }

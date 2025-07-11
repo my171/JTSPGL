@@ -10,30 +10,34 @@
 
       <RightPanel 
         ref="rightPanel"
+        :approvalRequests="approvalRequests"
         @show-approval="showApprovalDetail" 
       />
     </div>
 
-    <!-- 3个独立的弹出面板组件 -->
-     <PopupStore
+    <!-- 弹出面板 -->
+    <PopupStore
       ref="popupStore"
-      @close="closeWarehousePopup"
-     
-     />
+      @close="closeStorePopup"
+      @new-approval="handleNewApproval"
+    />
     <PopupWarehouse 
       ref="popupWarehouse"
       @close="closeWarehousePopup" 
       @show-store="showStorePopup"
+      @new-approval="handleNewApproval"
     />
     <PopupApproval 
       ref="popupApproval"
+      :approvalRequests="approvalRequests"
+      :selectedApprovalId="selectedApprovalId"
       @close="closeApprovalPopup" 
     />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, reactive } from 'vue';
 
 import HeaderTime from '@components/HeaderTime.vue';
 import WarehouseMap from '@components/WarehouseMap.vue';
@@ -48,6 +52,9 @@ const popupStore = ref(null);
 const popupWarehouse = ref(null);
 const popupApproval = ref(null);
 
+const approvalRequests = reactive([]); // 所有审批流记录
+const selectedApprovalId = ref(null);
+
 const showWarehouseInfo = (id, name) => {
   rightPanel.value.movePanel();
   popupWarehouse.value.show(id, name); 
@@ -55,10 +62,11 @@ const showWarehouseInfo = (id, name) => {
   popupStore.value.relatedclose();
 };
 
-const showApprovalDetail = (productId) => {
+const showApprovalDetail = (approvalId) => {
   rightPanel.value.movePanel();
-  popupApproval.value.show(productId); 
+  popupApproval.value.show(approvalId); 
   popupWarehouse.value.relatedclose(); 
+  popupStore.value.relatedclose();
 };
 
 const showStorePopup = (storeName) => {
@@ -67,6 +75,11 @@ const showStorePopup = (storeName) => {
   popupWarehouse.value.relatedclose(); 
   popupApproval.value.relatedclose(); 
   console.log("显示商店弹窗：", storeName);
+};
+
+
+const handleNewApproval = (record) => {
+  approvalRequests.push(record);
 };
 
 const closeStorePopup = () => {
@@ -83,7 +96,6 @@ const closeApprovalPopup = () => {
 </script>
 
 <style scoped>
-/* 保留原有的样式 */
 .left-panel {
   height: 100vh;
   padding: 20px;
