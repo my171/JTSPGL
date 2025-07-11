@@ -335,18 +335,18 @@ def replenish():
                 query = """
                     SELECT COUNT(*) AS count
                     FROM inventory_log
-                    WHERE log_id LIKE '%s%'
+                    WHERE log_id LIKE %s
                 """
-                cur.execute(query, (id_format('LOG'), ))
+                cur.execute(query, (id_format('LOG') + '%', ))
                 cnt = cur.fetchone()[0] + 1
                 log_id = get_id('LOG', cnt)
                 # Update the inventory_log table
                 insert_sql = """
                     INSERT INTO inventory_log (
-                        log_id
-                        product_id
-                        location_id
-                        change_type
+                        log_id,
+                        product_id,
+                        location_id,
+                        change_type,
                         change_quantity
                     )
                     VALUES (%s, %s, %s, %s, %s)
@@ -360,7 +360,7 @@ def replenish():
                     AND product_id = %s
                 """
                 cur.execute(update_sql, (quantity, warehouse_id, product_id))
-                cur.commit()
+                conn.commit()
     except Exception as e:
         return jsonify({"err": str(e)}), 500
 
@@ -382,19 +382,19 @@ def transfer():
                 query = """
                     SELECT COUNT(*) AS count
                     FROM inventory_log
-                    WHERE log_id LIKE '%s%'
+                    WHERE log_id LIKE %s
                 """
-                cur.execute(query, (id_format('LOG'), ))
+                cur.execute(query, (id_format('LOG') + '%', ))
                 cnt = cur.fetchone()[0] + 1
                 # Update the inventory_log table
                 insert_params = [(get_id('LOG', cnt), product_id, to_warehouse_id, 'IN', quantity), (get_id('LOG', cnt), product_id, from_warehouse_id, 'OUT', quantity)]
                 insert_sql = """
                     INSERT INTO inventory_log (
-                        log_id
-                        product_id
-                        location_id
-                        change_type
-                        change_quantity
+                        log_id,
+                        product_id,
+                        location_id,
+                        change_type,
+                        change_quantity,
                     )
                     VALUES (%s, %s, %s, %s, %s)
                 """
@@ -408,7 +408,7 @@ def transfer():
                     AND product_id = %s
                 """
                 cur.execute(update_sql, update_params)
-                cur.commit()
+                conn.commit()
     except Exception as e:
         return jsonify({"err": str(e)}), 500
 
@@ -479,21 +479,21 @@ def get_supply():
                 query = """
                     SELECT COUNT(*) AS count
                     FROM inventory_log
-                    WHERE log_id LIKE '%s%'
+                    WHERE log_id LIKE %s
                 """
-                cur.execute(query, (id_format('RP'), ))
+                cur.execute(query, (id_format('RP') + '%', ))
                 cnt = cur.fetchone()[0] + 1
                 RP_id = get_id('RP', cnt)
                 # Update the table
                 insert_sql = """
                     INSERT INTO replenishment (
-                        replenishment_id
-                        warehouse_id
-                        store_id
-                        product_id
-                        shipment_date
-                        shipped_quantity
-                        received_quantity
+                        replenishment_id,
+                        warehouse_id,
+                        store_id,
+                        product_id,
+                        shipment_date,
+                        shipped_quantity,
+                        received_quantity,
                     )
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
@@ -502,25 +502,25 @@ def get_supply():
                 query = """
                     SELECT COUNT(*) AS count
                     FROM inventory_log
-                    WHERE log_id LIKE '%s%'
+                    WHERE log_id LIKE %s
                 """
-                cur.execute(query, (id_format('LOG'), ))
+                cur.execute(query, (id_format('LOG') + '%', ))
                 cnt = cur.fetchone()[0] + 1
                 log_id = get_id('LOG', cnt)
                 # Update the inventory_log table
                 insert_sql = """
                     INSERT INTO inventory_log (
-                        log_id
-                        product_id
-                        location_id
-                        change_type
-                        change_quantity
-                        reference_no
+                        log_id,
+                        product_id,
+                        location_id,
+                        change_type,
+                        change_quantity,
+                        reference_no,
                     )
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """
                 cur.execute(insert_sql, (log_id, product_id, warehouse_id, 'OUT', quantity, RP_id))
-                cur.commit()
+                conn.commit()
     except Exception as e:
         return jsonify({"err": str(e)}), 500
 
@@ -558,23 +558,23 @@ def sell():
                 query_sql = """
                     SELECT COUNT(*)
                     FROM sales
-                    WHERE sales_id LIKE '%s%'
+                    WHERE sales_id LIKE %s
                 """
-                cur.execute(query_sql, id_format('SL'))
+                cur.execute(query_sql, id_format('SL') + '%')
                 sales_id = get_id('SL', cur.fetchone()[0] + 1)
                 # Update the table
                 update_sql = """
                     INSERT INTO sales (
-                        sales_id
-                        store_id
-                        product_id
-                        sale_date
-                        quantity
-                        unit_price
+                        sales_id,
+                        store_id,
+                        product_id,
+                        sale_date,
+                        quantity,
+                        unit_price,
                     ) VALUES (%s, %s, %s, %s, %s, %s)
                 """
                 cur.execute(update_sql, (sales_id, store_id, product_id, datetime.now().date(), quantity, unit_price))
-                cur.commit()
+                conn.commit()
     except Exception as e:
         return jsonify({"err": str(e)}), 500
 
