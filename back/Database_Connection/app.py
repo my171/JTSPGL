@@ -272,7 +272,7 @@ def get_stores_by_warehouse_id(warehouse_id):
             cur.execute(query, (warehouse_id,))
             return jsonify([row for row in cur.fetchall()])
 
-# Search for the store info
+# Search for the production of a certain warehouse and product
 @app.route('/api/product/full', methods = ['GET'])
 def get_product_info():
     data = request.args.get('query', '').split()
@@ -289,12 +289,12 @@ def get_product_info():
                 query = f"""
                     SELECT unit_price, quantity
                     FROM sales
-                    WHERE product_id = {product_id}
-                    AND EXTRACT(YEAR FROM sale_date) = {year}
-                    AND EXTRACT(MONTH FROM sale_date) = {month}
+                    WHERE product_id = %s
+                    AND EXTRACT(YEAR FROM sale_date) = %s
+                    AND EXTRACT(MONTH FROM sale_date) = %s
                 """
 
-            cur.execute(query)
+            cur.execute(query, (product_id, year, month))
 
             unit_price = cur.fetchall()[0][0]
             quantity = cur.fetchall()[0][1]
@@ -306,6 +306,23 @@ def get_product_info():
     except Exception as e:
         return jsonify({"err": str(e)}), 500
 
+# Functions regarding log_id in inventory_log
+def log_id_format() -> str:
+    current_date = datetime.now().date()
+    year = current_date.year
+    month = current_date.month
+    day = current_date.day
+    log_format = f"LOG{year % 100:02d}{month:02d}{day:02d}"
+    return log_format
+
+def get_log_id(cnt) -> str:
+    current_date = datetime.now().date()
+    year = current_date.year
+    month = current_date.month
+    day = current_date.day
+    log_id = f"LOG{year % 100:02d}{month:02d}{day:02d}{cnt}"
+    return log_id
+
 # Replenish Stocks
 @app.route('/api/replenish', methods = ['POST'])
 def replenish():
@@ -313,12 +330,22 @@ def replenish():
     data = request.get_json()
     product_id = data.get('product', '')
     quantity = data.get('quantity', '')
-    warehouse_id = data.get('warehouse', '')
+    warehouse_id = data.get('warehouse_id', '')
 
     try:
         # Update the database
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
+                # Get the order
+                query = """
+                    SELECT COUNT(*) AS count
+                    FROM inventory_log
+                    WHERE log_id LIKE '%s%'
+                """
+                cur.execute(query, (log_id_format(), ))
+                cnt = cur.fetchone()[0] + 1
+                log_id = get_log_id(cnt)
+                # Update the inventory_log table
                 insert_sql = f"""
                     INSERT INTO inventory_log (
                         log_id
@@ -327,17 +354,17 @@ def replenish():
                         change_type
                         change_quantity
                     )
-                    VALUES (%s, %s, %s, %s, %d)
+                    VALUES (%s, %s, %s, %s, %s)
                 """
                 cur.execute(insert_sql, (log_id, product_id, warehouse_id, 'IN', quantity))
+                # Update the warehouse_inventory table
                 update_sql = f"""
                     UPDATE warehouse_inventory
-                    SET quantity = quantity + {quantity}
-                    WHERE warehouse_id = {warehouse_id} 
-                    AND product_id = {product_id}
-                    AND record_date = {record_date}
+                    SET quantity = quantity + %s
+                    WHERE warehouse_id = %s
+                    AND product_id = %s
                 """
-                cur.execute(update_sql)
+                cur.execute(update_sql, (quantity, warehouse_id, product_id))
                 cur.commit()
     except Exception as e:
         return jsonify({"err": str(e)}), 500
@@ -349,30 +376,42 @@ def transfer():
     product_id = data.get('product', '')
     quantity = data.get('quantity', '')
     from_warehouse_id = data.get('fromWarehouse', '')
-    to_warehouse_id = data.get('toWarehouse', '')
+    to_warehouse_id = data.get('warehouse_id', '')
 
     try:
         # Update the database
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
+                # Get the order
+                query = """
+                    SELECT COUNT(*) AS count
+                    FROM inventory_log
+                    WHERE log_id LIKE '%s%'
+                """
+                cur.execute(query, (log_id_format(), ))
+                cnt = cur.fetchone()[0] + 1
+                # Update the inventory_log table
+                insert_params = [(get_log_id(cnt), product_id, to_warehouse_id, 'IN', quantity), (get_log_id(cnt), product_id, from_warehouse_id, 'OUT', quantity)]
                 insert_sql = f"""
                     INSERT INTO inventory_log (
-                        log_id = {log_id}, 
-                        product_id = {product_id}, 
-                        location_id = {warehouse_id}, 
-                        change_type = 'IN', 
-                        change_quantity = {quantity}
-                    ) 
+                        log_id
+                        product_id
+                        location_id
+                        change_type
+                        change_quantity
+                    )
+                    VALUES (%s, %s, %s, %s, %s)
                 """
-                cur.execute(insert_sql)
+                cur.execute(insert_sql, insert_params)
+                # Update the warehouse_inventory table
+                update_params = [(quantity, to_warehouse_id, product_id), (-quantity, from_warehouse_id, product_id)]
                 update_sql = f"""
                     UPDATE warehouse_inventory
-                    SET quantity = quantity + {quantity}
-                    WHERE warehouse_id = {to_warehouse_id} 
-                    AND product_id = {product_id}
-                    AND record_date = {record_date}
+                    SET quantity = quantity + %s
+                    WHERE warehouse_id = %s
+                    AND product_id = %s
                 """
-                cur.execute(update_sql)
+                cur.execute(update_sql, update_params)
                 cur.commit()
     except Exception as e:
         return jsonify({"err": str(e)}), 500
