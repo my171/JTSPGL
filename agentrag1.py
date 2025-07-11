@@ -6,7 +6,8 @@ os.environ["TRANSFORMERS_OFFLINE"] = "0"
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "sk-FxhjDpv1D62n33JGICef3aVagezAr73GFnoXmSQ4ikMpf9Hb")#其他api密钥直接改这里，如果closeai的欠费了用这个密钥：sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
 os.environ["OPENAI_API_URL"] = os.getenv("OPENAI_API_URL", "https://api.openai-proxy.org/v1")
 os.environ["MODEL_NAME"] = os.getenv("MODEL_NAME", "gpt-4.1-nano")#使用的是closeai 的(    )模型
-EMBEDDING_MODEL = "./models/paraphrase-multilingual-mpnet-base-v2"  # 下载到本地的嵌入模型路径
+#EMBEDDING_MODEL = "./models/paraphrase-multilingual-mpnet-base-v2"  # 下载到本地的嵌入模型路径
+EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
 rag = None  # FastAPI全局变量
 import psycopg2
