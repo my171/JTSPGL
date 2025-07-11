@@ -273,33 +273,29 @@ def get_stores_by_warehouse_id(warehouse_id):
             return jsonify([row for row in cur.fetchall()])
 
 # Search for the production of a certain warehouse and product
-@app.route('/api/product/full', methods = ['GET'])
-def get_product_info():
-    data = request.args.get('query', '').split()
-    if len(data) < 2:
+@app.route('/api/warehouses/<warehouse_id>/products', methods = ['GET'])
+def get_product_price(warehouse_id):
+    current_time = datetime.now().date()
+    year = current_time.year
+    month = current_time.month
+    product_id = request.args.get('query', '')
+    if len(product_id) < 1:
         return jsonify("error", "缺少查询参数")
-    product_id = data[0]
-    time = data[1].split('-')
-    year = time[0]
-    month = time[1]
 
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
                 query = f"""
-                    SELECT unit_price, quantity
-                    FROM sales
+                    SELECT quantity
+                    FROM warehouse_inventory
                     WHERE product_id = %s
                     AND EXTRACT(YEAR FROM sale_date) = %s
                     AND EXTRACT(MONTH FROM sale_date) = %s
                 """
 
             cur.execute(query, (product_id, year, month))
-
-            unit_price = cur.fetchall()[0][0]
-            quantity = cur.fetchall()[0][1]
+            quantity = cur.fetchone()[0]
             return jsonify({
-                "unit_price": unit_price,
                 "quantity": quantity
             })
 
