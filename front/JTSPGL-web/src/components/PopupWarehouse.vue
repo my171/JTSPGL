@@ -16,9 +16,7 @@
         v-model="queryInput"
         placeholder="输入商品ID"
       />
-      <button class="btn btn-primary" @click="queryProduct">
-        查询信息
-      </button>
+      <button class="btn btn-primary" @click="queryProduct">查询信息</button>
     </div>
     <div v-if="productResult">
       <pre>{{ productResult }}</pre>
@@ -73,8 +71,8 @@ const emit = defineEmits(["close", "show-store"]);
 const isVisible = ref(false);
 const content = ref("加载中...");
 
-const currentWarehouseId = ref('');
-const currentWarehouseName = ref('');
+const currentWarehouseId = ref("");
+const currentWarehouseName = ref("");
 
 // 查询 & 操作表单
 const queryInput = ref("");
@@ -88,17 +86,15 @@ const transferQty = ref("");
 const selectedWarehouse = ref("");
 
 const warehouseList = ref([
-  { id: 'WH001', name: '华北中心仓' },
-  { id: 'WH002', name: '华东智能仓' },
-  { id: 'WH003', name: '华南枢纽仓' },
-  { id: 'WH004', name: '西南分拨中心' },
-  { id: 'WH005', name: '东北冷链仓' }
+  { id: "WH001", name: "华北中心仓" },
+  { id: "WH002", name: "华东智能仓" },
+  { id: "WH003", name: "华南枢纽仓" },
+  { id: "WH004", name: "西南分拨中心" },
+  { id: "WH005", name: "东北冷链仓" },
 ]);
-
 
 // 弹窗显示
 const show = async (id, name) => {
-
   currentWarehouseId.value = id;
   currentWarehouseName.value = name;
 
@@ -123,18 +119,21 @@ const show = async (id, name) => {
 // 点击商店按钮
 const handleStoreClick = (e) => {
   const storeName = e.detail;
-  emit('show-store', storeName);
+  emit("show-store", storeName);
 };
-
 
 // 查询商品信息
 // 查询当前仓库库存
 const queryProduct = async () => {
   try {
-    const res = await axios.get(`http://localhost:5000/api/warehouses/${currentWarehouseId.value}/products`, {
-      params: {
-        query: queryInput.value },
-    });
+    const res = await axios.get(
+      `http://localhost:5000/api/warehouses/${currentWarehouseId.value}/products`,
+      {
+        params: {
+          query: queryInput.value,
+        },
+      }
+    );
     productResult.value = JSON.stringify(res.data, null, 2);
   } catch (err) {
     productResult.value = `查询失败：${err.message}`;
@@ -160,7 +159,9 @@ const replenish = async () => {
 const transfer = async () => {
   /*仓库之间调货，调用仓库流水表，一加一减*/
   try {
-    const fromWarehouse = warehouseList.value.find(w => w.id === selectedWarehouseId.value)?.name || '';
+    const fromWarehouse =
+      warehouseList.value.find((w) => w.id === selectedWarehouseId.value)
+        ?.name || "";
     await axios.post("http://localhost:5000/api/transfer", {
       warehouse_id: currentWarehouseId.value,
       product: transferProduct.value,
@@ -168,6 +169,15 @@ const transfer = async () => {
       fromWarehouse,
     });
     alert("调货成功");
+
+    // 触发新增审批流事件
+    emit("new-approval", {
+      id: `P${Date.now()}`,
+      display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`,
+      status: "待审核",
+      from: fromWarehouse,
+      to: currentWarehouseName.value,
+    });
   } catch (err) {
     alert(`调货失败：${err.message}`);
   }

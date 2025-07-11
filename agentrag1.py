@@ -5,7 +5,7 @@ os.environ["TRANSFORMERS_OFFLINE"] = "0"
 
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "sk-FxhjDpv1D62n33JGICef3aVagezAr73GFnoXmSQ4ikMpf9Hb")#其他api密钥直接改这里，如果closeai的欠费了用这个密钥：sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
 os.environ["OPENAI_API_URL"] = os.getenv("OPENAI_API_URL", "https://api.openai-proxy.org/v1")
-os.environ["MODEL_NAME"] = os.getenv("MODEL_NAME", "gpt-4.1-nano")#使用的是closeai 的(    )模型
+os.environ["MODEL_NAME"] = os.getenv("MODEL_NAME", "gpt-4.1")#使用的是closeai 的(    )模型
 #EMBEDDING_MODEL = "./models/paraphrase-multilingual-mpnet-base-v2"  # 下载到本地的嵌入模型路径
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
@@ -151,7 +151,7 @@ class UniversalDatabaseAgent:
     
     def __init__(self):
         self.llm = ChatOpenAI(
-            model_name=os.getenv("MODEL_NAME", "gpt-4.1-nano"),
+            model_name=os.getenv("MODEL_NAME", "gpt-4.1"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_api_base=os.getenv("OPENAI_API_URL"),
             temperature=0.3
@@ -713,7 +713,7 @@ class MemoryAgent:
         self.conversation_history = deque(maxlen=max_memory_size)
         self.context_summary = ""
         self.llm = ChatOpenAI(
-            model_name=os.getenv("MODEL_NAME", "gpt-4.1-nano"),
+            model_name=os.getenv("MODEL_NAME", "gpt-4.1"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_api_base=os.getenv("OPENAI_API_URL"),
             temperature=0.3
@@ -780,7 +780,7 @@ class TopAgent:
         self.pdf_agent = pdf_agent
         self.kb = kb
         self.llm = ChatOpenAI(
-            model_name=os.getenv("MODEL_NAME", "gpt-4.1-nano"),
+            model_name=os.getenv("MODEL_NAME", "gpt-4.1"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_api_base=os.getenv("OPENAI_API_URL"),
             temperature=0.3
