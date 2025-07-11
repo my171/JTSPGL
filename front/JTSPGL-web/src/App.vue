@@ -15,7 +15,12 @@
       />
     </div>
 
-    <!-- 新增两个独立的弹出面板组件 -->
+    <!-- 新增3个独立的弹出面板组件 -->
+     <PopupStore
+      ref="popupStore"
+      @close="closeWarehousePopup"
+     
+     />
     <PopupWarehouse 
       ref="popupWarehouse"
       @close="closeWarehousePopup" 
@@ -36,8 +41,10 @@ import ChatBox from '@components/ChatBox.vue';
 import RightPanel from '@components/RightPanel.vue';
 import PopupWarehouse from '@components/PopupWarehouse.vue';
 import PopupApproval from '@components/PopupApproval.vue';
+import PopupStore from './components/PopupStore.vue';
 
 const rightPanel = ref(null);
+const popupStore = ref(null);
 const popupWarehouse = ref(null);
 const popupApproval = ref(null);
 
@@ -53,9 +60,14 @@ const showApprovalDetail = (productId) => {
   popupWarehouse.value.relatedclose(); 
 };
 
+const closeStorePopup = () => {
+  rightPanel.value.resetPanel();
+};
+
 const closeWarehousePopup = () => {
   rightPanel.value.resetPanel();
 };
+
 const closeApprovalPopup = () => {
   rightPanel.value.resetPanel();
 };

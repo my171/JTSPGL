@@ -105,7 +105,7 @@ const show = async (id, name) => {
 
 const handleStoreClick = (e) => {
   const storeName = e.detail;
-  alert(`点击了商店：${storeName}`);
+  emit('show-store', storeName);
 };
 
 

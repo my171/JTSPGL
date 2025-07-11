@@ -142,7 +142,7 @@ defineExpose({
 }
 
 .status-green {
-  background-color: #d1e7d4;
+  background-color: rgb(174, 238, 174);
   color: #0f5132;
   border: 1px solid #bfffbf;
   transition: transform 0.1s ease;
