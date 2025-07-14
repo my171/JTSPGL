@@ -454,8 +454,6 @@ def get_product_info():
     # Fetch the data
     store_id = request.args.get('store_id', '')
     product_id = request.args.get('query', '')
-    print(store_id)
-    print(product_id)
 
     if len(product_id) < 1:
         return jsonify("error", "缺少查询参数")
@@ -494,9 +492,9 @@ def get_product_info():
                         "successType" : 1,
                         "name" : name
                     })
-
-                quantity = cur.fetchone()[0]
-                unit_price = cur.fetchone()[1]
+                
+                quantity = result[0]
+                unit_price = result[1]
                 return jsonify({
                     "successType" : 2,
                     "name" : name,
