@@ -58,7 +58,7 @@ const handleSubmit = async () => {
     return;
   }
 
-  try {
+  /*try {
     const response = await axios.post("http://localhost:5000/api/verify", {
       username: form.username,
       password: form.password,
@@ -87,10 +87,8 @@ const handleSubmit = async () => {
     alert(error);
     errorMessage.value = '服务器运行异常';
   }
-
-
-  /*
-  if (form.username === 'first' && form.password === '123456') {
+  */
+  if (form.username === 'fslkgg' && form.password === 'fslkgg') {
     errorMessage.value = '';
     emit('submit', { success: true, data: form });
     localStorage.setItem('authenticated_UserType1', 'true');
@@ -109,7 +107,7 @@ const handleSubmit = async () => {
     errorMessage.value = '用户名或密码错误';
     emit('submit', { success: false, error: '验证失败' });
   }
-  */
+  
 };
 </script>
 
