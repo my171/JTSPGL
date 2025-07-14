@@ -14,3 +14,7 @@
 审核时间：
 发货时间：
 收货时间：
+
+
+如果项目中已有 UI 库（如 Element Plus、Ant Design Vue），
+建议用 ElMessage 或 Notification 替代原生 alert，提升用户体验。

@@ -143,7 +143,6 @@ const handleStoreClick = (e) => {
   emit("show-store", storeName, storeId);
 };
 
-// 查询商品信息
 // 查询当前仓库库存
 const queryProduct = async () => {
   try {
@@ -194,7 +193,7 @@ const transfer = async () => {
       warehouseList.value.find((w) => w.id === selectedWarehouse.value)?.name ||
       "";
 
-    const response = await axios.post("http://localhost:5000/api/requst", {
+    const response = await axios.post("http://localhost:5000/api/request", {
       fromWarehouseID: selectedWarehouse.value,
       warehouse_id: currentWarehouseId.value,
       product_id: transferProduct.value,
@@ -203,24 +202,46 @@ const transfer = async () => {
 
     const data = response.data;
 
-    alert("调货申请已提交");
-
-    // 使用后端返回的 approval_id 和 requst_time
-    emit("new-approval", {
-      id: data.approval_id,
-      product: transferProduct.value,
-      quantity: transferQty.value,
-      status: "待审核",
-      from: fromWarehouse,
-      to: currentWarehouseName.value,
-      requst_time: data.requst_time, // 后端返回的时间
-      approved_time: null,
-      //accepted_time: null,
-      //rejected_time: null,
-      shipment_time: null,
-      receipt_time: null,
-      display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`,
-    });
+    // 使用后端返回的 approval_id 和 request_time
+    switch (response.data.successType) {
+      case 0:
+        alert("仓库编号不存在");
+        break;
+      case 1:
+        alert("仓库无相关商品记录");
+        break;
+      case 2:
+        alert(
+          "仓库内商品库存不足: 需求" +
+            transferQty.value +
+            " 储量" +
+            response.data.num
+        );
+        break;
+      case 3:
+        alert("调货申请已提交");
+        break;
+      case 4:
+        alert("调货失败：${err.message}");
+        break;
+    }
+    if (response.data.successType == 3) {
+      emit("new-approval", {
+        id: data.approval_id,
+        product: transferProduct.value,
+        quantity: transferQty.value,
+        status: "待审核",
+        from: fromWarehouse,
+        to: currentWarehouseName.value,
+        request_time: data.request_time, // 后端返回的时间
+        approved_time: null,
+        //accepted_time: null,
+        //rejected_time: null,
+        shipment_time: null,
+        receipt_time: null,
+        display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`,
+      });
+    }
   } catch (err) {
     alert(`调货失败：${err.message}`);
   }

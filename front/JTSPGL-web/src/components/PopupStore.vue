@@ -70,7 +70,6 @@ const warehouseList = ref([]);
 
 const sellProduct = ref("");
 const sellQty = ref([]);
-
 // 打开弹窗（传入商店 id 和 name）
 const show = async (name, id) => {
   storeName.value = name;
@@ -90,23 +89,23 @@ const show = async (name, id) => {
 // 查询商品信息
 const queryProduct = async () => {
   try {
-    const res = await axios.get(
-      "http://localhost:5000/api/store/products",
-      {
-        params: {
-          storeId: storeId.value,
-          productId: queryInput.value,
-        },
-      }
-    );
-    if (res.data.successType == 0){
-      productResult.value = '查询失败：商品编号不存在'
-    }
-    else if (res.data.successType == 1){
+    const res = await axios.get("http://localhost:5000/api/store/products", {
+      params: {
+        storeId: storeId.value,
+        productId: queryInput.value,
+      },
+    });
+    if (res.data.successType == 0) {
+      productResult.value = "查询失败：商品编号不存在";
+    } else if (res.data.successType == 1) {
       productResult.value = res.data.name + ":未查询到销售记录";
-    }
-    else{
-      productResult.value = res.data.name + " 单价:" + res.data.unit_price + " 销量:" + res.data.quantity;
+    } else {
+      productResult.value =
+        res.data.name +
+        " 单价:" +
+        res.data.unit_price +
+        " 销量:" +
+        res.data.quantity;
     }
   } catch (err) {
     productResult.value = `查询失败：${err.message}`;
@@ -119,37 +118,51 @@ const transferIn = async () => {
     const fromWarehouseName =
       warehouseList.value.find((w) => w.id === selectedWarehouseId.value)
         ?.name || "";
-    const response = await axios.post("http://localhost:5000/api/store/transfer-in", {
+    const response = await axios.post("http://localhost:5000/api/supply", {
+      fromWarehouseID: selectedWarehouse.value,
       store_id: storeId.value,
       product_id: transferProduct.value,
       quantity: Number(transferQty.value),
-      from_warehouse_id: selectedWarehouseId.value,
-      from_warehouse_name: fromWarehouseName,
     });
 
-    switch(response.data.successType){
-      case 0:alert("商品编号不存在");break;
-      case 1:alert("仓库无相关商品记录");break;
-      case 2:alert("仓库内商品库存不足: 需求" + transferQty.value + " 储量" + response.data.num);break;
-      case 3:alert("调货成功");break;
-      case 4:alert(`调货失败：${err.message}`);break;
+    switch (response.data.successType) {
+      case 0:
+        alert("商品编号不存在");
+        break;
+      case 1:
+        alert("仓库无相关商品记录");
+        break;
+      case 2:
+        alert(
+          "仓库内商品库存不足: 需求" +
+            transferQty.value +
+            " 储量" +
+            response.data.num
+        );
+        break;
+      case 3:
+        alert("调货申请已提交");
+        break;
+      case 4:
+        alert("调货失败：${err.message}");
+        break;
     }
-    if (response.data.successType == 2){
+    if (response.data.successType == 3) {
       emit("new-approval", {
-        id: `P${Date.now()}`,
+        id: data.approval_id,
         product: transferProduct.value,
         quantity: transferQty.value,
         status: "待审核",
-        from: fromWarehouseName,//?????????????????????????
+        from: fromWarehouseName, //?????????????????????????
         //fromWarehouse is not defined
-        to: storeName.value,//?????????????????????????
+        to: storeName.value, //?????????????????????????
         //currentWarehouseName is not defined
-        request_time: null,
+        request_time: data.request_time,
         approved_time: null,
         shipment_time: null,
         receipt_time: null,
         // display 字段用于右侧面板按钮显示
-        display: `${fromWarehouseName}-${transferProduct.value}-${transferQty.value}-待审核`
+        display: `${fromWarehouseName}-${transferProduct.value}-${transferQty.value}-待审核`,
       });
     }
   } catch (err) {
