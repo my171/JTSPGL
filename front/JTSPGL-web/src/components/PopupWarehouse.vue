@@ -134,7 +134,7 @@ const queryProduct = async () => {
         },
       }
     );
-    productResult.value = JSON.stringify(res.data, null, 2);
+    productResult.value =  res.data.name + ":库存量" + res.data.quantity;
   } catch (err) {
     productResult.value = `查询失败：${err.message}`;
   }

@@ -289,16 +289,28 @@ def get_product_price(warehouse_id):
                     WHERE product_id = %s
                     AND warehouse_id = %s
                     AND EXTRACT(YEAR FROM record_date) = %s
-                    AND EXTRACT(MONTH FROM record_date) = %s
+                    AND EXTRACT(MONTH FROM record_date) = %s;
                 """
 
                 cur.execute(query, (product_id, warehouse_id, year, month))
                 quantity = cur.fetchone()[0]
+                
+                query = """
+                    SELECT product_name
+                    FROM product
+                    WHERE product_id = %s;
+                """
+
+                cur.execute(query, (product_id,))
+                name = cur.fetchone()[0]
+
                 return jsonify({
+                    "name" : name,
                     "quantity": quantity
                 })
 
     except Exception as e:
+        print(str(e))
         return jsonify({"err": str(e)}), 500
 
 # Functions regarding id
