@@ -76,56 +76,6 @@ def get_supply():
 @app.route('/api/store/sell', methods = ['POST'])
 def sell():
     return API_StoreSellProducts(request=request)
-    # Fetch the data
-    data = request.get_json()
-    store_id = data.get('store_id', '')
-    product_id = data.get('product_id', '')
-    quantity = data.get('quantity', '')
-
-    try:
-        with DBPool.get_connection() as conn:
-            with conn.cursor() as cur:
-                # Update the store_inventory table
-                update_sql = """
-                    UPDATE store_inventory
-                    SET stock_quantity = stock_quantity - %s
-                    WHERE store_id = %s
-                    AND product_id = %s
-                """
-                cur.execute(update_sql, (quantity, store_id, product_id))
-                # Update the sales table
-                # Query for the unit price
-                query_sql = """
-                    SELECT unit_price
-                    FROM product
-                    WHERE product_id = %s
-                    GROUP BY unit_price
-                """
-                cur.execute(query_sql, (product_id))
-                unit_price = cur.fetchone()[0]
-                #Query for the sales_id
-                query_sql = """
-                    SELECT COUNT(*)
-                    FROM sales
-                    WHERE sales_id LIKE %s
-                """
-                cur.execute(query_sql, id_format('SL') + '%')
-                sales_id = get_id('SL', cur.fetchone()[0] + 1)
-                # Update the table
-                update_sql = """
-                    INSERT INTO sales (
-                        sales_id,
-                        store_id,
-                        product_id,
-                        sale_date,
-                        quantity,
-                        unit_price,
-                    ) VALUES (%s, %s, %s, %s, %s, %s)
-                """
-                cur.execute(update_sql, (sales_id, store_id, product_id, datetime.now().date(), quantity, unit_price))
-                conn.commit()
-    except Exception as e:
-        return jsonify({"err": str(e)}), 500
 
 
 '''

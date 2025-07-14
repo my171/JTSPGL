@@ -30,7 +30,7 @@ def API_StoreSellProducts(request):
     store_id = data.get('store_id', '')
     product_id = data.get('product_id', '')
     quantity = data.get('quantity', '')
-
+    print(store_id, product_id, quantity)
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
@@ -84,7 +84,7 @@ def API_StoreSellProducts(request):
                     FROM product
                     WHERE product_id = %s
                 """
-                cur.execute(query_sql, (product_id))
+                cur.execute(query_sql, (product_id,))
                 unit_price = cur.fetchone()[0]
                 
                 # 生成交易编号
@@ -93,7 +93,7 @@ def API_StoreSellProducts(request):
                     FROM sales
                     WHERE sales_id LIKE %s
                 """
-                cur.execute(query_sql, id_format('SL') + '%')
+                cur.execute(query_sql, (id_format('SL') + '%',))
                 sales_id = get_id('SL', cur.fetchone()[0] + 1)
                 
                 # 更新Sales表
@@ -104,7 +104,7 @@ def API_StoreSellProducts(request):
                         product_id,
                         sale_date,
                         quantity,
-                        unit_price,
+                        unit_price
                     ) VALUES (%s, %s, %s, %s, %s, %s)
                 """
                 cur.execute(update_sql, (sales_id, store_id, product_id, datetime.now().date(), quantity, unit_price))
@@ -113,4 +113,5 @@ def API_StoreSellProducts(request):
                     "successType" : 3
                 })
     except Exception as e:
+        print(str(e))
         return jsonify({"successType" : 4, "err": str(e)}), 500
