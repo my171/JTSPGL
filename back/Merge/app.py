@@ -11,6 +11,7 @@ from API_Funcs_Light.warehouse_get_products_API import API_GetWarehouseProduct
 from API_Funcs_Light.store_get_products_API import API_GetStoreProduct
 from API_Funcs_Light.warehouse_get_stores_API import API_GetStoreByWarehouse
 from API_Funcs_Light.warehouse_replenish_API import API_WarehouseReplenish
+from API_Funcs_Light.store_transfer_in_API import API_StoreTransferIn
 
 
 import sys
@@ -60,20 +61,65 @@ def get_product_info():
 def get_stores_by_warehouse_id():
     return API_GetStoreByWarehouse(request=request)
 
-# Replenish Stocks
+'''仓库补货'''
 @app.route('/api/replenish', methods = ['POST'])
 def replenish():
     return API_WarehouseReplenish(request=request)
+
+'''商店自仓库调货'''
+@app.route('/api/store/transfer-in', methods = ['POST'])
+def get_supply():
+    return API_StoreTransferIn(request=request)
     # Fetch the data
     data = request.get_json()
-    product_id = data.get('product', '')
+    store_id = data.get('store_id', '')
+    product_id = data.get('product_id', '')
     quantity = data.get('quantity', '')
-    warehouse_id = data.get('warehouse_id', '')
+    warehouse_id = data.get('from_warehouse_id', '')
 
     try:
-        # Update the database
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
+                # Update the warehouse_inventory table
+                update_sql = """
+                    UPDATE warehouse_inventory
+                    SET quantity = quantity - %s
+                    WHERE warehouse_id = %s
+                    AND product_id = %s
+                """
+                cur.execute(update_sql, (quantity, warehouse_id, product_id))
+                # Update the store_inventory table
+                update_sql = """
+                    UPDATE store_inventory
+                    SET store_quantity = store_quantity + %s
+                    WHERE store_id = %s
+                    AND product_id = %s
+                """
+                cur.execute(update_sql, (quantity, store_id, product_id))
+                # Update the replenishment table
+                # Get the order
+                query = """
+                    SELECT COUNT(*) AS count
+                    FROM inventory_log
+                    WHERE log_id LIKE %s
+                """
+                cur.execute(query, (id_format('RP') + '%', ))
+                cnt = cur.fetchone()[0] + 1
+                RP_id = get_id('RP', cnt)
+                # Update the table
+                insert_sql = """
+                    INSERT INTO replenishment (
+                        replenishment_id,
+                        warehouse_id,
+                        store_id,
+                        product_id,
+                        shipment_date,
+                        shipped_quantity,
+                        received_quantity,
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """
+                cur.execute(insert_sql, (RP_id, warehouse_id, store_id, product_id, datetime.now().date(), quantity, quantity))
                 # Get the order
                 query = """
                     SELECT COUNT(*) AS count
@@ -90,24 +136,15 @@ def replenish():
                         product_id,
                         location_id,
                         change_type,
-                        change_quantity
+                        change_quantity,
+                        reference_no,
                     )
-                    VALUES (%s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                 """
-                cur.execute(insert_sql, (log_id, product_id, warehouse_id, 'IN', quantity))
-                # Update the warehouse_inventory table
-                update_sql = """
-                    UPDATE warehouse_inventory
-                    SET quantity = quantity + %s
-                    WHERE warehouse_id = %s
-                    AND product_id = %s
-                """
-                cur.execute(update_sql, (quantity, warehouse_id, product_id))
+                cur.execute(insert_sql, (log_id, product_id, warehouse_id, 'OUT', quantity, RP_id))
                 conn.commit()
     except Exception as e:
         return jsonify({"err": str(e)}), 500
-
-
 
 
 '''
@@ -353,7 +390,7 @@ def get_id(prefix, cnt) -> str:
     id = f"{prefix}{year % 100:02d}{month:02d}{day:02d}{cnt}"
     return id
 
-
+'''
 # Transfer stocks from one warehouse to another
 @app.route('/api/transfer', methods = ['POST'])
 def transfer():
@@ -401,85 +438,10 @@ def transfer():
                 conn.commit()
     except Exception as e:
         return jsonify({"err": str(e)}), 500
+'''
 
-# Get supply from the warehouse
-@app.route('/api/store/transfer-in', methods = ['POST'])
-def get_supply():
-    # Fetch the data
-    data = request.get_json()
-    store_id = data.get('store_id', '')
-    product_id = data.get('product_id', '')
-    quantity = data.get('quantity', '')
-    warehouse_id = data.get('from_warehouse_id', '')
 
-    try:
-        with DBPool.get_connection() as conn:
-            with conn.cursor() as cur:
-                # Update the warehouse_inventory table
-                update_sql = """
-                    UPDATE warehouse_inventory
-                    SET quantity = quantity - %s
-                    WHERE warehouse_id = %s
-                    AND product_id = %s
-                """
-                cur.execute(update_sql, (quantity, warehouse_id, product_id))
-                # Update the store_inventory table
-                update_sql = """
-                    UPDATE store_inventory
-                    SET store_quantity = store_quantity + %s
-                    WHERE store_id = %s
-                    AND product_id = %s
-                """
-                cur.execute(update_sql, (quantity, store_id, product_id))
-                # Update the replenishment table
-                # Get the order
-                query = """
-                    SELECT COUNT(*) AS count
-                    FROM inventory_log
-                    WHERE log_id LIKE %s
-                """
-                cur.execute(query, (id_format('RP') + '%', ))
-                cnt = cur.fetchone()[0] + 1
-                RP_id = get_id('RP', cnt)
-                # Update the table
-                insert_sql = """
-                    INSERT INTO replenishment (
-                        replenishment_id,
-                        warehouse_id,
-                        store_id,
-                        product_id,
-                        shipment_date,
-                        shipped_quantity,
-                        received_quantity,
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """
-                cur.execute(insert_sql, (RP_id, warehouse_id, store_id, product_id, datetime.now().date(), quantity, quantity))
-                # Get the order
-                query = """
-                    SELECT COUNT(*) AS count
-                    FROM inventory_log
-                    WHERE log_id LIKE %s
-                """
-                cur.execute(query, (id_format('LOG') + '%', ))
-                cnt = cur.fetchone()[0] + 1
-                log_id = get_id('LOG', cnt)
-                # Update the inventory_log table
-                insert_sql = """
-                    INSERT INTO inventory_log (
-                        log_id,
-                        product_id,
-                        location_id,
-                        change_type,
-                        change_quantity,
-                        reference_no,
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """
-                cur.execute(insert_sql, (log_id, product_id, warehouse_id, 'OUT', quantity, RP_id))
-                conn.commit()
-    except Exception as e:
-        return jsonify({"err": str(e)}), 500
+
 
 # Sell products
 @app.route('/api/store/sell', methods = ['POST'])
