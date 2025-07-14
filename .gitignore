@@ -6,3 +6,5 @@ knowledge.db
 store.db
 vector_db.index
 /back/Merge/__pycache__
+/back/Merge/__pycache__
+*.pyc

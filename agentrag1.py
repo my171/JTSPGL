@@ -28,11 +28,11 @@ from collections import deque
 import re
 import textwrap
 # PostgreSQL配置
-PG_HOST = os.getenv('PG_HOST', '192.168.28.135')
+PG_HOST = os.getenv('PG_HOST', '127.0.0.1')
 PG_PORT = os.getenv('PG_PORT', '5432')
-PG_NAME = os.getenv('PG_NAME', 'companylink')
-PG_USER = os.getenv('PG_USER', 'myuser')
-PG_PASSWORD = os.getenv('PG_PASSWORD', '123456abc.')
+PG_NAME = os.getenv('PG_NAME', 'postgres')
+PG_USER = os.getenv('PG_USER', 'postgres')
+PG_PASSWORD = os.getenv('PG_PASSWORD', 'ab12AB!@')
 
 #本地知识库所需要pdf文件路径
 PDF_DIR = './knowledge_pdfs'

@@ -108,7 +108,22 @@ const show = async (id, name) => {
     const storeList = response.data;
     let html = `<h5>${name} - 商店列表</h5>`;
     storeList.forEach((store) => {
-      html += `<button class='btn btn-sm btn-outline-secondary mb-3' onclick="this.dispatchEvent(new CustomEvent('store-click', { detail: '${store}', bubbles: true }))">${store}</button>`;
+      html += 
+      `<button class='btn btn-sm btn-outline-secondary mb-3' 
+        onclick="this.dispatchEvent(
+          new CustomEvent(
+            'store-click', {
+              detail: {
+                name: '${store[1]}',
+                id: '${store[0]}'
+              },
+              bubbles: true,
+            }
+          )
+        )"
+      >
+              ${store[1]}
+      </button>`;
     });
     content.value = html;
   } catch (err) {
@@ -118,8 +133,9 @@ const show = async (id, name) => {
 
 // 点击商店按钮
 const handleStoreClick = (e) => {
-  const storeName = e.detail;
-  emit("show-store", storeName);
+  const storeName = e.detail.name;
+  const storeId = e.detail.id;
+  emit("show-store", storeName, storeId);
 };
 
 // 查询商品信息

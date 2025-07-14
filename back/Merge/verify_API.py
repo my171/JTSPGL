@@ -10,7 +10,8 @@ def UserVerify(request):
         data = request.get_json()
         username = data.get('username')
         password = data.get('password')
-
+        print(username)
+        print(password)
         if (username == 'admin' and password == '123456'):
             return jsonify({
                 "success" : True,
@@ -40,5 +41,4 @@ def UserVerify(request):
                 })
 
     except Exception as e:
-        print(str(e))
         return jsonify({"err": str(e)}), 500

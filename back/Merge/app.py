@@ -268,13 +268,17 @@ def get_stores_by_warehouse_id(warehouse_id):
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
                 query = """
-                    SELECT store_name
+                    SELECT store_id, store_name
                     FROM store
                     WHERE store.warehouse_id = %s
                 """
                 cur.execute(query, (warehouse_id,))
-                return jsonify([row for row in cur.fetchall()])
+                return jsonify([(
+                    row[0],
+                    row[1]
+                ) for row in cur.fetchall()])
     except Exception as e:
+        print(str(e))
         return jsonify({"err": str(e)}), 500
 
 # Search for the production of a certain warehouse and product
@@ -450,6 +454,8 @@ def get_product_info():
     # Fetch the data
     store_id = request.args.get('store_id', '')
     product_id = request.args.get('query', '')
+    print(store_id)
+    print(product_id)
 
     if len(product_id) < 1:
         return jsonify("error", "缺少查询参数")
@@ -457,6 +463,20 @@ def get_product_info():
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
+                query = """
+                    SELECT product_name
+                    FROM product
+                    WHERE product_id = %s;
+                """
+
+                cur.execute(query, (product_id,))
+                result = cur.fetchone()
+                if result is None:
+                    return jsonify({
+                        "successType" : 0
+                    })
+                
+                name = result[0]
                 query = """
                     SELECT 
                     SUM(quantity) AS total_quantity,
@@ -467,13 +487,22 @@ def get_product_info():
                     GROUP BY unit_price
                 """
 
-            cur.execute(query, (product_id, store_id))
-            quantity = cur.fetchone()[0]
-            unit_price = cur.fetchone()[1]
-            return jsonify({
-                "quantity": quantity,
-                "unit_price": unit_price
-            })
+                cur.execute(query, (product_id, store_id))
+                result = cur.fetchone()
+                if result is None:
+                    return jsonify({
+                        "successType" : 1,
+                        "name" : name
+                    })
+
+                quantity = cur.fetchone()[0]
+                unit_price = cur.fetchone()[1]
+                return jsonify({
+                    "successType" : 2,
+                    "name" : name,
+                    "quantity": quantity,
+                    "unit_price": unit_price
+                })
     except Exception as e:
         return jsonify({"err": str(e)}), 500
 

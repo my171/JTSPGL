@@ -58,6 +58,7 @@ const emit = defineEmits(["close"]);
 
 const isVisible = ref(false);
 const storeName = ref("");
+const storeId = ref("");
 
 const queryInput = ref("");
 const productResult = ref("");
@@ -71,8 +72,9 @@ const sellProduct = ref("");
 const sellQty = ref([]);
 
 // 打开弹窗（传入商店 id 和 name）
-const show = async (id) => {
-  storeName.value = id;
+const show = async (name, id) => {
+  storeName.value = name;
+  storeId.value = id;
   isVisible.value = true;
 
   // 加载仓库列表
@@ -92,12 +94,20 @@ const queryProduct = async () => {
       "http://localhost:5000/api/store/product/full",
       {
         params: {
-          store_id: storeName.value,
+          store_id: storeId.value,
           query: queryInput.value,
         },
       }
     );
-    productResult.value = JSON.stringify(res.data, null, 2);
+    if (res.data.successType == 0){
+      productResult.value = '查询失败：商品编号不存在'
+    }
+    else if (res.data.successType == 1){
+      productResult.value = res.data.name + ":暂无库存";
+    }
+    else{
+      productResult.value = res.data.name + " 单价:" + res.data.unit_price + " 销量:" + res.data.quantity;
+    }
   } catch (err) {
     productResult.value = `查询失败：${err.message}`;
   }

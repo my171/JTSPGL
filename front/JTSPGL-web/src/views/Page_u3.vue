@@ -69,9 +69,9 @@ const showApprovalDetail = (approvalId) => {
   popupStore.value.relatedclose();
 };
 
-const showStorePopup = (storeName) => {
+const showStorePopup = (storeName, storeId) => {
   rightPanel.value.movePanel();
-  popupStore.value.show(storeName);
+  popupStore.value.show(storeName, storeId);
   popupWarehouse.value.relatedclose();
   popupApproval.value.relatedclose();
   console.log("显示商店弹窗：", storeName);
