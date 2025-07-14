@@ -181,10 +181,17 @@ const transfer = async () => {
     // 触发新增审批流事件
     emit("new-approval", {
       id: `P${Date.now()}`,
-      display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`,
+      product: transferProduct.value,
+      quantity: transferQty.value,
       status: "待审核",
       from: fromWarehouse,
       to: currentWarehouseName.value,
+      createdAt: null,
+      approvedAt: null,
+      shippedAt: null,
+      receivedAt: null,
+      // display 字段用于右侧面板按钮显示
+      display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`
     });
   } catch (err) {
     alert(`调货失败：${err.message}`);
