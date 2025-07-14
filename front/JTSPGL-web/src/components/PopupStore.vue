@@ -4,7 +4,7 @@
     <button class="btn btn-sm btn-outline-secondary mb-3" @click="close">
       关闭
     </button>
-    <h5>商店：{{ storeName }}</h5>
+    <h5 v-if="storeName">商店：{{ storeName }}</h5>
 
     <hr />
 
@@ -57,7 +57,6 @@ import axios from "axios";
 const emit = defineEmits(["close"]);
 
 const isVisible = ref(false);
-const storeId = ref("");
 const storeName = ref("");
 
 const queryInput = ref("");
@@ -72,9 +71,8 @@ const sellProduct = ref("");
 const sellQty = ref([]);
 
 // 打开弹窗（传入商店 id 和 name）
-const show = async (id, name) => {
-  storeId.value = id;
-  storeName.value = name;
+const show = async (id) => {
+  storeName.value = id;
   isVisible.value = true;
 
   // 加载仓库列表
@@ -94,7 +92,7 @@ const queryProduct = async () => {
       "http://localhost:5000/api/store/product/full",
       {
         params: {
-          store_id: storeId.value,
+          store_id: storeName.value,
           query: queryInput.value,
         },
       }
@@ -112,7 +110,7 @@ const transferIn = async () => {
       warehouseList.value.find((w) => w.id === selectedWarehouseId.value)
         ?.name || "";
     await axios.post("http://localhost:5000/api/store/transfer-in", {
-      store_id: storeId.value,
+      store_id: storeName.value,
       product: transferProduct.value,
       quantity: Number(transferQty.value),
       from_warehouse_id: selectedWarehouseId.value,
@@ -136,7 +134,7 @@ const transferIn = async () => {
 const sell = async () => {
   try {
     await axios.post("http://localhost:5000/api/store/sell", {
-      store_id: storeId.value,
+      store_id: storeName.value,
       product: sellProduct.value,
       quantity: Number(sellQty.value),
     });
