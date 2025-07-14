@@ -12,6 +12,8 @@
         ref="rightPanel"
         :approvalRequests="approvalRequests"
         @show-approval="showApprovalDetail"
+        :approval-requests="approvals"
+        @new-approval="handleNewApproval"
       />
     </div>
 

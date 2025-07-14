@@ -62,6 +62,7 @@
 </template>
 
 <script setup>
+import axios from "axios";
 import { ref, watch } from "vue";
 
 const props = defineProps({
@@ -111,25 +112,69 @@ const relatedclose = () => {
 // 状态变化函数
 const getNow = () => new Date().toLocaleString();
 
-const approve = (passed) => {
+//APPROVAL BUTTONS
+const approve = async (passed) => {
   if (!approval.value) return;
-  approval.value.status = passed ? "待出库" : "已取消";
-  approval.value.approvedAt = getNow();
-  approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-${approval.value.status}`;
+  try {
+    const url = passed
+      ? `http://localhost:5000/api/approval/accepted`
+      : `http://localhost:5000/api/approval/rejected`;
+
+    const response = axios.post(url, {
+      approval_id: approval.value.id
+    }); 
+
+    const { approvedAt } = response.data;
+
+    approval.value.status = passed ? "待出库" : "已取消";
+    approval.value.approvedAt = approvedAt;
+    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-${approval.value.status}`;
+    
+    emit("update-approval", approval.value);
+  } catch (err) {
+    alert(`操作失败：${err.message}`);
+  }
 };
 
-const ship = () => {
+//SHIP BUTTON
+const ship = async () => {
   if (!approval.value) return;
-  approval.value.status = "待收货";
-  approval.value.shippedAt = getNow();
-  approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-${approval.value.status}`;
+  try {
+    const response = await axios.post("http://localhost:5000/api/shipment", {
+      approval_id: approval.value.id
+    });
+
+    const { shippedAt } = response.data;
+
+    approval.value.status = "待收货";
+    approval.value.shippedAt = shippedAt;
+    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-${approval.value.status}`;
+
+    emit("update-approval", approval.value);
+  } catch (err) {
+    alert(`发货失败：${err.message}`);
+  }
 };
 
-const receive = () => {
+
+//RECEIVE BUTTON
+const receive = async () => {
   if (!approval.value) return;
-  approval.value.status = "已完成";
-  approval.value.receivedAt = getNow();
-  approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-${approval.value.status}`;
+  try {
+    const response = await axios.post("http://localhost:5000/api/shipment", {
+      approval_id: approval.value.id
+    });
+
+    const { receivedAt } = response.data;
+
+    approval.value.status = "已完成";
+    approval.value.receivedAt = receivedAt;
+    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-${approval.value.status}`;
+
+    emit("update-approval", approval.value);
+  } catch (err) {
+    alert(`收货失败：${err.message}`);
+  }
 };
 
 defineExpose({ show, relatedclose });

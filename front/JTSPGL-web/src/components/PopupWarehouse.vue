@@ -163,34 +163,35 @@ const replenish = async () => {
   }
 };
 
-// 调货请求
+// transfer production
 const transfer = async () => {
-  /*仓库之间调货，调用仓库流水表，一加一减*/
   try {
     const fromWarehouse =
-      warehouseList.value.find((w) => w.id === selectedWarehouse.value)
-        ?.name || "";
-    axios.post("http://localhost:5000/api/transfer", {
+      warehouseList.value.find((w) => w.id === selectedWarehouse.value)?.name || "";
+    
+    const response = await axios.post("http://localhost:5000/api/requst", {
+      fromWarehouseID: selectedWarehouse.value,
       warehouse_id: currentWarehouseId.value,
-      product: transferProduct.value,
-      quantity: Number(transferQty.value),
-      fromWarehouse,
+      product_id: transferProduct.value,
+      quantity: Number(transferQty.value)
     });
-    alert("调货成功");
 
-    // 触发新增审批流事件
+    const data = response.data;
+
+    alert("调货申请已提交");
+
+    // 使用后端返回的 approval_id 和时间
     emit("new-approval", {
-      id: `P${Date.now()}`,
+      id: data.approval_id,
       product: transferProduct.value,
       quantity: transferQty.value,
       status: "待审核",
       from: fromWarehouse,
       to: currentWarehouseName.value,
-      createdAt: null,
+      createdAt: data.createdAt,        // 后端返回的时间
       approvedAt: null,
       shippedAt: null,
       receivedAt: null,
-      // display 字段用于右侧面板按钮显示
       display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`
     });
   } catch (err) {
