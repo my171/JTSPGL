@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 class Config:
 
-    DB_HOST = '127.0.0.1'
-    DB_PORT = '5432'
+    DB_HOST = 'yd.frp-era.com'
+    DB_PORT = '11103'
     DB_NAME = 'postgres'
-    DB_USER = 'u1'
+    DB_USER = 'postgres'
     DB_PASSWORD = 'ab12AB!@'
     client_encoding='utf8'
     
