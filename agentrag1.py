@@ -1,14 +1,15 @@
-import os# 如果下载出问题或者没有设置环境变量不要设置HF_ENDPOINT（删除下面三行），从官网下载模型或者使用本地模型文件
+import os# 如果没有设置环境变量不要设置HF_ENDPOINT（删除下面三行），从官网下载模型或者使用本地模型文件
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 os.environ["HF_HUB_OFFLINE"] = "0"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
-
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "sk-FxhjDpv1D62n33JGICef3aVagezAr73GFnoXmSQ4ikMpf9Hb")#其他api密钥直接改这里，如果closeai的欠费了用这个密钥：sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
+#sk-FxhjDpv1D62n33JGICef3aVagezAr73GFnoXmSQ4ikMpf9Hb
+#sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
+os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X")#其他api密钥直接改这里，如果closeai的欠费了用这个密钥：sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
 os.environ["OPENAI_API_URL"] = os.getenv("OPENAI_API_URL", "https://api.openai-proxy.org/v1")
-os.environ["MODEL_NAME"] = os.getenv("MODEL_NAME", "gpt-4.1")#使用的是closeai 的(    )模型
+os.environ["MODEL_NAME"] = os.getenv("MODEL_NAME", "gpt-4.1")#使用的是closeai 的(  gpt-4.1-nano/deepseek-chat  )模型
 #EMBEDDING_MODEL = "./models/paraphrase-multilingual-mpnet-base-v2"  # 下载到本地的嵌入模型路径
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
-os.environ["TRANSFORMERS_OFFLINE"] = "0"
+
 rag = None  # FastAPI全局变量
 import psycopg2
 import fitz
@@ -27,18 +28,17 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from collections import deque
 import re
-# PostgreSQL配置（测试数据库）
-PG_HOST = os.getenv('PG_HOST', 'yd.frp-era.com')
-PG_PORT = os.getenv('PG_PORT', '11103')
-PG_NAME = os.getenv('PG_NAME', 'postgres')
-PG_USER = os.getenv('PG_USER', 'u3')
-PG_PASSWORD = os.getenv('PG_PASSWORD', 'abcd1234')
-
-#PG_HOST = os.getenv('PG_HOST', '192.168.28.135')
-#PG_PORT = os.getenv('PG_PORT', '5432')
-#PG_NAME = os.getenv('PG_NAME', 'companylink')
-#PG_USER = os.getenv('PG_USER', 'myuser')
-#PG_PASSWORD = os.getenv('PG_PASSWORD', '123456abc.')
+# PostgreSQL配置
+#PG_HOST = os.getenv('PG_HOST', 'yd.frp-era.com')
+#PG_PORT = os.getenv('PG_PORT', '11103')
+#PG_NAME = os.getenv('PG_NAME', 'postgres')
+#PG_USER = os.getenv('PG_USER', 'u3')
+#PG_PASSWORD = os.getenv('PG_PASSWORD', 'abcd1234')
+PG_HOST = os.getenv('PG_HOST', '192.168.28.135')
+PG_PORT = os.getenv('PG_PORT', '5432')
+PG_NAME = os.getenv('PG_NAME', 'companylink')
+PG_USER = os.getenv('PG_USER', 'myuser')
+PG_PASSWORD = os.getenv('PG_PASSWORD', '123456abc.')
 
 #本地知识库所需要pdf文件路径
 PDF_DIR = './knowledge_pdfs'
@@ -388,105 +388,720 @@ SQL查询：
                                     }
                         except Exception:
                             continue
-                            
+        
         except Exception as e:
             print(f"⚠️ 关联关系分析失败: {e}")
         
         return relationships
     
-    def analyze_results(self, question: str, rows: List[Tuple], sql: str) -> str:
-        """深度分析查询结果"""
-        if not rows:
-            return "未找到相关数据"
-        
-        try:
-            # 获取列名
-            column_names = self.get_column_names(sql)
-            if not column_names:
-                column_names = [f"column_{i}" for i in range(len(rows[0]) if rows else 0)]
-            
-            # 进行多维度分析
-            statistics = self.analyze_data_statistics(rows, column_names)
-            trends = self.analyze_data_trends(rows, column_names)
-            relationships = self.analyze_data_relationships(rows, column_names)
-            
-            # 格式化分析结果
-            analysis_text = f"数据概览：共找到 {len(rows)} 条记录\n\n"
-            
-            # 统计信息
-            if statistics.get('numeric_columns'):
-                analysis_text += "📊 数值统计：\n"
-                for col, stats in statistics['numeric_columns'].items():
-                    analysis_text += f"  {col}: 平均{stats['avg']:.2f}, 范围{stats['min']}-{stats['max']}, 总计{stats['sum']:.2f}\n"
-            
-            if statistics.get('categorical_columns'):
-                analysis_text += "\n📋 分类统计：\n"
-                for col, stats in statistics['categorical_columns'].items():
-                    analysis_text += f"  {col}: {stats['unique_count']}个不同值\n"
-                    if stats['top_values']:
-                        top_val = stats['top_values'][0]
-                        analysis_text += f"    最常见: {top_val[0]} ({top_val[1]}次)\n"
-            
-            # 趋势信息
-            if trends:
-                analysis_text += "\n📈 趋势分析：\n"
-                for trend_name, trend_info in trends.items():
-                    if 'trend' in trend_name:
-                        analysis_text += f"  {trend_name}: {trend_info['direction']}趋势, 变化范围{trend_info['range']}\n"
-            
-            # 关联信息
-            if relationships:
-                analysis_text += "\n🔗 关联关系：\n"
-                for rel_name, rel_info in relationships.items():
-                    if rel_info['type'] == 'foreign_key':
-                        analysis_text += f"  {rel_name} → {rel_info['references']}\n"
-            
-            # 使用LLM进行业务洞察
-            insight_prompt = PromptTemplate.from_template("""
-基于以下数据分析结果，为用户问题提供专业的业务洞察和建议：
 
-用户问题：{question}
-执行的SQL：{sql}
-数据概览：{analysis_text}
-
-请提供：
-1. 关键业务指标解读
-2. 数据异常或趋势分析
-3. 业务建议和优化方向
-4. 风险提示（如果适用）
-
-回答要简洁专业，不超过300字。
-""")
-            
-            response = self.llm.invoke(insight_prompt.format(
-                question=question,
-                sql=sql,
-                analysis_text=analysis_text
-            ))
-            
-            return f"{analysis_text}\n\n💡 业务洞察：\n{response.content.strip()}"
-            
-        except Exception as e:
-            return f"数据分析失败: {str(e)}"
     
     def query(self, question: str, context: str = "") -> str:
-        """通用数据库查询接口"""
+        """通用数据库查询接口 - 直接执行查询并返回具体数据"""
         try:
-            # 1. 生成SQL
-            sql = self.generate_sql(question)
+            print(f"🔍 开始处理查询: {question}")
+            
+            # 1. 智能生成SQL查询
+            sql = self._generate_intelligent_sql(question)
+            
             if not sql:
+                print("❌ SQL生成失败")
                 return "无法理解查询需求，请提供更具体的问题"
+            
+            print(f"✅ 生成的SQL: {sql}")
             
             # 2. 执行查询
             rows = self.execute_query(sql)
             
-            # 3. 深度分析结果
-            analysis = self.analyze_results(question, rows, sql)
+            if not rows:
+                print("❌ 查询返回空结果")
+                return "未找到相关数据，请检查查询条件"
             
-            return analysis
+            print(f"✅ 查询成功，返回 {len(rows)} 条记录")
+            
+            # 3. 获取列名
+            column_names = self.get_column_names(sql)
+            if not column_names:
+                column_names = [f"column_{i}" for i in range(len(rows[0]) if rows else 0)]
+            
+            print(f"✅ 列名: {column_names}")
+            
+            # 4. 直接返回具体数据和分析
+            result = self._format_comprehensive_results(question, rows, column_names, sql)
+            print(f"✅ 结果格式化完成，长度: {len(result)} 字符")
+            
+            return result
             
         except Exception as e:
+            print(f"❌ 查询处理失败: {e}")
+            import traceback
+            traceback.print_exc()
             return f"数据库查询失败: {str(e)}"
+    
+    def _generate_intelligent_sql(self, question: str) -> Optional[str]:
+        """智能生成SQL查询 - 处理所有类型的查询"""
+        try:
+            print(f"🧠 开始生成SQL，问题: {question}")
+            
+            # 使用增强的LLM生成SQL，包含完整的业务场景
+            schema_summary = self.schema_analyzer.get_schema_summary()
+            print(f"📋 数据库模式摘要: {schema_summary[:200]}...")
+            
+            prompt = PromptTemplate.from_template("""
+你是一个专业的数据库查询专家。根据以下数据库模式，为用户问题生成PostgreSQL查询语句。
+
+数据库模式：
+{schema_summary}
+
+用户问题：{question}
+
+数据库表说明：
+- warehouse表：仓库信息，包含仓库名称、位置、类型等
+- sales表：销售记录，包含销售时间、产品ID、仓库ID、数量、金额等
+- product表：产品信息，包含产品名称、类别、价格等
+- store表：门店信息
+- inventory_log表：库存变动日志
+- store_inventory表：门店库存
+- warehouse_inventory表：仓库库存
+- replenishment表：补货记录
+
+查询规则：
+1. 对于销售相关查询：关联sales、product、warehouse表
+2. 对于库存相关查询：关联warehouse_inventory、product、warehouse表
+3. 对于产品相关查询：从product表开始，根据需要关联其他表
+4. 对于仓库相关查询：从warehouse表开始，关联相关业务表
+5. 对于时间相关查询：使用DATE_TRUNC进行时间分组
+6. 对于统计查询：使用聚合函数SUM、COUNT、AVG等
+7. 对于特定产品查询：在WHERE条件中指定产品名称或ID
+8. 对于特定仓库查询：在WHERE条件中指定仓库名称或ID
+
+要求：
+1. 只返回SQL语句，不要其他解释，不要markdown格式
+2. 使用LIMIT 20限制结果数量
+3. 如果涉及多表，使用适当的JOIN
+4. 确保SQL语法正确
+5. 优先使用聚合函数进行统计分析
+6. 对于金额计算使用SUM()函数
+7. 对于数量统计使用COUNT()函数
+8. 对于平均值计算使用AVG()函数
+9. 如果问题不明确，返回NULL
+
+SQL查询：
+""")
+            
+            response = self.llm.invoke(prompt.format(
+                schema_summary=schema_summary,
+                question=question
+            ))
+            
+            sql = response.content.strip()
+            print(f"🤖 LLM生成的SQL: {sql}")
+            
+            # 清理SQL，移除markdown格式
+            if sql.startswith('```'):
+                lines = sql.split('\n')
+                sql_lines = []
+                in_sql = False
+                for line in lines:
+                    if line.strip().startswith('```sql'):
+                        in_sql = True
+                        continue
+                    elif line.strip().startswith('```'):
+                        in_sql = False
+                        continue
+                    elif in_sql:
+                        sql_lines.append(line)
+                sql = '\n'.join(sql_lines).strip()
+            
+            print(f"🧹 清理后的SQL: {sql}")
+            
+            if sql.upper().startswith('SELECT') and 'NULL' not in sql.upper():
+                return sql
+            else:
+                print(f"❌ SQL格式不正确或返回NULL: {sql}")
+                return None
+            
+        except Exception as e:
+            print(f"❌ SQL生成失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def execute_query(self, sql: str) -> List[Tuple]:
+        """执行SQL查询"""
+        try:
+            print(f"🚀 执行SQL查询: {sql}")
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            rows = cursor.fetchall()
+            cursor.close()
+            print(f"✅ 查询执行成功，返回 {len(rows)} 行数据")
+            return rows
+        except Exception as e:
+            print(f"❌ SQL执行失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
+    def get_column_names(self, sql: str) -> List[str]:
+        """获取查询结果的列名"""
+        try:
+            print(f"📋 获取列名，SQL: {sql}")
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            column_names = [desc[0] for desc in cursor.description]
+            cursor.close()
+            print(f"✅ 获取列名成功: {column_names}")
+            return column_names
+        except Exception as e:
+            print(f"❌ 获取列名失败: {e}")
+            return []
+    
+    def analyze_data_statistics(self, rows: List[Tuple], column_names: List[str]) -> Dict:
+        """分析数据统计信息"""
+        if not rows or not column_names:
+            return {}
+        
+        stats = {}
+        try:
+            # 转换为DataFrame格式进行分析
+            data_dict = {}
+            for i, col_name in enumerate(column_names):
+                data_dict[col_name] = [row[i] for row in rows]
+            
+            # 数值型列统计
+            numeric_stats = {}
+            for col_name, values in data_dict.items():
+                try:
+                    # 尝试转换为数值
+                    numeric_values = []
+                    for val in values:
+                        if val is not None:
+                            try:
+                                numeric_values.append(float(val))
+                            except (ValueError, TypeError):
+                                continue
+                    
+                    if numeric_values:
+                        numeric_stats[col_name] = {
+                            'count': len(numeric_values),
+                            'sum': sum(values),
+                            'avg': sum(values) / len(values),
+                            'min': min(values),
+                            'max': max(values)
+                        }
+                except Exception:
+                    continue
+            
+            # 分类列统计
+            categorical_stats = {}
+            for col_name, values in data_dict.items():
+                if col_name not in numeric_stats:
+                    try:
+                        value_counts = {}
+                        for val in values:
+                            if val is not None:
+                                val_str = str(val)
+                                value_counts[val_str] = value_counts.get(val_str, 0) + 1
+                        
+                        if value_counts:
+                            categorical_stats[col_name] = {
+                                'unique_count': len(value_counts),
+                                'top_values': sorted(value_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+                            }
+                    except Exception:
+                        continue
+            
+            stats = {
+                'total_rows': len(rows),
+                'numeric_columns': numeric_stats,
+                'categorical_columns': categorical_stats
+            }
+            
+        except Exception as e:
+            print(f"⚠️ 数据统计分析失败: {e}")
+        
+        return stats
+    
+    def analyze_data_trends(self, rows: List[Tuple], column_names: List[str]) -> Dict:
+        """分析数据趋势"""
+        if not rows or not column_names:
+            return {}
+        
+        trends = {}
+        try:
+            # 查找时间相关列
+            time_columns = []
+            for col_name in column_names:
+                if any(keyword in col_name.lower() for keyword in ['time', 'date', 'created', 'updated', 'timestamp']):
+                    time_columns.append(col_name)
+            
+            if time_columns:
+                # 分析时间趋势
+                for time_col in time_columns:
+                    try:
+                        time_idx = column_names.index(time_col)
+                        time_values = [row[time_idx] for row in rows if row[time_idx] is not None]
+                        
+                        if time_values:
+                            # 简单的时间趋势分析
+                            trends[time_col] = {
+                                'earliest': min(time_values),
+                                'latest': max(time_values),
+                                'total_periods': len(time_values)
+                            }
+                    except Exception:
+                        continue
+            
+            # 分析数值趋势
+            data_dict = {}
+            for i, col_name in enumerate(column_names):
+                data_dict[col_name] = [row[i] for row in rows]
+            
+            for col_name, values in data_dict.items():
+                try:
+                    numeric_values = []
+                    for val in values:
+                        if val is not None:
+                            try:
+                                numeric_values.append(float(val))
+                            except (ValueError, TypeError):
+                                continue
+                    
+                    if len(numeric_values) > 1:
+                        # 计算趋势（简单线性趋势）
+                        sorted_values = sorted(numeric_values)
+                        if sorted_values[0] != sorted_values[-1]:
+                            trend_direction = "上升" if sorted_values[-1] > sorted_values[0] else "下降"
+                            trends[f"{col_name}_trend"] = {
+                                'direction': trend_direction,
+                                'range': f"{sorted_values[0]} - {sorted_values[-1]}",
+                                'variation': sorted_values[-1] - sorted_values[0]
+                            }
+                except Exception:
+                    continue
+                    
+        except Exception as e:
+            print(f"⚠️ 趋势分析失败: {e}")
+        
+        return trends
+    
+    def analyze_data_relationships(self, rows: List[Tuple], column_names: List[str]) -> Dict:
+        """分析数据关联关系"""
+        if not rows or not column_names:
+            return {}
+        
+        relationships = {}
+        try:
+            # 分析外键关系
+            for table_name, rels in self.schema_analyzer.table_relationships.items():
+                for rel in rels:
+                    relationships[f"{table_name}.{rel['column']}"] = {
+                        'references': f"{rel['foreign_table']}.{rel['foreign_column']}",
+                        'type': 'foreign_key'
+                    }
+            
+            # 分析数据中的关联模式
+            data_dict = {}
+            for i, col_name in enumerate(column_names):
+                data_dict[col_name] = [row[i] for row in rows]
+            
+            # 查找可能的关联列（相同值的列）
+            for col1 in column_names:
+                for col2 in column_names:
+                    if col1 != col2:
+                        try:
+                            values1 = set(str(data_dict[col1][i]) for i in range(len(rows)) if data_dict[col1][i] is not None)
+                            values2 = set(str(data_dict[col2][i]) for i in range(len(rows)) if data_dict[col2][i] is not None)
+                            
+                            # 计算重叠度
+                            overlap = len(values1.intersection(values2))
+                            if overlap > 0 and len(values1) > 0 and len(values2) > 0:
+                                overlap_ratio = overlap / min(len(values1), len(values2))
+                                if overlap_ratio > 0.3:  # 30%以上重叠认为有关联
+                                    relationships[f"{col1}_vs_{col2}"] = {
+                                        'overlap_count': overlap,
+                                        'overlap_ratio': overlap_ratio,
+                                        'type': 'data_overlap'
+                                    }
+                        except Exception:
+                            continue
+        
+        except Exception as e:
+            print(f"⚠️ 关联关系分析失败: {e}")
+        
+        return relationships
+    
+
+    
+    def _format_comprehensive_results(self, question: str, rows: List[Tuple], column_names: List[str], sql: str) -> str:
+        """综合格式化查询结果，返回具体数据"""
+        try:
+            result = f"📊 查询结果：共找到 {len(rows)} 条记录\n\n"
+            
+            # 1. 显示表头
+            result += "📋 数据明细：\n"
+            result += " | ".join(f"{name:<15}" for name in column_names) + "\n"
+            result += "-" * (len(column_names) * 18) + "\n"
+            
+            # 2. 显示数据（最多显示15行）
+            for i, row in enumerate(rows[:15]):
+                formatted_row = []
+                for value in row:
+                    if value is None:
+                        formatted_row.append("NULL".ljust(15))
+                    else:
+                        str_value = str(value)
+                        if len(str_value) > 15:
+                            str_value = str_value[:12] + "..."
+                        formatted_row.append(str_value.ljust(15))
+                result += " | ".join(formatted_row) + "\n"
+            
+            if len(rows) > 15:
+                result += f"... 还有 {len(rows) - 15} 条记录\n"
+            
+            # 3. 添加统计分析
+            result += "\n📈 统计分析：\n"
+            
+            # 数值列统计
+            numeric_stats = self._calculate_numeric_stats(rows, column_names)
+            if numeric_stats:
+                result += "数值统计：\n"
+                for col, stats in numeric_stats.items():
+                    result += f"  {col}: 总计{stats['sum']:,.2f}, 平均{stats['avg']:.2f}, 范围{stats['min']}-{stats['max']}\n"
+            
+            # 分类统计
+            categorical_stats = self._calculate_categorical_stats(rows, column_names)
+            if categorical_stats:
+                result += "\n分类统计：\n"
+                for col, stats in categorical_stats.items():
+                    result += f"  {col}: {stats['unique_count']}个不同值\n"
+                    if stats['top_values']:
+                        top_val = stats['top_values'][0]
+                        result += f"    最常见: {top_val[0]} ({top_val[1]}次)\n"
+            
+            # 4. 业务洞察
+            result += "\n💡 业务洞察：\n"
+            insight = self._generate_comprehensive_insight(question, rows, column_names, sql)
+            result += insight
+            
+            # 5. 数据摘要
+            result += "\n📋 数据摘要：\n"
+            result += f"• 查询字段：{', '.join(column_names)}\n"
+            result += f"• 数据时间：最新记录包含{len(rows)}条数据\n"
+            result += f"• 查询类型：{self._identify_query_type(question)}\n"
+            
+            return result
+            
+        except Exception as e:
+            return f"结果格式化失败: {str(e)}"
+    
+    def _calculate_numeric_stats(self, rows: List[Tuple], column_names: List[str]) -> Dict:
+        """计算数值列统计"""
+        stats = {}
+        for i, col_name in enumerate(column_names):
+            try:
+                values = []
+                for row in rows:
+                    if row[i] is not None:
+                        try:
+                            values.append(float(row[i]))
+                        except (ValueError, TypeError):
+                            continue
+                
+                if values:
+                    stats[col_name] = {
+                        'count': len(values),
+                        'sum': sum(values),
+                        'avg': sum(values) / len(values),
+                        'min': min(values),
+                        'max': max(values)
+                    }
+            except Exception:
+                continue
+        return stats
+    
+    def _calculate_categorical_stats(self, rows: List[Tuple], column_names: List[str]) -> Dict:
+        """计算分类列统计"""
+        stats = {}
+        for i, col_name in enumerate(column_names):
+            try:
+                value_counts = {}
+                for row in rows:
+                    if row[i] is not None:
+                        val_str = str(row[i])
+                        value_counts[val_str] = value_counts.get(val_str, 0) + 1
+                
+                if value_counts:
+                    stats[col_name] = {
+                        'unique_count': len(value_counts),
+                        'top_values': sorted(value_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+                    }
+            except Exception:
+                continue
+        return stats
+    
+    def _identify_query_type(self, question: str) -> str:
+        """识别查询类型"""
+        if any(keyword in question for keyword in ["销售", "销售额", "销售情况"]):
+            return "销售分析"
+        elif any(keyword in question for keyword in ["库存", "存货", "库存情况"]):
+            return "库存分析"
+        elif any(keyword in question for keyword in ["产品", "商品", "SKU"]):
+            return "产品分析"
+        elif any(keyword in question for keyword in ["仓库", "仓", "中心仓"]):
+            return "仓库分析"
+        elif any(keyword in question for keyword in ["趋势", "变化", "增长"]):
+            return "趋势分析"
+        else:
+            return "通用查询"
+    
+    def _generate_comprehensive_insight(self, question: str, rows: List[Tuple], column_names: List[str], sql: str) -> str:
+        """生成综合业务洞察"""
+        try:
+            insight = ""
+            
+            # 根据查询类型生成特定洞察
+            query_type = self._identify_query_type(question)
+            
+            if query_type == "销售分析":
+                insight += self._generate_sales_insight(rows, column_names)
+            elif query_type == "库存分析":
+                insight += self._generate_inventory_insight(rows, column_names)
+            elif query_type == "产品分析":
+                insight += self._generate_product_insight(rows, column_names)
+            elif query_type == "仓库分析":
+                insight += self._generate_warehouse_insight(rows, column_names)
+            elif query_type == "趋势分析":
+                insight += self._generate_trend_insight(rows, column_names)
+            else:
+                insight += self._generate_general_insight(rows, column_names, f"查询返回{len(rows)}条记录")
+            
+            return insight
+            
+        except Exception as e:
+            return f"业务洞察生成失败: {str(e)}"
+    
+    def _generate_product_insight(self, rows: List[Tuple], column_names: List[str]) -> str:
+        """生成产品洞察"""
+        try:
+            insight = ""
+            
+            # 查找产品相关字段
+            product_name_idx = -1
+            category_idx = -1
+            price_idx = -1
+            sales_idx = -1
+            
+            for i, col in enumerate(column_names):
+                if 'product_name' in col.lower() or 'name' in col.lower():
+                    product_name_idx = i
+                elif 'category' in col.lower():
+                    category_idx = i
+                elif 'price' in col.lower():
+                    price_idx = i
+                elif 'sales' in col.lower() or 'amount' in col.lower():
+                    sales_idx = i
+            
+            if product_name_idx >= 0:
+                products = set()
+                for row in rows:
+                    if row[product_name_idx] is not None:
+                        products.add(str(row[product_name_idx]))
+                insight += f"• 涉及产品：{len(products)}种\n"
+                
+                if len(products) <= 5:
+                    insight += f"• 产品列表：{', '.join(list(products)[:5])}\n"
+            
+            if category_idx >= 0:
+                categories = {}
+                for row in rows:
+                    if row[category_idx] is not None:
+                        cat = str(row[category_idx])
+                        categories[cat] = categories.get(cat, 0) + 1
+                
+                if categories:
+                    top_category = max(categories.items(), key=lambda x: x[1])
+                    insight += f"• 主要类别：{top_category[0]} ({top_category[1]}条记录)\n"
+            
+            if sales_idx >= 0:
+                total_sales = sum(float(row[sales_idx]) for row in rows if row[sales_idx] is not None)
+                insight += f"• 总销售额：¥{total_sales:,.2f}\n"
+            
+            return insight
+            
+        except Exception as e:
+            return f"产品洞察生成失败: {str(e)}"
+    
+    def _generate_warehouse_insight(self, rows: List[Tuple], column_names: List[str]) -> str:
+        """生成仓库洞察"""
+        try:
+            insight = ""
+            
+            # 查找仓库相关字段
+            warehouse_name_idx = -1
+            inventory_idx = -1
+            
+            for i, col in enumerate(column_names):
+                if 'warehouse' in col.lower():
+                    warehouse_name_idx = i
+                elif 'inventory' in col.lower() or 'stock' in col.lower():
+                    inventory_idx = i
+            
+            if warehouse_name_idx >= 0:
+                warehouses = set()
+                for row in rows:
+                    if row[warehouse_name_idx] is not None:
+                        warehouses.add(str(row[warehouse_name_idx]))
+                insight += f"• 涉及仓库：{len(warehouses)}个\n"
+                
+                if len(warehouses) <= 5:
+                    insight += f"• 仓库列表：{', '.join(list(warehouses)[:5])}\n"
+            
+            if inventory_idx >= 0:
+                total_inventory = sum(float(row[inventory_idx]) for row in rows if row[inventory_idx] is not None)
+                insight += f"• 总库存量：{total_inventory:,.0f}\n"
+            
+            return insight
+            
+        except Exception as e:
+            return f"仓库洞察生成失败: {str(e)}"
+    
+    def _generate_sales_insight(self, rows: List[Tuple], column_names: List[str]) -> str:
+        """生成销售洞察"""
+        try:
+            insight = ""
+            
+            # 计算总销售额
+            total_sales = 0
+            total_quantity = 0
+            product_sales = {}
+            warehouse_sales = {}
+            
+            for row in rows:
+                amount_idx = column_names.index('total_amount') if 'total_amount' in column_names else -1
+                quantity_idx = column_names.index('total_quantity') if 'total_quantity' in column_names else -1
+                product_idx = column_names.index('product_name') if 'product_name' in column_names else -1
+                warehouse_idx = column_names.index('warehouse_name') if 'warehouse_name' in column_names else -1
+                
+                if amount_idx >= 0 and row[amount_idx] is not None:
+                    total_sales += float(row[amount_idx])
+                
+                if quantity_idx >= 0 and row[quantity_idx] is not None:
+                    total_quantity += float(row[quantity_idx])
+                
+                if product_idx >= 0 and amount_idx >= 0:
+                    product = str(row[product_idx])
+                    amount = float(row[amount_idx]) if row[amount_idx] is not None else 0
+                    product_sales[product] = product_sales.get(product, 0) + amount
+                
+                if warehouse_idx >= 0 and amount_idx >= 0:
+                    warehouse = str(row[warehouse_idx])
+                    amount = float(row[amount_idx]) if row[amount_idx] is not None else 0
+                    warehouse_sales[warehouse] = warehouse_sales.get(warehouse, 0) + amount
+            
+            insight += f"• 总销售额：¥{total_sales:,.2f}\n"
+            insight += f"• 总销售数量：{total_quantity:,.0f}\n"
+            
+            if product_sales:
+                top_product = max(product_sales.items(), key=lambda x: x[1])
+                insight += f"• 热销产品：{top_product[0]} (¥{top_product[1]:,.2f})\n"
+            
+            if warehouse_sales:
+                top_warehouse = max(warehouse_sales.items(), key=lambda x: x[1])
+                insight += f"• 销售最佳仓库：{top_warehouse[0]} (¥{top_warehouse[1]:,.2f})\n"
+            
+            return insight
+            
+        except Exception as e:
+            return f"销售洞察生成失败: {str(e)}"
+    
+    def _generate_inventory_insight(self, rows: List[Tuple], column_names: List[str]) -> str:
+        """生成库存洞察"""
+        try:
+            insight = ""
+            
+            total_value = 0
+            low_stock_count = 0
+            normal_stock_count = 0
+            high_stock_count = 0
+            
+            for row in rows:
+                value_idx = column_names.index('inventory_value') if 'inventory_value' in column_names else -1
+                status_idx = column_names.index('stock_status') if 'stock_status' in column_names else -1
+                
+                if value_idx >= 0 and row[value_idx] is not None:
+                    total_value += float(row[value_idx])
+                
+                if status_idx >= 0:
+                    status = str(row[status_idx])
+                    if '需要补货' in status:
+                        low_stock_count += 1
+                    elif '库存充足' in status:
+                        high_stock_count += 1
+                    else:
+                        normal_stock_count += 1
+            
+            insight += f"• 总库存价值：¥{total_value:,.2f}\n"
+            insight += f"• 需要补货：{low_stock_count}种产品\n"
+            insight += f"• 库存正常：{normal_stock_count}种产品\n"
+            insight += f"• 库存充足：{high_stock_count}种产品\n"
+            
+            return insight
+            
+        except Exception as e:
+            return f"库存洞察生成失败: {str(e)}"
+    
+    def _generate_trend_insight(self, rows: List[Tuple], column_names: List[str]) -> str:
+        """生成趋势洞察"""
+        try:
+            insight = ""
+            
+            if len(rows) >= 2:
+                amount_idx = column_names.index('monthly_sales_amount') if 'monthly_sales_amount' in column_names else -1
+                if amount_idx >= 0:
+                    current = float(rows[0][amount_idx]) if rows[0][amount_idx] is not None else 0
+                    previous = float(rows[1][amount_idx]) if rows[1][amount_idx] is not None else 0
+                    
+                    if previous > 0:
+                        growth = ((current - previous) / previous) * 100
+                        insight += f"• 环比增长率：{growth:+.1f}%\n"
+                    
+                    insight += f"• 当前月销售额：¥{current:,.2f}\n"
+                    insight += f"• 上月销售额：¥{previous:,.2f}\n"
+            
+            return insight
+            
+        except Exception as e:
+            return f"趋势洞察生成失败: {str(e)}"
+    
+    def _generate_general_insight(self, rows: List[Tuple], column_names: List[str], data_summary: str) -> str:
+        """生成通用洞察"""
+        try:
+            insight = f"• {data_summary}\n"
+            
+            # 计算基本统计
+            if rows:
+                insight += f"• 数据时间范围：最新记录包含{len(rows)}条数据\n"
+                
+                # 查找可能的数值列进行统计
+                numeric_cols = []
+                for i, col in enumerate(column_names):
+                    try:
+                        values = [float(row[i]) for row in rows if row[i] is not None]
+                        if values:
+                            numeric_cols.append((col, sum(values)))
+                    except:
+                        continue
+                
+                if numeric_cols:
+                    top_col = max(numeric_cols, key=lambda x: x[1])
+                    insight += f"• 主要数值字段：{top_col[0]} (总计{top_col[1]:,.2f})\n"
+            
+            return insight
+            
+        except Exception as e:
+            return f"通用洞察生成失败: {str(e)}"
     
     def get_database_summary(self) -> str:
         """获取数据库整体摘要"""
@@ -1006,65 +1621,86 @@ class TopAgent:
                 "reasoning": "默认多Agent协调模式"
             }
         
-        # 3. 根据意图和相关性决定策略
-        if max_similarity < 0.2:
-            # 相关性很低，直接由大模型回答
-            llm_prompt = PromptTemplate.from_template("""
-你是智能仓储系统的专家，请直接、专业地回答下列用户问题：
-
-用户问题：{question}
-
-请用结构化、简明的方式作答。
-""")
-            answer = self.llm.invoke(llm_prompt.format(question=question)).content.strip()
+        # 3. 优先执行数据库查询
+        results = {}
+        db_result = ""
+        
+        # 数据库查询（优先执行）
+        if intent.get("requires_database", True):
+            try:
+                print("🔍 优先执行数据库查询...")
+                # 直接执行数据库查询
+                db_result = self.db_agent.query(question, context)
+                
+                # 检查数据库查询是否成功返回具体数据
+                if db_result and "未找到相关数据" not in db_result and "无法理解查询需求" not in db_result:
+                    results["db_result"] = db_result
+                    print("✅ 数据库查询成功，返回具体数据")
+                else:
+                    print("⚠️ 数据库查询未返回具体数据")
+                    results["db_result"] = "数据库查询未返回具体数据"
+                    
+                # 获取数据库摘要信息
+                try:
+                    db_summary = self.db_agent.get_database_summary()
+                    results["db_summary"] = db_summary
+                except Exception:
+                    pass
+                    
+            except Exception as e:
+                print(f"❌ 数据库查询失败: {e}")
+                results["db_result"] = f"数据库查询失败: {e}"
+        
+        # 4. 如果数据库查询成功返回具体数据，直接基于数据生成回答
+        if results.get("db_result") and "未找到相关数据" not in results["db_result"] and "无法理解查询需求" not in results["db_result"]:
+            print("🎯 基于数据库具体数据生成回答...")
+            
+            # 知识库查询（作为补充）
+            if intent.get("requires_knowledge_base", True):
+                try:
+                    if hasattr(self.kb, 'query_with_database_context'):
+                        results["knowledge_context"] = self.kb.query_with_database_context(question)
+                    else:
+                        docs = self.kb.vectorstore.similarity_search(question, k=3)
+                        results["knowledge_context"] = self._format_knowledge_context(docs)
+                except Exception as e:
+                    results["knowledge_context"] = f"知识库检索失败: {e}"
+            
+            # PDF查询（作为补充）
+            if intent.get("requires_pdf", True):
+                try:
+                    results["pdf_result"] = self.pdf_agent.query(question)
+                except Exception as e:
+                    results["pdf_result"] = f"PDF检索失败: {e}"
+            
+            # 基于数据库具体数据生成智能回答
+            final_answer = self._generate_data_driven_answer(question, results, intent, semantic_results)
+            
             return {
-                "answer": answer,
-                "knowledge_context": "",
-                "db_result": "",
-                "pdf_result": "",
-                "source_type": "llm_fallback",
-                "confidence": 0.6,
-                "agent_decision": {
-                    "primary_agent": "llm_fallback",
-                    "reasoning": "语义相关性低，直接由大模型回答",
-                    "requires_database": False,
-                    "requires_pdf": False,
-                    "requires_knowledge_base": False
-                },
+                "answer": final_answer,
+                "knowledge_context": results.get("knowledge_context", ""),
+                "db_result": results.get("db_result", ""),
+                "pdf_result": results.get("pdf_result", ""),
+                "db_summary": results.get("db_summary", ""),
+                "source_type": "database_driven",
+                "confidence": min(0.95, 0.8 + max_similarity * 0.15),
+                "agent_decision": intent,
                 "semantic_results": semantic_results
             }
         
-        # 4. 根据意图调用相应Agent
-        results = {}
+        # 5. 如果数据库查询失败，使用传统多Agent模式
+        print("🔄 使用传统多Agent协调模式...")
         
-        # 知识库查询（增强版）
+        # 知识库查询
         if intent.get("requires_knowledge_base", True):
             try:
-                # 使用增强的知识库查询，包含数据库上下文
                 if hasattr(self.kb, 'query_with_database_context'):
                     results["knowledge_context"] = self.kb.query_with_database_context(question)
                 else:
-                    # 回退到传统知识库查询
                     docs = self.kb.vectorstore.similarity_search(question, k=5)
                     results["knowledge_context"] = self._format_knowledge_context(docs)
             except Exception as e:
                 results["knowledge_context"] = f"知识库检索失败: {e}"
-        
-        # 数据库查询（增强版）
-        if intent.get("requires_database", True):
-            try:
-                # 使用增强的数据库Agent进行深度分析
-                results["db_result"] = self.db_agent.query(question, context)
-                
-                # 如果数据库查询成功，获取数据库摘要信息
-                if "未找到相关数据" not in results["db_result"]:
-                    try:
-                        db_summary = self.db_agent.get_database_summary()
-                        results["db_summary"] = db_summary
-                    except Exception:
-                        pass
-            except Exception as e:
-                results["db_result"] = f"数据库查询失败: {e}"
         
         # PDF查询
         if intent.get("requires_pdf", True):
@@ -1073,7 +1709,7 @@ class TopAgent:
             except Exception as e:
                 results["pdf_result"] = f"PDF检索失败: {e}"
         
-        # 5. 智能结果整合
+        # 智能结果整合
         final_answer = self._generate_intelligent_answer(question, results, intent, semantic_results)
         
         return {
@@ -1083,10 +1719,55 @@ class TopAgent:
             "pdf_result": results.get("pdf_result", ""),
             "db_summary": results.get("db_summary", ""),
             "source_type": "top_agent_coordinated",
-            "confidence": min(0.9, 0.7 + max_similarity * 0.2),  # 基于相似度调整置信度
+            "confidence": min(0.9, 0.7 + max_similarity * 0.2),
             "agent_decision": intent,
             "semantic_results": semantic_results
         }
+    
+    def _generate_data_driven_answer(self, question: str, results: Dict, intent: Dict, semantic_results: List) -> str:
+        """基于数据库具体数据生成回答"""
+        try:
+            # 构建数据驱动的回答
+            data_prompt = PromptTemplate.from_template("""
+作为智能仓储系统的数据分析专家，请基于以下数据库具体数据，为用户问题提供直接、准确、数据驱动的回答：
+
+用户问题：{question}
+
+【数据库具体数据】
+{db_result}
+
+【知识库补充信息】
+{knowledge_context}
+
+【PDF补充信息】
+{pdf_result}
+
+请提供：
+1. 直接回答用户问题，基于数据库具体数据
+2. 数据分析和业务洞察
+3. 具体的数值和统计信息
+4. 基于数据的建议
+
+要求：
+- 回答要基于数据库的具体数据，不要给出SQL建议
+- 突出关键数据和统计信息
+- 提供数据驱动的业务洞察
+- 回答要简洁、专业、准确
+
+基于数据的回答：
+""")
+            
+            response = self.llm.invoke(data_prompt.format(
+                question=question,
+                db_result=results.get("db_result", "无数据库数据"),
+                knowledge_context=results.get("knowledge_context", "无知识库信息"),
+                pdf_result=results.get("pdf_result", "无PDF信息")
+            ))
+            
+            return response.content.strip()
+            
+        except Exception as e:
+            return f"数据驱动回答生成失败: {str(e)}"
     
     def _format_knowledge_context(self, docs: List[Document]) -> str:
         """格式化知识库上下文，解决多行隔断问题"""
