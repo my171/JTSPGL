@@ -135,10 +135,10 @@ const transferIn = async () => {
       status: "待审核",
       from: fromWarehouse,
       to: currentWarehouseName.value,
-      createdAt: null,
-      approvedAt: null,
-      shippedAt: null,
-      receivedAt: null,
+      request_time: null,
+      approved_time: null,
+      shipment_time: null,
+      receipt_time: null,
       // display 字段用于右侧面板按钮显示
       display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`
     });

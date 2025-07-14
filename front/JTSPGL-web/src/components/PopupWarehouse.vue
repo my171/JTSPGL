@@ -111,15 +111,10 @@ const show = async (id, name) => {
       }
     );
 
-
-
-
-
     const storeList = response.data;
     let html = `<h5>${name} - 商店列表</h5>`;
     storeList.forEach((store) => {
-      html += 
-      `<button class='btn btn-sm btn-outline-secondary mb-3' 
+      html += `<button class='btn btn-sm btn-outline-secondary mb-3' 
         onclick="this.dispatchEvent(
           new CustomEvent(
             'store-click', {
@@ -161,13 +156,11 @@ const queryProduct = async () => {
         },
       }
     );
-    if (res.data.successType == 0){
-      productResult.value = '查询失败：商品编号不存在'
-    }
-    else if (res.data.successType == 1){
+    if (res.data.successType == 0) {
+      productResult.value = "查询失败：商品编号不存在";
+    } else if (res.data.successType == 1) {
       productResult.value = res.data.name + ":暂无库存";
-    }
-    else{
+    } else {
       productResult.value = res.data.name + ":库存量" + res.data.quantity;
     }
   } catch (err) {
@@ -184,10 +177,9 @@ const replenish = async () => {
       product: replenishProduct.value,
       quantity: Number(replenishQty.value),
     });
-    if (res.data.successType == 1){
+    if (res.data.successType == 1) {
       alert("补货成功");
-    }
-    else if (res.data.successType == 0){
+    } else if (res.data.successType == 0) {
       alert("补货失败: 未知商品编号");
     }
   } catch (err) {
@@ -199,20 +191,21 @@ const replenish = async () => {
 const transfer = async () => {
   try {
     const fromWarehouse =
-      warehouseList.value.find((w) => w.id === selectedWarehouse.value)?.name || "";
-    
+      warehouseList.value.find((w) => w.id === selectedWarehouse.value)?.name ||
+      "";
+
     const response = await axios.post("http://localhost:5000/api/requst", {
       fromWarehouseID: selectedWarehouse.value,
       warehouse_id: currentWarehouseId.value,
       product_id: transferProduct.value,
-      quantity: Number(transferQty.value)
+      quantity: Number(transferQty.value),
     });
 
     const data = response.data;
 
     alert("调货申请已提交");
 
-    // 使用后端返回的 approval_id 和时间
+    // 使用后端返回的 approval_id 和 requst_time
     emit("new-approval", {
       id: data.approval_id,
       product: transferProduct.value,
@@ -220,11 +213,13 @@ const transfer = async () => {
       status: "待审核",
       from: fromWarehouse,
       to: currentWarehouseName.value,
-      createdAt: data.createdAt,        // 后端返回的时间
-      approvedAt: null,
-      shippedAt: null,
-      receivedAt: null,
-      display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`
+      requst_time: data.requst_time, // 后端返回的时间
+      approved_time: null,
+      //accepted_time: null,
+      //rejected_time: null,
+      shipment_time: null,
+      receipt_time: null,
+      display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`,
     });
   } catch (err) {
     alert(`调货失败：${err.message}`);

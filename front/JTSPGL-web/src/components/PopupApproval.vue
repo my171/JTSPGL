@@ -16,10 +16,10 @@
       <hr />
 
       <h6>时间记录</h6>
-      <p><strong>申请发出时间:</strong> {{ approval.createdAt || "暂无" }}</p>
-      <p><strong>审核时间:</strong> {{ approval.approvedAt || "暂无" }}</p>
-      <p><strong>发货时间:</strong> {{ approval.shippedAt || "暂无" }}</p>
-      <p><strong>收货时间:</strong> {{ approval.receivedAt || "暂无" }}</p>
+      <p><strong>申请发出时间:</strong> {{ approval.request_time || "暂无" }}</p>
+      <p><strong>审核时间:</strong> {{ approval.approved_time || "暂无" }}</p>
+      <p><strong>发货时间:</strong> {{ approval.shipment_time || "暂无" }}</p>
+      <p><strong>收货时间:</strong> {{ approval.receipt_time || "暂无" }}</p>
       <hr />
       <!-- 动作按钮 -->
       <div class="mt-3">
@@ -122,7 +122,7 @@ const approve = async (passed) => {
 
     const response = axios.post(url, {
       approval_id: approval.value.id
-    }); 
+    });
 
     const { approvedAt } = response.data;
 
