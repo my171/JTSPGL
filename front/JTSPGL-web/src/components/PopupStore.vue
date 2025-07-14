@@ -161,7 +161,7 @@ const transferIn = async () => {
 const sell = async () => {
   try {
     const response = await axios.post("http://localhost:5000/api/store/sell", {
-      store_id: storeName.value,
+      store_id: storeId.value,
       product_id: sellProduct.value,
       quantity: Number(sellQty.value),
     });

@@ -30,7 +30,6 @@ def API_StoreSellProducts(request):
     store_id = data.get('store_id', '')
     product_id = data.get('product_id', '')
     quantity = data.get('quantity', '')
-    print(store_id, product_id, quantity)
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
