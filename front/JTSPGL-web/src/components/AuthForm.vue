@@ -61,7 +61,7 @@ const handleSubmit = async () => {
     errorMessage.value = '请输入用户名和密码';
     return;
   }
-
+/*
   if (form.username === 'fslkgg' && form.password === 'fslkgg') {
     errorMessage.value = '';
     emit('submit', { success: true, data: form });
@@ -84,7 +84,10 @@ const handleSubmit = async () => {
     errorMessage.value = '用户名或密码错误';
     emit('submit', { success: false, error: '验证失败' });
   }
-/*
+*/
+
+/*用户名admin,密码123456可以直接进入/USER1界面来着*/
+
   try {
     const response = await axios.post("http://localhost:5000/api/verify", {
       username: form.username,
@@ -95,6 +98,7 @@ const handleSubmit = async () => {
       errorMessage.value = '';
       localStorage.setItem('isAuthed', 'true');
       localStorage.setItem('RoleType', response.data.role);
+      localStorage.setItem('DetailInfo', response.data.detail);
       switch(response.data.role){
         case ROLE_ADMIN:
           await router.push('/page_USER1');
@@ -113,7 +117,7 @@ const handleSubmit = async () => {
   } catch (error) {
     alert(error);
     errorMessage.value = '服务器运行异常';
-  }*/
+  }
   
 };
 </script>

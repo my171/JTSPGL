@@ -3,7 +3,7 @@
   <div class="map-container">
     <div class="map-area" ref="mapContainer">
       <div
-        v-for="warehouse in warehouses"
+        v-for="warehouse in filteredWarehouses"
         :key="warehouse.id"
         class="warehouse"
         :style="warehouse.style"
@@ -16,7 +16,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 
 const emit = defineEmits(["show-warehouse"]);
 const mapContainer = ref(null);
@@ -37,6 +37,18 @@ const warehousePositions = ref([
   { id: "WH004", name: "西南分拨中心", x: 0, y: 0.2 },
   { id: "WH005", name: "东北冷链仓", x: 0.5, y: -0.3 },
 ]);
+
+
+const detailInfo = ref(localStorage.getItem('DetailInfo'));
+
+const filteredWarehouses = computed(() => {
+  if (detailInfo.value == "ADMIN") return warehouses.value;
+  return warehouses.value.filter(wh => 
+    wh.id == detailInfo.value
+  );
+});
+
+
 
 // 计算按钮位置
 const calculatePositions = () => {
@@ -98,6 +110,7 @@ onMounted(() => {
   }
   window.addEventListener("resize", calculateSizes);
   window.addEventListener("resize", calculatePositions);
+  window.addEventListener('storage', handleStorageChange);
 });
 
 onBeforeUnmount(() => {
@@ -109,7 +122,15 @@ onBeforeUnmount(() => {
   }
   window.removeEventListener("resize", calculateSizes);
   window.removeEventListener("resize", calculatePositions);
+  window.removeEventListener('storage', handleStorageChange);
 });
+
+// 处理storage变化
+const handleStorageChange = (e) => {
+  if (e.key === 'DetailInfo') {
+    detailInfo.value = e.newValue;
+  }
+};
 
 const showWarehouse = (id, name) => {
   emit("show-warehouse", id, name);
@@ -155,6 +176,5 @@ const showWarehouse = (id, name) => {
 .warehouse:hover {
   background-color: #54ea5b;
   transform: scale(1.05);
-  /*z-index: 10; /* 悬停时置于上层 */
 }
 </style>

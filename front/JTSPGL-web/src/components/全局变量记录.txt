@@ -1,0 +1,9 @@
+//管理员的值为admin
+//仓库的值为wh
+//商店的值为st
+const RoleType = localStorage.getItem('RoleType')
+
+//管理员的值为空
+//仓库的值为对应仓库编号
+//商店的值为对应商店编号
+const DetailInfo = localStorage.getItem('DetailInfo')
