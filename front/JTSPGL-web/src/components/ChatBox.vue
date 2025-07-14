@@ -115,6 +115,7 @@ const scrollToBottom = () => {
   border-radius: 10px;
   max-width: 80%;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .receiver .chat-message {
