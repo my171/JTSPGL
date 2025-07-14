@@ -134,7 +134,15 @@ const queryProduct = async () => {
         },
       }
     );
-    productResult.value =  res.data.name + ":库存量" + res.data.quantity;
+    if (res.data.successType == 0){
+      productResult.value = '查询失败：商品编号不存在'
+    }
+    else if (res.data.successType == 1){
+      productResult.value = res.data.name + ":暂无库存";
+    }
+    else{
+      productResult.value = res.data.name + ":库存量" + res.data.quantity;
+    }
   } catch (err) {
     productResult.value = `查询失败：${err.message}`;
   }
