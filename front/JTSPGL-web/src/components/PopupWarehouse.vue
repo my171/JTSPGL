@@ -143,10 +143,11 @@ const handleStoreClick = (e) => {
 const queryProduct = async () => {
   try {
     const res = await axios.get(
-      `http://localhost:5000/api/warehouses/${currentWarehouseId.value}/products`,
+      `http://localhost:5000/api/warehouses/products`,
       {
         params: {
-          query: queryInput.value,
+          warehouseId: currentWarehouseId.value,
+          productId: queryInput.value,
         },
       }
     );

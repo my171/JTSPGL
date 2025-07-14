@@ -2,11 +2,12 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from models import Warehouse, Store, Product, Inventory, Sales, Supply
 from config import Config
-from datetime import datetime, timedelta
+from datetime import datetime
 from database import DBPool
 from flask_cors import CORS
 from tts_main import text_to_sqlite
-from verify_API import UserVerify
+from API_Funcs_Light.user_verify_API import API_UserVerify
+from API_Funcs_Light.warehouse_GetProducts_API import API_GetWarehouseProduct
 
 
 import sys
@@ -36,10 +37,15 @@ def dashboard():
                          stores=stores,
                          low_inventory=low_inventory)
 
-
+'''密码验证'''
 @app.route('/api/verify', methods=['POST'])
 def verify_api():
-    return UserVerify(request=request)
+    return API_UserVerify(request=request)
+
+# Search for the production of a certain warehouse and product
+@app.route('/api/warehouses/products', methods = ['GET'])
+def get_product_price():
+    return API_GetWarehouseProduct(request=request)
 
 @app.route('/api/inventory', methods=['GET', 'POST'])
 def inventory_api():
@@ -281,61 +287,6 @@ def get_stores_by_warehouse_id(warehouse_id):
         print(str(e))
         return jsonify({"err": str(e)}), 500
 
-# Search for the production of a certain warehouse and product
-@app.route('/api/warehouses/<warehouse_id>/products', methods = ['GET'])
-def get_product_price(warehouse_id):
-    current_time = datetime.now().date()
-    year = current_time.year
-    month = current_time.month
-    product_id = request.args.get('query', '')
-    if len(product_id) < 1:
-        return jsonify("error", "缺少查询参数")
-
-    try:
-        with DBPool.get_connection() as conn:
-            with conn.cursor() as cur:
-                
-                query = """
-                    SELECT product_name
-                    FROM product
-                    WHERE product_id = %s;
-                """
-
-                cur.execute(query, (product_id,))
-                result = cur.fetchone()
-                if result is None:
-                    return jsonify({
-                        "successType" : 0
-                    })
-                    
-                name = result[0]
-                query = """
-                    SELECT quantity
-                    FROM warehouse_inventory
-                    WHERE product_id = %s
-                    AND warehouse_id = %s
-                    AND EXTRACT(YEAR FROM record_date) = %s
-                    AND EXTRACT(MONTH FROM record_date) = %s;
-                """
-
-                cur.execute(query, (product_id, warehouse_id, year, month))
-                result = cur.fetchone()
-                if result is None:
-                    return jsonify({
-                        "successType" : 1,
-                        "name" : name
-                    })
-                quantity = result[0]
-
-                return jsonify({
-                    "successType" : 2,
-                    "name" : name,
-                    "quantity": quantity
-                })
-
-    except Exception as e:
-        print(str(e))
-        return jsonify({"err": str(e)}), 500
 
 # Functions regarding id
 def id_format(prefix) -> str:

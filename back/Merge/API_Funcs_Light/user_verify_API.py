@@ -1,17 +1,35 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
-from flask_cors import CORS
+'''
+    密码验证
+
+    传入
+    {
+        str:username: 用户名
+        str:password: 密码
+    }
+    返回
+    {
+        bool:success: 是否登录成功
+        str:role: 用户身份(
+            ADMIN: 管理员
+            WAREHOUSE: 仓库
+            STORE: 商店
+        )
+    }
+'''
+
+TABLE_NAME = "user_list" # --> 记录密码与用户名的表名
+USERNAME_COLUMN = "username" # --> 用户名属性名称
+PASSWORD_COLUMN = "pword" # --> 密码属性名称
+ROLETYPE_COLUMN = "roletype" # --> 用户类别属性名称
+
+from flask import jsonify
 from database import DBPool
 
-import sys
-import locale
-
-def UserVerify(request):
+def API_UserVerify(request):
     try:
         data = request.get_json()
         username = data.get('username')
         password = data.get('password')
-        print(username)
-        print(password)
         if (username == 'admin' and password == '123456'):
             return jsonify({
                 "success" : True,
@@ -20,11 +38,11 @@ def UserVerify(request):
 
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
-                query = """
-                    SELECT roletype
-                    FROM user_list
-                    WHERE username = %s
-                    AND pword = %s
+                query = f"""
+                    SELECT {ROLETYPE_COLUMN}
+                    FROM {TABLE_NAME}
+                    WHERE {USERNAME_COLUMN} = %s
+                    AND {PASSWORD_COLUMN} = %s
                 """
 
                 cur.execute(query, (username, password,))
