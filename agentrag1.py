@@ -1,4 +1,4 @@
-import os
+import os#运行需要1分钟左右，回答15-30秒左右
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 os.environ["HF_HUB_OFFLINE"] = "0"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
