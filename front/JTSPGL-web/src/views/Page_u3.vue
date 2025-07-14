@@ -1,33 +1,57 @@
+<!--Page_u3.vue-->
 <template>
   <div class="container-fluid">
     <div class="row">
-      <!-- 左侧：地图和聊天区域 -->
-      <HeaderTime />
-      <PopupStore
-        ref="popupStore"
-        @close="closeStorePopup"
-        @new-approval="handleNewApproval"
-      />
-      <ChatBox />
+      <!-- 左侧替换为商店操作界面 -->
+      <div class="col-md-9 left-panel">
+        <HeaderTime />
+        <StoreOpPanel @new-approval="handleNewApproval" />
+        <ChatBox />
+      </div>
 
+      <!-- 右侧审批流 -->
+      <RightPanel
+        ref="rightPanel"
+        :approvalRequests="approvalRequests"
+        @show-approval="showApprovalDetail"
+      />
     </div>
+
+    <!-- 弹窗 -->
+    <PopupApproval
+      ref="popupApproval"
+      :approvalRequests="approvalRequests"
+      :selectedApprovalId="selectedApprovalId"
+      @close="closeApprovalPopup"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive } from "vue";
-
 import HeaderTime from "@components/HeaderTime.vue";
-import WarehouseMap from "@components/WarehouseMap.vue";
 import ChatBox from "@components/ChatBox.vue";
-import PopupStore from "@components/PopupStore.vue";
+import RightPanel from "@components/RightPanel.vue";
+import PopupApproval from "@components/PopupApproval.vue";
+import StoreOpPanel from "@components/StoreOpPanel.vue";
 
-const popupStore = ref(null);
+const rightPanel = ref(null);
+const popupApproval = ref(null);
+const approvalRequests = reactive([]);
+const selectedApprovalId = ref(null);
 
-const showWarehouseInfo = (id, name) => {
-  popupStore.value.relatedclose();
+const handleNewApproval = (record) => {
+  approvalRequests.push(record);
 };
 
+const showApprovalDetail = (id) => {
+  rightPanel.value.movePanel();
+  popupApproval.value.show(id);
+};
+
+const closeApprovalPopup = () => {
+  rightPanel.value.resetPanel();
+};
 </script>
 
 <style scoped>
