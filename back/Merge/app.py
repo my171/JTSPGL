@@ -237,13 +237,15 @@ def product_search():
                              'pages': (total + per_page - 1) // per_page
                          })
 
+def get_result(input_text):
+    return f""""Original Text: {input_text}"""
+
 # Chatting Box Routing
 @app.route('/chatting', methods = ['POST'])
-def Reply():
+def chatting():
     try:
         input_text = request.get_json().get('text', '')
-        result = text_to_sqlite(input_text)
-        return jsonify({'result': result})
+        
         if not input_text:
             return jsonify({'error': '输入文本为空'}), 400
         
@@ -252,7 +254,6 @@ def Reply():
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 
 # Search for stores by warehouse
 @app.route('/api/warehouses/<warehouse_id>/stores', methods = ['GET'])
@@ -283,6 +284,21 @@ def get_product_price(warehouse_id):
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
+                
+                query = """
+                    SELECT product_name
+                    FROM product
+                    WHERE product_id = %s;
+                """
+
+                cur.execute(query, (product_id,))
+                result = cur.fetchone()
+                if result is None:
+                    return jsonify({
+                        "successType" : 0
+                    })
+                    
+                name = result[0]
                 query = """
                     SELECT quantity
                     FROM warehouse_inventory
@@ -293,18 +309,16 @@ def get_product_price(warehouse_id):
                 """
 
                 cur.execute(query, (product_id, warehouse_id, year, month))
-                quantity = cur.fetchone()[0]
-                
-                query = """
-                    SELECT product_name
-                    FROM product
-                    WHERE product_id = %s;
-                """
-
-                cur.execute(query, (product_id,))
-                name = cur.fetchone()[0]
+                result = cur.fetchone()
+                if result is None:
+                    return jsonify({
+                        "successType" : 1,
+                        "name" : name
+                    })
+                quantity = result[0]
 
                 return jsonify({
+                    "successType" : 2,
                     "name" : name,
                     "quantity": quantity
                 })

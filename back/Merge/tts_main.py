@@ -26,8 +26,24 @@ def text_to_sqlite(requirement: str, max_retries: int = 9 ):
             cur = conn.cursor()
             try:
                 cur.execute(sql)
-                conn.commit()
+                if cur.description is None:
+                    conn.commit()
+                    return '运行完毕'
+                else:
+                    rows = cur.fetchall()
+                    cols = [d[0] for d in cur.description] if cur.description else []
 
+                    # 格式化输出
+                    header = "\t".join(cols)
+                    print(header)
+                    result_str = header
+                    for row in rows:
+                        line = "\t".join(str(v) for v in row)
+                        print(line)
+                        result_str += "\n" + line
+                    return result_str
+
+                # return result_str
                 # # # 尝试获取结果集
                 # # rows = cur.fetchall()
                 # cols = [d[0] for d in cur.description] if cur.description else []
@@ -52,7 +68,3 @@ def text_to_sqlite(requirement: str, max_retries: int = 9 ):
                     return f"执行失败: {last_error}\n原 SQL:\n{sql}"
             finally:
                 cur.close()
-
-
-
-text_to_sqlite('增加一个warehouse，内容你设计')
