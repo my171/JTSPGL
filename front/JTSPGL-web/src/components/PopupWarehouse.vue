@@ -152,7 +152,7 @@ const queryProduct = async () => {
 const replenish = async () => {
   /*直接给仓库加库存量，调用仓库流水表 和 库存表*/
   try {
-    await axios.post("http://localhost:5000/api/replenish", {
+    axios.post("http://localhost:5000/api/replenish", {
       warehouse_id: currentWarehouseId.value,
       product: replenishProduct.value,
       quantity: Number(replenishQty.value),
@@ -168,9 +168,9 @@ const transfer = async () => {
   /*仓库之间调货，调用仓库流水表，一加一减*/
   try {
     const fromWarehouse =
-      warehouseList.value.find((w) => w.id === selectedWarehouseId.value)
+      warehouseList.value.find((w) => w.id === selectedWarehouse.value)
         ?.name || "";
-    await axios.post("http://localhost:5000/api/transfer", {
+    axios.post("http://localhost:5000/api/transfer", {
       warehouse_id: currentWarehouseId.value,
       product: transferProduct.value,
       quantity: Number(transferQty.value),
