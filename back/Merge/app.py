@@ -8,6 +8,7 @@ from flask_cors import CORS
 from tts_main import text_to_sqlite
 from API_Funcs_Light.user_verify_API import API_UserVerify
 from API_Funcs_Light.warehouse_GetProducts_API import API_GetWarehouseProduct
+from API_Funcs_Light.store_GetProducts_API import API_GetStoreProduct
 
 
 import sys
@@ -42,11 +43,23 @@ def dashboard():
 def verify_api():
     return API_UserVerify(request=request)
 
-# Search for the production of a certain warehouse and product
+'''查询仓库商品储量'''
 @app.route('/api/warehouses/products', methods = ['GET'])
 def get_product_price():
     return API_GetWarehouseProduct(request=request)
 
+'''查询商店商品销量'''
+@app.route('/api/store/products', methods = ['GET'])
+def get_product_info():
+    return API_GetStoreProduct(request=request)
+
+
+
+
+
+
+
+'''
 @app.route('/api/inventory', methods=['GET', 'POST'])
 def inventory_api():
     if request.method == 'GET':
@@ -84,6 +97,7 @@ def store_sales_api(store_id):
         return jsonify(sales_data)
     except Exception as e:
         return jsonify({"error": str(e)}), 404
+
 
 @app.route('/api/supply/<warehouse_id>')
 def supply_api(warehouse_id):
@@ -128,6 +142,7 @@ def manage_product(product_id):
         except Exception as e:
             return jsonify({"success": False, "message": str(e)}), 400
 
+'''
 
 @app.route('/api/warehouses')
 def get_warehouses():
@@ -396,62 +411,6 @@ def transfer():
                 """
                 cur.execute(update_sql, update_params)
                 conn.commit()
-    except Exception as e:
-        return jsonify({"err": str(e)}), 500
-
-# Search for the product info
-@app.route('/api/store/product/full', methods = ['GET'])
-def get_product_info():
-    # Fetch the data
-    store_id = request.args.get('store_id', '')
-    product_id = request.args.get('query', '')
-
-    if len(product_id) < 1:
-        return jsonify("error", "缺少查询参数")
-
-    try:
-        with DBPool.get_connection() as conn:
-            with conn.cursor() as cur:
-                query = """
-                    SELECT product_name
-                    FROM product
-                    WHERE product_id = %s;
-                """
-
-                cur.execute(query, (product_id,))
-                result = cur.fetchone()
-                if result is None:
-                    return jsonify({
-                        "successType" : 0
-                    })
-                
-                name = result[0]
-                query = """
-                    SELECT 
-                    SUM(quantity) AS total_quantity,
-                    unit_price
-                    FROM sales
-                    WHERE product_id = %s
-                    AND store_id = %s
-                    GROUP BY unit_price
-                """
-
-                cur.execute(query, (product_id, store_id))
-                result = cur.fetchone()
-                if result is None:
-                    return jsonify({
-                        "successType" : 1,
-                        "name" : name
-                    })
-                
-                quantity = result[0]
-                unit_price = result[1]
-                return jsonify({
-                    "successType" : 2,
-                    "name" : name,
-                    "quantity": quantity,
-                    "unit_price": unit_price
-                })
     except Exception as e:
         return jsonify({"err": str(e)}), 500
 

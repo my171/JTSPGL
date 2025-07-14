@@ -3,34 +3,30 @@
 
     传入
     {
-        str:warehouseId: 仓库编号 --> WH___
+        str:storeId: 商店编号 --> ST___
         str:productId: 商品编号 --> P____
     }
     返回
     {
-        int:successType: (0:商品编号不存在 1:仓库内无对应商品 2:查询到对应商品)
+        int:successType: (0:商品编号不存在 1:此商品在该商店无销售记录 2:查询到对应销售记录)
         str:name: 当存在相应编号商品时，为商品名称，否则无该属性
-        int:quantity: 当仓库内存在相应商品时，为商品数量，否则无该属性
+        int:quantity: 当商店存在相应销售记录时，为销售数量，否则无该属性
+        float:unit_price: 当商店存在相应销售记录时，为产品销售单价，否则无该属性
     }
 '''
-
 from flask import jsonify
 from database import DBPool
-from datetime import datetime
 
-def API_GetWarehouseProduct(request):
-    current_time = datetime.now().date()
-    year = current_time.year
-    month = current_time.month
-    warehouse_id = request.args.get('warehouseId', '')
+def API_GetStoreProduct(request):
+    store_id = request.args.get('storeId', '')
     product_id = request.args.get('productId', '')
+
     if len(product_id) < 1:
         return jsonify("error", "缺少查询参数")
 
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
-                
                 query = """
                     SELECT product_name
                     FROM product
@@ -43,32 +39,33 @@ def API_GetWarehouseProduct(request):
                     return jsonify({
                         "successType" : 0
                     })
-                    
+                
                 name = result[0]
                 query = """
-                    SELECT quantity
-                    FROM warehouse_inventory
+                    SELECT 
+                    SUM(quantity) AS total_quantity,
+                    unit_price
+                    FROM sales
                     WHERE product_id = %s
-                    AND warehouse_id = %s
-                    AND EXTRACT(YEAR FROM record_date) = %s
-                    AND EXTRACT(MONTH FROM record_date) = %s;
+                    AND store_id = %s
+                    GROUP BY unit_price
                 """
 
-                cur.execute(query, (product_id, warehouse_id, year, month))
+                cur.execute(query, (product_id, store_id))
                 result = cur.fetchone()
                 if result is None:
                     return jsonify({
                         "successType" : 1,
                         "name" : name
                     })
+                
                 quantity = result[0]
-
+                unit_price = result[1]
                 return jsonify({
                     "successType" : 2,
                     "name" : name,
-                    "quantity": quantity
+                    "quantity": quantity,
+                    "unit_price": unit_price
                 })
-
     except Exception as e:
-        print(str(e))
         return jsonify({"err": str(e)}), 500

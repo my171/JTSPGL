@@ -91,11 +91,11 @@ const show = async (name, id) => {
 const queryProduct = async () => {
   try {
     const res = await axios.get(
-      "http://localhost:5000/api/store/product/full",
+      "http://localhost:5000/api/store/products",
       {
         params: {
-          store_id: storeId.value,
-          query: queryInput.value,
+          storeId: storeId.value,
+          productId: queryInput.value,
         },
       }
     );
@@ -103,7 +103,7 @@ const queryProduct = async () => {
       productResult.value = '查询失败：商品编号不存在'
     }
     else if (res.data.successType == 1){
-      productResult.value = res.data.name + ":暂无库存";
+      productResult.value = res.data.name + ":未查询到销售记录";
     }
     else{
       productResult.value = res.data.name + " 单价:" + res.data.unit_price + " 销量:" + res.data.quantity;
