@@ -283,6 +283,21 @@ def get_product_price(warehouse_id):
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
+                
+                query = """
+                    SELECT product_name
+                    FROM product
+                    WHERE product_id = %s;
+                """
+
+                cur.execute(query, (product_id,))
+                result = cur.fetchone()
+                if result is None:
+                    return jsonify({
+                        "successType" : 0
+                    })
+                    
+                name = result[0]
                 query = """
                     SELECT quantity
                     FROM warehouse_inventory
@@ -293,18 +308,16 @@ def get_product_price(warehouse_id):
                 """
 
                 cur.execute(query, (product_id, warehouse_id, year, month))
-                quantity = cur.fetchone()[0]
-                
-                query = """
-                    SELECT product_name
-                    FROM product
-                    WHERE product_id = %s;
-                """
-
-                cur.execute(query, (product_id,))
-                name = cur.fetchone()[0]
+                result = cur.fetchone()
+                if result is None:
+                    return jsonify({
+                        "successType" : 1,
+                        "name" : name
+                    })
+                quantity = result[0]
 
                 return jsonify({
+                    "successType" : 2,
                     "name" : name,
                     "quantity": quantity
                 })
