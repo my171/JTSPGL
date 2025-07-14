@@ -32,6 +32,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue';
+import axios from "axios";
 import router from '@/router'
 
 const props = defineProps({
@@ -57,7 +58,38 @@ const handleSubmit = async () => {
     return;
   }
 
-  // 示例验证 - 实际项目中应该调用API
+  try {
+    const response = await axios.post("http://localhost:5000/api/verify", {
+      username: form.username,
+      password: form.password,
+    });
+
+    if (response.data.success){
+      errorMessage.value = '';
+      localStorage.setItem('isAuthed', 'true');
+      localStorage.setItem('RoleType', response.data.role);
+      switch(response.data.role){
+        case 'ADMIN':
+          await router.push('/page_USER1');
+          break;
+        case 'WAREHOUSE':
+          await router.push('/page_USER2');
+          break;
+        case 'STORE':
+          await router.push('/page_USER3');
+          break;
+      }
+    }
+    else{
+      errorMessage.value = '用户名或密码错误';
+    }
+  } catch (error) {
+    alert(error);
+    errorMessage.value = '服务器运行异常';
+  }
+
+
+  /*
   if (form.username === 'first' && form.password === '123456') {
     errorMessage.value = '';
     emit('submit', { success: true, data: form });
@@ -77,6 +109,7 @@ const handleSubmit = async () => {
     errorMessage.value = '用户名或密码错误';
     emit('submit', { success: false, error: '验证失败' });
   }
+  */
 };
 </script>
 

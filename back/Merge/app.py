@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from database import DBPool
 from flask_cors import CORS
 from tts_main import text_to_sqlite
+from verify_API import UserVerify
 
 
 import sys
@@ -34,6 +35,11 @@ def dashboard():
                          warehouses=warehouses,
                          stores=stores,
                          low_inventory=low_inventory)
+
+
+@app.route('/api/verify', methods=['POST'])
+def verify_api():
+    return UserVerify(request=request)
 
 @app.route('/api/inventory', methods=['GET', 'POST'])
 def inventory_api():

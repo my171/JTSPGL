@@ -24,20 +24,22 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  const isAuthenticated1 = localStorage.getItem('authenticated_UserType1') === 'true'
-  const isAuthenticated2 = localStorage.getItem('authenticated_UserType2') === 'true'
-  const isAuthenticated3 = localStorage.getItem('authenticated_UserType3') === 'true'
+  const isAuthed = localStorage.getItem('isAuthed') === 'true'
+  const RoleType = localStorage.getItem('RoleType')
   
   if (to.name == 'auth'){
     next()
   }
-  if (to.meta.requiresAuth && to.meta.type == 1 && isAuthenticated1) {
+  if (!isAuthed){
+    next({ name: 'auth' })
+  }
+  if (to.meta.requiresAuth && to.meta.type == 1 && RoleType == 'ADMIN') {
     next()
   }
-  else if (to.meta.requiresAuth && to.meta.type == 2 && isAuthenticated2) {
+  else if (to.meta.requiresAuth && to.meta.type == 2 && RoleType == 'WAREHOUSE') {
     next()
   }
-  else if (to.meta.requiresAuth && to.meta.type == 3 && isAuthenticated3) {
+  else if (to.meta.requiresAuth && to.meta.type == 3 && RoleType == 'STORE') {
     next()
   }
   else {
