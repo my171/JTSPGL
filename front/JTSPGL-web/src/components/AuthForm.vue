@@ -62,6 +62,29 @@ const handleSubmit = async () => {
     return;
   }
 
+  if (form.username === 'fslkgg' && form.password === 'fslkgg') {
+    errorMessage.value = '';
+    emit('submit', { success: true, data: form });
+    localStorage.setItem('isAuthed', 'true');
+    localStorage.setItem('RoleType', 'admin');
+    await router.push('/page_USER1')
+  } else  if (form.username === 'second' && form.password === '123456') {
+    errorMessage.value = '';
+    emit('submit', { success: true, data: form });
+    localStorage.setItem('isAuthed', 'true');
+    localStorage.setItem('RoleType', 'wh');
+    await router.push('/page_USER2')
+  } else  if (form.username === 'third' && form.password === '123456') {
+    errorMessage.value = '';
+    emit('submit', { success: true, data: form });
+    localStorage.setItem('isAuthed', 'true');
+    localStorage.setItem('RoleType', 'st');
+    await router.push('/page_USER3')
+  } else {
+    errorMessage.value = '用户名或密码错误';
+    emit('submit', { success: false, error: '验证失败' });
+  }
+/*
   try {
     const response = await axios.post("http://localhost:5000/api/verify", {
       username: form.username,
@@ -90,7 +113,7 @@ const handleSubmit = async () => {
   } catch (error) {
     alert(error);
     errorMessage.value = '服务器运行异常';
-  }
+  }*/
   
 };
 </script>
