@@ -10,6 +10,7 @@ from API_Funcs_Light.user_verify_API import API_UserVerify
 from API_Funcs_Light.warehouse_get_products_API import API_GetWarehouseProduct
 from API_Funcs_Light.store_get_products_API import API_GetStoreProduct
 from API_Funcs_Light.warehouse_get_stores_API import API_GetStoreByWarehouse
+from API_Funcs_Light.warehouse_replenish_API import API_WarehouseReplenish
 
 
 import sys
@@ -62,7 +63,7 @@ def get_stores_by_warehouse_id():
 # Replenish Stocks
 @app.route('/api/replenish', methods = ['POST'])
 def replenish():
-    return API_GetStoreByWarehouse(request=request)
+    return API_WarehouseReplenish(request=request)
     # Fetch the data
     data = request.get_json()
     product_id = data.get('product', '')

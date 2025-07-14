@@ -179,12 +179,17 @@ const queryProduct = async () => {
 const replenish = async () => {
   /*直接给仓库加库存量，调用仓库流水表 和 库存表*/
   try {
-    axios.post("http://localhost:5000/api/replenish", {
+    const res = await axios.post("http://localhost:5000/api/replenish", {
       warehouse_id: currentWarehouseId.value,
       product: replenishProduct.value,
       quantity: Number(replenishQty.value),
     });
-    alert("补货成功");
+    if (res.data.successType == 1){
+      alert("补货成功");
+    }
+    else if (res.data.successType == 0){
+      alert("补货失败: 未知商品编号");
+    }
   } catch (err) {
     alert(`补货失败：${err.message}`);
   }

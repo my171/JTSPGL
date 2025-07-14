@@ -1,9 +1,11 @@
 '''
-    查询仓库对应的商店
+    仓库补货
 
     传入
     {
-        str:warehouseId: 仓库编号
+        str:product: 商品编号
+        str:quantity: 补货数量
+        str:warehouse_id: 仓库编号
     }
     返回
     {
@@ -15,34 +17,32 @@
 from flask import jsonify
 from database import DBPool
 from datetime import datetime
+from API_Funcs_Light.API_of_API.InvLog_idGen import id_format, get_id
 
-def id_format(prefix) -> str:
-    current_date = datetime.now().date()
-    year = current_date.year
-    month = current_date.month
-    day = current_date.day
-    log_format = f"{prefix}{year % 100:02d}{month:02d}{day:02d}"
-    return log_format
-
-def get_id(prefix, cnt) -> str:
-    current_date = datetime.now().date()
-    year = current_date.year
-    month = current_date.month
-    day = current_date.day
-    id = f"{prefix}{year % 100:02d}{month:02d}{day:02d}{cnt}"
-    return id
-
-def API_GetStoreByWarehouse(request):
+def API_WarehouseReplenish(request):
     data = request.get_json()
     product_id = data.get('product', '')
     quantity = data.get('quantity', '')
     warehouse_id = data.get('warehouse_id', '')
 
     try:
-        # Update the database
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
-                # Get the order
+                
+                # 商品编号是否存在
+                query = """
+                    SELECT product_name
+                    FROM product
+                    WHERE product_id = %s;
+                """
+                cur.execute(query, (product_id,))
+                result = cur.fetchone()
+                if result is None:
+                    return jsonify({
+                        "successType" : 0
+                    })
+                
+                # 获取当日的下一个编号
                 query = """
                     SELECT COUNT(*) AS count
                     FROM inventory_log
@@ -51,7 +51,8 @@ def API_GetStoreByWarehouse(request):
                 cur.execute(query, (id_format('LOG') + '%', ))
                 cnt = cur.fetchone()[0] + 1
                 log_id = get_id('LOG', cnt)
-                # Update the inventory_log table
+
+                # 更新库存日志表
                 insert_sql = """
                     INSERT INTO inventory_log (
                         log_id,
@@ -63,7 +64,8 @@ def API_GetStoreByWarehouse(request):
                     VALUES (%s, %s, %s, %s, %s)
                 """
                 cur.execute(insert_sql, (log_id, product_id, warehouse_id, 'IN', quantity))
-                # Update the warehouse_inventory table
+
+                # 更新仓库日志表
                 update_sql = """
                     UPDATE warehouse_inventory
                     SET quantity = quantity + %s
@@ -72,5 +74,11 @@ def API_GetStoreByWarehouse(request):
                 """
                 cur.execute(update_sql, (quantity, warehouse_id, product_id))
                 conn.commit()
+                return jsonify({
+                    "successType" : 1
+                })
     except Exception as e:
-        return jsonify({"err": str(e)}), 500
+        return jsonify({
+            "successType" : 2,
+            "err": str(e)
+        }), 500
