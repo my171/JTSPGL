@@ -1,13 +1,11 @@
-import os# 如果没有设置环境变量不要设置HF_ENDPOINT（删除下面三行），从官网下载模型或者使用本地模型文件
+import os
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 os.environ["HF_HUB_OFFLINE"] = "0"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
-#sk-FxhjDpv1D62n33JGICef3aVagezAr73GFnoXmSQ4ikMpf9Hb
-#sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X")#其他api密钥直接改这里，如果closeai的欠费了用这个密钥：sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
+#sk-FxhjDpv1D62n33JGICef3aVagezAr73GFnoXmSQ4ikMpf9Hb ；sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
+os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "sk-FxhjDpv1D62n33JGICef3aVagezAr73GFnoXmSQ4ikMpf9Hb")#其他api密钥直接改这里，如果closeai的欠费了用这个密钥：sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
 os.environ["OPENAI_API_URL"] = os.getenv("OPENAI_API_URL", "https://api.openai-proxy.org/v1")
 os.environ["MODEL_NAME"] = os.getenv("MODEL_NAME", "gpt-4.1")#使用的是closeai 的(  gpt-4.1-nano/deepseek-chat  )模型
-#EMBEDDING_MODEL = "./models/paraphrase-multilingual-mpnet-base-v2"  # 下载到本地的嵌入模型路径
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
 
 rag = None  # FastAPI全局变量
@@ -28,12 +26,8 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from collections import deque
 import re
+import textwrap
 # PostgreSQL配置
-#PG_HOST = os.getenv('PG_HOST', 'yd.frp-era.com')
-#PG_PORT = os.getenv('PG_PORT', '11103')
-#PG_NAME = os.getenv('PG_NAME', 'postgres')
-#PG_USER = os.getenv('PG_USER', 'u3')
-#PG_PASSWORD = os.getenv('PG_PASSWORD', 'abcd1234')
 PG_HOST = os.getenv('PG_HOST', '192.168.28.135')
 PG_PORT = os.getenv('PG_PORT', '5432')
 PG_NAME = os.getenv('PG_NAME', 'companylink')
@@ -114,9 +108,9 @@ class DatabaseSchemaAnalyzer:
                     'foreign_column': foreign_column
                 })
             
-            print(f"✅ 数据库模式分析完成：发现 {len(tables)} 个表")
-            for table in tables:
-                print(f"   📋 {table}: {len(self.schema_info[table])} 个字段")
+        #    print(f"✅ 数据库模式分析完成：发现 {len(tables)} 个表")
+        #   for table in tables:
+        #       print(f"   📋 {table}: {len(self.schema_info[table])} 个字段")
                 
         except Exception as e:
             print(f"❌ 数据库模式分析失败: {e}")
@@ -161,33 +155,564 @@ class UniversalDatabaseAgent:
         )
         self.schema_analyzer = DatabaseSchemaAnalyzer(self.conn)
     
-    def generate_sql(self, question: str) -> Optional[str]:
-        """使用LLM生成SQL查询"""
+    def analyze_query_intent(self, question: str) -> Dict:
+        """智能分析用户查询意图，将自然语言转换为数据库查询需求"""
         try:
+            print(f"🧠 开始分析查询意图: {question}")
+            
+            # 获取数据库模式信息
             schema_summary = self.schema_analyzer.get_schema_summary()
             
-            prompt = PromptTemplate.from_template("""
-你是一个SQL专家。根据以下数据库模式，为用户问题生成PostgreSQL查询语句。
-数据库模式：
+                                      # 构建意图分析提示
+            intent_prompt = PromptTemplate.from_template("""
+你是一个专业的数据库查询意图分析专家。请分析用户的问题，将其转换为具体的数据库查询需求。
+
+数据库模式信息：
 {schema_summary}
+
 用户问题：{question}
-要求：
-1. 只返回SQL语句，不要其他解释
-2. 使用LIMIT 10限制结果数量
-3. 如果涉及多表，使用适当的JOIN
-4. 确保SQL语法正确
-5. 如果问题不明确，返回NULL
-6. 优先使用聚合函数进行统计分析
-SQL查询：
+
+请分析用户意图并返回JSON格式的查询需求：
+{{
+    "query_type": "销售分析/库存分析/产品分析/仓库分析/门店分析/补货分析/趋势分析/综合查询",
+    "target_tables": ["表名1", "表名2"],
+    "target_columns": ["字段1", "字段2"],
+    "filter_conditions": {{
+        "category": "产品类别（如：ELECTRONICS, BEVERAGE, SNACK等）",
+        "location": "位置信息（如：仓库ID、门店ID）",
+        "time_range": "时间范围",
+        "product_name": "产品名称关键词",
+        "warehouse_name": "仓库名称关键词",
+        "store_name": "门店名称关键词"
+    }},
+    "aggregation": {{
+        "functions": ["SUM", "COUNT", "AVG", "MAX", "MIN"],
+        "group_by": ["分组字段"],
+        "order_by": ["排序字段"]
+    }},
+    "business_insight": "业务洞察需求",
+    "confidence": 0.0-1.0
+}}
+
+智能识别规则：
+
+1. 产品类别映射（必须准确识别，且category值必须与数据库字段完全一致，区分大小写。例如：ELECTRONICS、BEVERAGE、SNACK、DAILY、FROZEN、APPLIANCE等）：
+   - "电子产品"、"电子"、"数码"、"手机"、"电脑"、"耳机"、"充电宝"、"iPhone"、"华为"、"小米" → category: "ELECTRONICS"
+   - "饮料"、"矿泉水"、"可乐"、"牛奶"、"茶"、"咖啡"、"红牛"、"伊利" → category: "BEVERAGE" 
+   - "零食"、"薯片"、"巧克力"、"饼干"、"坚果"、"糖果"、"乐事"、"德芙"、"奥利奥" → category: "SNACK"
+   - "日用品"、"洗发水"、"牙膏"、"香皂"、"纸巾"、"洗衣液"、"海飞丝"、"佳洁士"、"舒肤佳" → category: "DAILY"
+   - "冷冻食品"、"冰淇淋"、"水饺"、"牛排"、"汤圆"、"速冻"、"湾仔码头"、"哈根达斯" → category: "FROZEN"
+   - "家电"、"空调"、"冰箱"、"吸尘器"、"电视"、"洗衣机"、"戴森"、"美的"、"格力"、"索尼" → category: "APPLIANCE"
+   
+   ⚠️ 注意：category字段的值必须与数据库实际字段值完全一致，区分大小写（如ELECTRONICS、BEVERAGE等），不要输出小写或其他变体。
+
+2. 查询类型识别：
+   - 包含"销售"、"销量"、"销售额"、"卖"、"售出" → query_type: "销售分析"
+   - 包含"库存"、"存货"、"库存量"、"库存情况"、"库存状态" → query_type: "库存分析"
+   - 包含"产品"、"商品"、"SKU"、"产品信息"、"产品详情"、"查询"、"查看" → query_type: "产品分析"
+   - 包含"仓库"、"仓"、"中心仓"、"仓库信息" → query_type: "仓库分析"
+   - 包含"门店"、"店铺"、"店"、"门店信息"、"门店情况" → query_type: "门店分析"
+   - 包含"补货"、"进货"、"采购"、"补货情况" → query_type: "补货分析"
+   - 包含"趋势"、"变化"、"增长"、"趋势分析" → query_type: "趋势分析"
+
+3. 排序和聚合识别：
+   - 包含"价格最高"、"最贵"、"最高价" → order_by: ["unit_price DESC"]
+   - 包含"价格最低"、"最便宜"、"最低价" → order_by: ["unit_price ASC"]
+   - 包含"销量最高"、"最畅销"、"卖得最好" → order_by: ["total_sales_quantity DESC"]
+   - 包含"销售额最高"、"收入最高"、"营业额最高" → order_by: ["total_sales_amount DESC"]
+   - 包含"库存最多"、"库存量最大" → order_by: ["total_warehouse_stock DESC"]
+   - 包含"库存最少"、"库存不足" → order_by: ["total_warehouse_stock ASC"]
+
+4. 位置识别：
+   - 包含"北京"、"上海"、"广州"、"深圳"等城市名 → 查找对应的门店或仓库
+   - 包含"王府井"、"徐家汇"、"天河城"等具体地点 → 查找对应的门店
+   - 包含"华北"、"华东"、"华南"、"西南"等区域 → 查找对应的仓库
+
+5. 时间识别：
+   - 包含"今天"、"昨天"、"本周"、"本月"、"最近" → 设置相应的时间范围
+   - 包含"7天"、"30天"、"一周"、"一个月" → 设置具体的时间间隔
+
+6. 表关联规则：
+   - 销售分析：sales + product + store + warehouse
+   - 库存分析：warehouse_inventory + store_inventory + product + warehouse
+   - 产品分析：product + sales + warehouse_inventory + store_inventory
+   - 仓库分析：warehouse + warehouse_inventory + replenishment + store
+   - 门店分析：store + sales + store_inventory + warehouse
+   - 补货分析：replenishment + warehouse + store + product
+
+7. 字段映射：
+   - 销售相关：quantity(数量), total_amount(金额), sale_date(销售日期)
+   - 库存相关：quantity(仓库库存), stock_quantity(门店库存), safety_stock(安全库存)
+   - 产品相关：product_name(产品名), category(类别), unit_price(单价), cost_price(成本价)
+   - 位置相关：warehouse_name(仓库名), store_name(门店名), address(地址)
+
+8. 业务洞察识别：
+   - "价格最高" → business_insight: "查找价格最高的产品，便于了解高端商品定价"
+   - "销量最好" → business_insight: "分析最畅销产品，了解市场需求"
+   - "库存不足" → business_insight: "识别库存不足的产品，需要补货"
+   - "销售趋势" → business_insight: "分析产品销售趋势，预测未来需求"
+
+请仔细分析用户问题，准确识别查询意图，确保返回的JSON格式正确。
+只返回JSON格式，不要其他解释。
 """)
             
-            response = self.llm.invoke(prompt.format(
+            response = self.llm.invoke(intent_prompt.format(
                 schema_summary=schema_summary,
                 question=question
             ))
             
-            sql = response.content.strip()
-            if sql.upper().startswith('SELECT') and 'NULL' not in sql.upper():
+            # 解析JSON响应
+            intent_data = json.loads(response.content.strip())
+            print(f"✅ 查询意图分析完成: {intent_data}")
+            
+            return intent_data
+            
+        except Exception as e:
+            print(f"❌ 查询意图分析失败: {e}")
+            # 返回默认意图
+            return {
+                "query_type": "综合查询",
+                "target_tables": [],
+                "target_columns": [],
+                "filter_conditions": {},
+                "aggregation": {
+                    "functions": [],
+                    "group_by": [],
+                    "order_by": []
+                },
+                "business_insight": "通用查询",
+                "confidence": 0.5
+            }
+    
+    def generate_sql_from_intent(self, intent: Dict) -> Optional[str]:
+        """基于查询意图生成SQL"""
+        try:
+            print(f"🔧 基于意图生成SQL: {intent}")
+            
+            # 增强意图分析，添加位置信息
+            enhanced_intent = self._enhance_intent_with_location(intent)
+            print(f"🔧 增强后的意图: {enhanced_intent}")
+            
+            query_type = enhanced_intent.get("query_type", "综合查询")
+            target_tables = enhanced_intent.get("target_tables", [])
+            filter_conditions = enhanced_intent.get("filter_conditions", {})
+            aggregation = enhanced_intent.get("aggregation", {})
+            
+            # 根据查询类型生成不同的SQL
+            if query_type == "销售分析":
+                sql = self._generate_sales_sql(enhanced_intent)
+            elif query_type == "库存分析":
+                sql = self._generate_inventory_sql(enhanced_intent)
+            elif query_type == "产品分析":
+                sql = self._generate_product_sql(enhanced_intent)
+            elif query_type == "仓库分析":
+                sql = self._generate_warehouse_sql(enhanced_intent)
+            elif query_type == "门店分析":
+                sql = self._generate_store_sql(enhanced_intent)
+            elif query_type == "补货分析":
+                sql = self._generate_replenishment_sql(enhanced_intent)
+            elif query_type == "趋势分析":
+                sql = self._generate_trend_sql(enhanced_intent)
+            else:
+                sql = self._generate_general_sql(enhanced_intent)
+            
+            print(f"✅ 生成的SQL: {sql}")
+            return sql
+            
+        except Exception as e:
+            print(f"❌ SQL生成失败: {e}")
+            return None
+    
+    def _generate_sales_sql(self, intent: Dict) -> str:
+        """生成销售分析SQL"""
+        filter_conditions = intent.get("filter_conditions", {})
+        
+        sql = """
+        SELECT 
+            p.product_name,
+            p.category,
+            st.store_name,
+            w.warehouse_name,
+            s.sale_date,
+            s.quantity,
+            s.unit_price,
+            s.total_amount
+        FROM sales s
+        JOIN product p ON s.product_id = p.product_id
+        JOIN store st ON s.store_id = st.store_id
+        LEFT JOIN warehouse w ON st.warehouse_id = w.warehouse_id
+        WHERE 1=1
+        """
+        
+        # 添加过滤条件
+        if filter_conditions.get("category"):
+            sql += f" AND p.category = '{filter_conditions['category']}'"
+        
+        if filter_conditions.get("location"):
+            sql += f" AND (st.store_id = '{filter_conditions['location']}' OR w.warehouse_id = '{filter_conditions['location']}')"
+        
+        if filter_conditions.get("product_name"):
+            sql += f" AND p.product_name LIKE '%{filter_conditions['product_name']}%'"
+        
+        if filter_conditions.get("store_name"):
+            sql += f" AND st.store_name LIKE '%{filter_conditions['store_name']}%'"
+        
+        sql += " ORDER BY s.sale_date DESC LIMIT 20"
+        
+        return sql
+    
+    def _generate_inventory_sql(self, intent: Dict) -> str:
+        """生成库存分析SQL"""
+        filter_conditions = intent.get("filter_conditions", {})
+        
+        sql = """
+        SELECT 
+            p.product_name,
+            p.category,
+            w.warehouse_name,
+            wi.quantity as warehouse_quantity,
+            si.stock_quantity as store_quantity,
+            si.safety_stock,
+            wi.record_date
+        FROM warehouse_inventory wi
+        JOIN product p ON wi.product_id = p.product_id
+        JOIN warehouse w ON wi.warehouse_id = w.warehouse_id
+        LEFT JOIN store_inventory si ON wi.product_id = si.product_id
+        WHERE 1=1
+        """
+        
+        # 添加过滤条件
+        if filter_conditions.get("category"):
+            sql += f" AND p.category = '{filter_conditions['category']}'"
+        
+        if filter_conditions.get("location"):
+            sql += f" AND (w.warehouse_id = '{filter_conditions['location']}' OR si.store_id = '{filter_conditions['location']}')"
+        
+        if filter_conditions.get("product_name"):
+            sql += f" AND p.product_name LIKE '%{filter_conditions['product_name']}%'"
+        
+        if filter_conditions.get("warehouse_name"):
+            sql += f" AND w.warehouse_name LIKE '%{filter_conditions['warehouse_name']}%'"
+        
+        sql += " ORDER BY wi.record_date DESC LIMIT 20"
+        
+        return sql
+    
+    def _generate_product_sql(self, intent: Dict) -> str:
+        """生成产品分析SQL"""
+        filter_conditions = intent.get("filter_conditions", {})
+        
+        # 检查是否需要按价格排序
+        aggregation = intent.get("aggregation", {})
+        order_by = aggregation.get("order_by", [])
+        
+        # 基础SQL
+        sql = """
+        SELECT 
+            p.product_id,
+            p.product_name,
+            p.category,
+            p.unit_price,
+            p.cost_price,
+            p.barcode,
+            COALESCE(SUM(s.quantity), 0) as total_sales_quantity,
+            COALESCE(SUM(s.total_amount), 0) as total_sales_amount,
+            COALESCE(SUM(wi.quantity), 0) as total_warehouse_stock,
+            COALESCE(SUM(si.stock_quantity), 0) as total_store_stock
+        FROM product p
+        LEFT JOIN sales s ON p.product_id = s.product_id
+        LEFT JOIN warehouse_inventory wi ON p.product_id = wi.product_id
+        LEFT JOIN store_inventory si ON p.product_id = si.product_id
+        WHERE 1=1
+        """
+        
+        # 添加过滤条件
+        if filter_conditions.get("category"):
+            sql += f" AND p.category = '{filter_conditions['category']}'"
+        
+        if filter_conditions.get("product_name"):
+            sql += f" AND p.product_name LIKE '%{filter_conditions['product_name']}%'"
+        
+        sql += " GROUP BY p.product_id, p.product_name, p.category, p.unit_price, p.cost_price, p.barcode"
+        
+        # 根据意图选择排序方式
+        if "价格最高" in intent.get("business_insight", "") or "unit_price DESC" in order_by:
+            sql += " ORDER BY p.unit_price DESC"
+        elif "价格最低" in intent.get("business_insight", "") or "unit_price ASC" in order_by:
+            sql += " ORDER BY p.unit_price ASC"
+        elif "销量最高" in intent.get("business_insight", "") or "total_sales_quantity DESC" in order_by:
+            sql += " ORDER BY total_sales_quantity DESC"
+        elif "销售额最高" in intent.get("business_insight", "") or "total_sales_amount DESC" in order_by:
+            sql += " ORDER BY total_sales_amount DESC"
+        else:
+            sql += " ORDER BY p.product_name"
+        
+        sql += " LIMIT 20"
+        
+        return textwrap.dedent(sql)
+    
+    def _generate_warehouse_sql(self, intent: Dict) -> str:
+        """生成仓库分析SQL"""
+        filter_conditions = intent.get("filter_conditions", {})
+        
+        sql = """
+        SELECT 
+            w.warehouse_id,
+            w.warehouse_name,
+            w.address,
+            w.created_at,
+            COUNT(DISTINCT wi.product_id) as product_count,
+            SUM(wi.quantity) as total_inventory,
+            COUNT(DISTINCT r.replenishment_id) as replenishment_count,
+            COUNT(DISTINCT st.store_id) as store_count
+        FROM warehouse w
+        LEFT JOIN warehouse_inventory wi ON w.warehouse_id = wi.warehouse_id
+        LEFT JOIN replenishment r ON w.warehouse_id = r.warehouse_id
+        LEFT JOIN store st ON w.warehouse_id = st.warehouse_id
+        WHERE 1=1
+        """
+        
+        # 添加过滤条件
+        if filter_conditions.get("location"):
+            sql += f" AND w.warehouse_id = '{filter_conditions['location']}'"
+        
+        if filter_conditions.get("warehouse_name"):
+            sql += f" AND w.warehouse_name LIKE '%{filter_conditions['warehouse_name']}%'"
+        
+        sql += " GROUP BY w.warehouse_id, w.warehouse_name, w.address, w.created_at"
+        sql += " ORDER BY total_inventory DESC LIMIT 20"
+        
+        return textwrap.dedent(sql)
+    
+    def _generate_store_sql(self, intent: Dict) -> str:
+        """生成门店分析SQL"""
+        filter_conditions = intent.get("filter_conditions", {})
+        
+        sql = """
+        SELECT 
+            st.store_id,
+            st.store_name,
+            st.address,
+            st.opened_date,
+            w.warehouse_name,
+            COUNT(DISTINCT s.sales_id) as sales_count,
+            SUM(s.quantity) as total_sales_quantity,
+            SUM(s.total_amount) as total_sales_amount,
+            COUNT(DISTINCT si.product_id) as product_count,
+            SUM(si.stock_quantity) as total_stock
+        FROM store st
+        LEFT JOIN warehouse w ON st.warehouse_id = w.warehouse_id
+        LEFT JOIN sales s ON st.store_id = s.store_id
+        LEFT JOIN store_inventory si ON st.store_id = si.store_id
+        WHERE 1=1
+        """
+        
+        # 添加过滤条件
+        if filter_conditions.get("location"):
+            sql += f" AND st.store_id = '{filter_conditions['location']}'"
+        
+        if filter_conditions.get("store_name"):
+            sql += f" AND st.store_name LIKE '%{filter_conditions['store_name']}%'"
+        
+        sql += " GROUP BY st.store_id, st.store_name, st.address, st.opened_date, w.warehouse_name"
+        sql += " ORDER BY total_sales_amount DESC LIMIT 20"
+        
+        return textwrap.dedent(sql)
+    
+    def _generate_replenishment_sql(self, intent: Dict) -> str:
+        """生成补货分析SQL"""
+        filter_conditions = intent.get("filter_conditions", {})
+        
+        sql = """
+        SELECT 
+            r.replenishment_id,
+            w.warehouse_name,
+            st.store_name,
+            p.product_name,
+            p.category,
+            r.shipment_date,
+            r.shipped_quantity,
+            r.received_quantity,
+            r.status,
+            (r.shipped_quantity - COALESCE(r.received_quantity, 0)) as pending_quantity
+        FROM replenishment r
+        JOIN warehouse w ON r.warehouse_id = w.warehouse_id
+        JOIN store st ON r.store_id = st.store_id
+        JOIN product p ON r.product_id = p.product_id
+        WHERE 1=1
+        """
+        
+        # 添加过滤条件
+        if filter_conditions.get("location"):
+            sql += f" AND (r.warehouse_id = '{filter_conditions['location']}' OR r.store_id = '{filter_conditions['location']}')"
+        
+        if filter_conditions.get("category"):
+            sql += f" AND p.category = '{filter_conditions['category']}'"
+        
+        sql += " ORDER BY r.shipment_date DESC LIMIT 20"
+        
+        return textwrap.dedent(sql)
+    
+    def _generate_trend_sql(self, intent: Dict) -> str:
+        """生成趋势分析SQL"""
+        filter_conditions = intent.get("filter_conditions", {})
+        
+        sql = """
+        SELECT 
+            DATE_TRUNC('day', s.sale_date) as sale_day,
+            p.category,
+            SUM(s.quantity) as daily_sales_quantity,
+            SUM(s.total_amount) as daily_sales_amount,
+            COUNT(DISTINCT s.sales_id) as daily_order_count
+        FROM sales s
+        JOIN product p ON s.product_id = p.product_id
+        WHERE 1=1
+        """
+        
+        # 添加过滤条件
+        if filter_conditions.get("category"):
+            sql += f" AND p.category = '{filter_conditions['category']}'"
+        
+        if filter_conditions.get("time_range"):
+            sql += f" AND s.sale_date >= CURRENT_DATE - INTERVAL '{filter_conditions['time_range']}'"
+        
+        sql += " GROUP BY DATE_TRUNC('day', s.sale_date), p.category"
+        sql += " ORDER BY sale_day DESC, daily_sales_amount DESC LIMIT 20"
+        
+        return textwrap.dedent(sql)
+    
+    def _generate_general_sql(self, intent: Dict) -> str:
+        """生成通用查询SQL"""
+        # 默认查询所有表的基本信息
+        sql = """
+        SELECT 
+            'product' as table_name,
+            COUNT(*) as record_count,
+            '产品信息表' as description
+        FROM product
+        UNION ALL
+        SELECT 
+            'sales' as table_name,
+            COUNT(*) as record_count,
+            '销售记录表' as description
+        FROM sales
+        UNION ALL
+        SELECT 
+            'warehouse' as table_name,
+            COUNT(*) as record_count,
+            '仓库信息表' as description
+        FROM warehouse
+        UNION ALL
+        SELECT 
+            'store' as table_name,
+            COUNT(*) as record_count,
+            '门店信息表' as description
+        FROM store
+        ORDER BY record_count DESC
+        """
+        
+        return sql
+    
+    def _map_location_name(self, location_name: str) -> Dict:
+        """智能映射位置名称到数据库ID"""
+        try:
+            # 城市到门店/仓库的映射
+            city_mapping = {
+                "北京": {"stores": ["ST101"], "warehouses": ["WH001"]},
+                "上海": {"stores": ["ST102"], "warehouses": ["WH002"]},
+                "广州": {"stores": ["ST103"], "warehouses": ["WH003"]},
+                "深圳": {"stores": ["ST104"], "warehouses": ["WH003"]},
+                "成都": {"stores": ["ST105"], "warehouses": ["WH004"]},
+                "重庆": {"stores": ["ST106"], "warehouses": ["WH004"]},
+                "武汉": {"stores": ["ST107"], "warehouses": ["WH004"]},
+                "南京": {"stores": ["ST108"], "warehouses": ["WH002"]},
+                "杭州": {"stores": ["ST109"], "warehouses": ["WH002"]},
+                "西安": {"stores": ["ST110"], "warehouses": ["WH001"]}
+            }
+            
+            # 具体地点到门店的映射
+            place_mapping = {
+                "王府井": "ST101",
+                "徐家汇": "ST102", 
+                "天河城": "ST103",
+                "万象城": "ST104",
+                "春熙路": "ST105",
+                "解放碑": "ST106",
+                "武商广场": "ST107",
+                "新街口": "ST108",
+                "西湖": "ST109",
+                "钟楼": "ST110"
+            }
+            
+            # 区域到仓库的映射
+            region_mapping = {
+                "华北": "WH001",
+                "华东": "WH002",
+                "华南": "WH003", 
+                "西南": "WH004",
+                "东北": "WH005"
+            }
+            
+            # 检查城市映射
+            for city, mapping in city_mapping.items():
+                if city in location_name:
+                    return mapping
+            
+            # 检查具体地点映射
+            for place, store_id in place_mapping.items():
+                if place in location_name:
+                    return {"stores": [store_id], "warehouses": []}
+            
+            # 检查区域映射
+            for region, warehouse_id in region_mapping.items():
+                if region in location_name:
+                    return {"stores": [], "warehouses": [warehouse_id]}
+            
+            return {"stores": [], "warehouses": []}
+            
+        except Exception as e:
+            print(f"⚠️ 位置映射失败: {e}")
+            return {"stores": [], "warehouses": []}
+    
+    def _enhance_intent_with_location(self, intent: Dict) -> Dict:
+        """增强意图分析，添加位置信息"""
+        try:
+            filter_conditions = intent.get("filter_conditions", {})
+            
+            # 检查是否有位置相关的过滤条件
+            if filter_conditions.get("location"):
+                location_name = filter_conditions["location"]
+                location_mapping = self._map_location_name(location_name)
+                
+                # 根据查询类型选择合适的ID
+                query_type = intent.get("query_type", "")
+                
+                if query_type in ["门店分析", "销售分析"] and location_mapping["stores"]:
+                    filter_conditions["location"] = location_mapping["stores"][0]
+                elif query_type in ["仓库分析", "库存分析"] and location_mapping["warehouses"]:
+                    filter_conditions["location"] = location_mapping["warehouses"][0]
+                elif location_mapping["stores"]:
+                    filter_conditions["location"] = location_mapping["stores"][0]
+                elif location_mapping["warehouses"]:
+                    filter_conditions["location"] = location_mapping["warehouses"][0]
+            
+            intent["filter_conditions"] = filter_conditions
+            return intent
+            
+        except Exception as e:
+            print(f"⚠️ 意图位置增强失败: {e}")
+            return intent
+
+    def generate_sql(self, question: str) -> Optional[str]:
+        """使用LLM生成SQL查询"""
+        try:
+            # 1. 首先进行查询意图分析
+            intent = self.analyze_query_intent(question)
+            
+            # 2. 基于意图生成SQL
+            sql = self.generate_sql_from_intent(intent)
+            
+            if sql and sql.upper().startswith('SELECT'):
                 return sql
             return None
             
@@ -196,15 +721,23 @@ SQL查询：
             return None
     
     def execute_query(self, sql: str) -> List[Tuple]:
-        """执行SQL查询"""
         try:
+            print(f"🚀 执行SQL查询: {repr(sql)}")
+            print(f"SQL类型: {type(sql)}")
+            assert self.conn and self.conn.closed == 0, "数据库连接已关闭"
             cursor = self.conn.cursor()
             cursor.execute(sql)
             rows = cursor.fetchall()
             cursor.close()
+            print(f"✅ 查询执行成功，返回 {len(rows)} 行数据")
             return rows
         except Exception as e:
             print(f"❌ SQL执行失败: {e}")
+            import traceback
+            traceback.print_exc()
+            # 写入日志
+            with open("sql_error.log", "a", encoding="utf-8") as f:
+                f.write(f"SQL执行失败: {repr(sql)}\n错误: {e}\n")
             return []
     
     def get_column_names(self, sql: str) -> List[str]:
@@ -439,109 +972,39 @@ SQL查询：
             return f"数据库查询失败: {str(e)}"
     
     def _generate_intelligent_sql(self, question: str) -> Optional[str]:
-        """智能生成SQL查询 - 处理所有类型的查询"""
+        """智能生成SQL查询 - 使用意图分析"""
         try:
-            print(f"🧠 开始生成SQL，问题: {question}")
+            print(f"🧠 开始智能SQL生成，问题: {question}")
             
-            # 使用增强的LLM生成SQL，包含完整的业务场景
-            schema_summary = self.schema_analyzer.get_schema_summary()
-            print(f"📋 数据库模式摘要: {schema_summary[:200]}...")
-            
-            prompt = PromptTemplate.from_template("""
-你是一个专业的数据库查询专家。根据以下数据库模式，为用户问题生成PostgreSQL查询语句。
-
-数据库模式：
-{schema_summary}
-
-用户问题：{question}
-
-数据库表说明：
-- warehouse表：仓库信息，包含仓库名称、位置、类型等
-- sales表：销售记录，包含销售时间、产品ID、仓库ID、数量、金额等
-- product表：产品信息，包含产品名称、类别、价格等
-- store表：门店信息
-- inventory_log表：库存变动日志
-- store_inventory表：门店库存
-- warehouse_inventory表：仓库库存
-- replenishment表：补货记录
-
-查询规则：
-1. 对于销售相关查询：关联sales、product、warehouse表
-2. 对于库存相关查询：关联warehouse_inventory、product、warehouse表
-3. 对于产品相关查询：从product表开始，根据需要关联其他表
-4. 对于仓库相关查询：从warehouse表开始，关联相关业务表
-5. 对于时间相关查询：使用DATE_TRUNC进行时间分组
-6. 对于统计查询：使用聚合函数SUM、COUNT、AVG等
-7. 对于特定产品查询：在WHERE条件中指定产品名称或ID
-8. 对于特定仓库查询：在WHERE条件中指定仓库名称或ID
-
-要求：
-1. 只返回SQL语句，不要其他解释，不要markdown格式
-2. 使用LIMIT 20限制结果数量
-3. 如果涉及多表，使用适当的JOIN
-4. 确保SQL语法正确
-5. 优先使用聚合函数进行统计分析
-6. 对于金额计算使用SUM()函数
-7. 对于数量统计使用COUNT()函数
-8. 对于平均值计算使用AVG()函数
-9. 如果问题不明确，返回NULL
-
-SQL查询：
-""")
-            
-            response = self.llm.invoke(prompt.format(
-                schema_summary=schema_summary,
-                question=question
-            ))
-            
-            sql = response.content.strip()
-            print(f"🤖 LLM生成的SQL: {sql}")
-            
-            # 清理SQL，移除markdown格式
-            if sql.startswith('```'):
-                lines = sql.split('\n')
-                sql_lines = []
-                in_sql = False
-                for line in lines:
-                    if line.strip().startswith('```sql'):
-                        in_sql = True
-                        continue
-                    elif line.strip().startswith('```'):
-                        in_sql = False
-                        continue
-                    elif in_sql:
-                        sql_lines.append(line)
-                sql = '\n'.join(sql_lines).strip()
-            
-            print(f"🧹 清理后的SQL: {sql}")
-            
-            if sql.upper().startswith('SELECT') and 'NULL' not in sql.upper():
-                return sql
-            else:
-                print(f"❌ SQL格式不正确或返回NULL: {sql}")
-                return None
+            # 使用新的意图分析功能
+            return self.generate_sql(question)
             
         except Exception as e:
-            print(f"❌ SQL生成失败: {e}")
+            print(f"❌ 智能SQL生成失败: {e}")
             import traceback
             traceback.print_exc()
             return None
     
-    def execute_query(self, sql: str) -> List[Tuple]:
-        """执行SQL查询"""
+    def execute_query_with_columns(self, sql: str):
+        """执行SQL并返回 (rows, column_names)"""
         try:
-            print(f"🚀 执行SQL查询: {sql}")
+            print(f"🚀 执行SQL查询: {repr(sql)}")
+            print(f"SQL类型: {type(sql)}")
+            assert self.conn and self.conn.closed == 0, "数据库连接已关闭"
             cursor = self.conn.cursor()
             cursor.execute(sql)
             rows = cursor.fetchall()
+            column_names = [desc[0] for desc in cursor.description]
             cursor.close()
             print(f"✅ 查询执行成功，返回 {len(rows)} 行数据")
-            return rows
+            return rows, column_names
         except Exception as e:
             print(f"❌ SQL执行失败: {e}")
             import traceback
             traceback.print_exc()
-            return []
+            with open("sql_error.log", "a", encoding="utf-8") as f:
+                f.write(f"SQL执行失败: {repr(sql)}\\n错误: {e}\\n")
+            return [], []
     
     def get_column_names(self, sql: str) -> List[str]:
         """获取查询结果的列名"""
@@ -857,13 +1320,10 @@ SQL查询：
             return "通用查询"
     
     def _generate_comprehensive_insight(self, question: str, rows: List[Tuple], column_names: List[str], sql: str) -> str:
-        """生成综合业务洞察"""
+        """生成综合业务洞察（只输出一次，按query_type分流）"""
         try:
             insight = ""
-            
-            # 根据查询类型生成特定洞察
             query_type = self._identify_query_type(question)
-            
             if query_type == "销售分析":
                 insight += self._generate_sales_insight(rows, column_names)
             elif query_type == "库存分析":
@@ -876,9 +1336,7 @@ SQL查询：
                 insight += self._generate_trend_insight(rows, column_names)
             else:
                 insight += self._generate_general_insight(rows, column_names, f"查询返回{len(rows)}条记录")
-            
             return insight
-            
         except Exception as e:
             return f"业务洞察生成失败: {str(e)}"
     
@@ -1127,6 +1585,117 @@ SQL查询：
     
     def close(self):
         self.conn.close()
+
+    def build_sql_from_intent(self, intent: Dict) -> str:
+        """根据意图结构自动生成SQL，合并所有SQL生成逻辑"""
+        query_type = intent.get("query_type", "综合查询")
+        filter_conditions = intent.get("filter_conditions", {})
+        aggregation = intent.get("aggregation", {})
+        order_by = aggregation.get("order_by", [])
+        columns = intent.get("target_columns") or []
+        # 只查product表的简单查询
+        if query_type == "产品分析" and (not columns or set(columns) <= {"product_id","product_name","category","unit_price","cost_price","barcode"}):
+            sql = """
+            SELECT p.product_id, p.product_name, p.category, p.unit_price, p.cost_price, p.barcode
+            FROM product p
+            WHERE 1=1
+            """
+            if filter_conditions.get("category"):
+                sql += f" AND p.category = '{filter_conditions['category']}'"
+            if filter_conditions.get("product_name"):
+                sql += f" AND p.product_name LIKE '%{filter_conditions['product_name']}%'"
+            sql += " ORDER BY p.unit_price ASC LIMIT 20"
+            return textwrap.dedent(sql)
+        # 复杂产品分析（带聚合）
+        if query_type == "产品分析":
+            sql = """
+            SELECT 
+                p.product_id,
+                p.product_name,
+                p.category,
+                p.unit_price,
+                p.cost_price,
+                p.barcode,
+                COALESCE(SUM(s.quantity), 0) as total_sales_quantity,
+                COALESCE(SUM(s.total_amount), 0) as total_sales_amount,
+                COALESCE(SUM(wi.quantity), 0) as total_warehouse_stock,
+                COALESCE(SUM(si.stock_quantity), 0) as total_store_stock
+            FROM product p
+            LEFT JOIN sales s ON p.product_id = s.product_id
+            LEFT JOIN warehouse_inventory wi ON p.product_id = wi.product_id
+            LEFT JOIN store_inventory si ON p.product_id = si.product_id
+            WHERE 1=1
+            """
+            if filter_conditions.get("category"):
+                sql += f" AND p.category = '{filter_conditions['category']}'"
+            if filter_conditions.get("product_name"):
+                sql += f" AND p.product_name LIKE '%{filter_conditions['product_name']}%'"
+            sql += " GROUP BY p.product_id, p.product_name, p.category, p.unit_price, p.cost_price, p.barcode"
+            if "unit_price DESC" in order_by:
+                sql += " ORDER BY p.unit_price DESC"
+            elif "unit_price ASC" in order_by:
+                sql += " ORDER BY p.unit_price ASC"
+            elif "total_sales_quantity DESC" in order_by:
+                sql += " ORDER BY total_sales_quantity DESC"
+            elif "total_sales_amount DESC" in order_by:
+                sql += " ORDER BY total_sales_amount DESC"
+            else:
+                sql += " ORDER BY p.product_name"
+            sql += " LIMIT 20"
+            return textwrap.dedent(sql)
+        # 其它类型，调用原有生成方法
+        return self.generate_sql_from_intent(intent)
+
+    def execute_query(self, sql: str) -> List[Tuple]:
+        try:
+            print(f"🚀 执行SQL查询: {repr(sql)}")
+            print(f"SQL类型: {type(sql)}")
+            assert self.conn and self.conn.closed == 0, "数据库连接已关闭"
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            rows = cursor.fetchall()
+            cursor.close()
+            print(f"✅ 查询执行成功，返回 {len(rows)} 行数据")
+            return rows
+        except Exception as e:
+            print(f"❌ SQL执行失败: {e}")
+            import traceback
+            traceback.print_exc()
+            with open("sql_error.log", "a", encoding="utf-8") as f:
+                f.write(f"SQL执行失败: {repr(sql)}\\n错误: {e}\\n")
+            return []
+
+    def query(self, question: str, context: str = "") -> str:
+        """主入口：接收用户问题，返回直观化业务数据和分析，不显示SQL"""
+        # 1. 意图识别
+        intent = self.analyze_query_intent(question)
+        print(f"✅ 查询意图分析完成: {intent}")
+
+        # 2. SQL生成
+        sql = self.build_sql_from_intent(intent)
+        print(f"🔧 基于意图生成SQL: {intent}")  # 仅日志，不输出SQL内容
+
+        # 3. SQL执行
+        rows, column_names = self.execute_query_with_columns(sql)
+        if rows:
+            # 4. 业务洞察与直观化输出
+            answer = self._format_query_result(rows, column_names)
+            insight = self._generate_comprehensive_insight(question, rows, column_names, sql)
+            return f"{answer}\n{insight}"
+        else:
+            # 5. 数据为空时才考虑知识库/LLM补充
+            kb_result = self.query_knowledge_base(question)
+            return f"未查询到相关数据库数据。\n{kb_result}"
+
+    def _format_query_result(self, rows, column_names):
+        """将数据库查询结果格式化为结构化表格或直观文本"""
+        if not rows or not column_names:
+            return "未查询到相关数据。"
+        # 简单表格输出
+        from tabulate import tabulate
+        table = tabulate(rows, headers=column_names, tablefmt="fancy_grid", floatfmt=".2f")
+        return f"\n📊 查询结果\n{table}\n"
+
 class InMemoryKnowledgeBase:
     def __init__(self):
         self.documents: List[Document] = []
@@ -1930,7 +2499,7 @@ def query_api(req: QueryRequest):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 def display_result(result: Dict):
-    """格式化显示结果"""
+    """格式化显示结果（不显示数据库状态、Agent决策分析、信息来源和SQL相关内容）"""
     print("\n" + "="*50)
     print("📝 智能结构化回答")
     print("="*50)
@@ -1953,39 +2522,6 @@ def display_result(result: Dict):
                 print(f"相关任务{i+1}: {candidate['task']} - {candidate['text']}")
                 print(f"相似度: {similarity:.3f}")
     
-    # Agent决策信息
-    if 'agent_decision' in result:
-        print("\n🤖 Agent决策分析")
-        print("-" * 20)
-        decision = result['agent_decision']
-        print(f"主要Agent: {decision.get('primary_agent', 'unknown')}")
-        print(f"分析理由: {decision.get('reasoning', '无')}")
-        print(f"数据库查询: {'✅' if decision.get('requires_database') else '❌'}")
-        print(f"PDF检索: {'✅' if decision.get('requires_pdf') else '❌'}")
-        print(f"知识库检索: {'✅' if decision.get('requires_knowledge_base') else '❌'}")
-    
-    # 信息来源
-    print("\n📋 信息来源")
-    print("-" * 20)
-    source_type = result.get('source_type', 'unknown')
-    if source_type == "top_agent_coordinated":
-        print("🧠 TopAgent协调系统")
-    elif source_type == "knowledge_base":
-        print("✅ 知识库直接匹配")
-    elif source_type == "agent_system":
-        print("🤖 多Agent协调系统")
-    elif source_type == "llm_fallback":
-        print("⚠️ LLM直接生成")
-    elif source_type == "duplicate":
-        print("🔄 重复查询检测")
-    else:
-        print("❓ 未知来源")
-    
-    # 数据库摘要信息
-    if 'db_summary' in result and result['db_summary']:
-        print("\n💾 数据库状态:")
-        print(result['db_summary'])
-    
     # 详细上下文（可选）
     if 'knowledge_context' in result and result['knowledge_context']:
         print("\n🧠 知识库片段:")
@@ -1998,7 +2534,7 @@ def display_result(result: Dict):
         print(result['pdf_result'])
 
 def main():
-    print("🚀 === 智能多Agent RAG仓库管理系统（通用PostgreSQL版） ===")
+    print("🚀 === 智能多Agent RAG仓库管理系统 ===")
     print("💡 请输入您的查询：")
     print("🔚 输入'退出'、'quit'、'exit'或'q'结束会话")
     print("🧹 输入'clear'清空对话记忆\n")
@@ -2018,7 +2554,20 @@ def main():
                 rag.memory_agent.clear_memory()
                 print("🧹 对话记忆已清空")
                 continue
-            result = rag.process_query(query)
+            # 只在调试模式下显示SQL相关日志
+            # result = rag.process_query(query)
+            import os
+            if os.getenv('RAG_DEBUG', '0') == '1':
+                result = rag.process_query(query)
+            else:
+                # 临时屏蔽SQL相关print
+                import sys
+                class DummyFile:
+                    def write(self, x): pass
+                old_stdout = sys.stdout
+                sys.stdout = DummyFile()
+                result = rag.process_query(query)
+                sys.stdout = old_stdout
             display_result(result)
     finally:
         rag.close()
