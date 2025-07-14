@@ -46,13 +46,25 @@ def get_schema_and_samples(limit: int = 5) -> tuple[dict, dict]:
             cols_info = []
             uniques = []
             checks = []
+            auto_inc_columns = []  # 新增：存储自增列信息
 
             # SQLite
             if isinstance(conn, sqlite3.Connection):
-                # 列信息
+                # ... 前面的代码保持不变 ...
+                
+                # 在列信息循环中添加自增识别
                 cur.execute(f"PRAGMA table_info('{tbl}');")
                 col_rows = cur.fetchall()
+                # 识别自增主键列
+                pk_columns = [row for row in col_rows if row[5] > 0]  # 第5列是pk值
+                pk_count = len(pk_columns)
                 for cid, name, ctype, notnull, dflt, pk in col_rows:
+                    is_auto_increment = False
+                    # SQLite的自增主键识别：单列主键且类型为INTEGER
+                    if pk > 0 and pk_count == 1 and ctype.upper() in ['INTEGER', 'INT']:
+                        is_auto_increment = True
+                        auto_inc_columns.append(name)
+                    
                     cols_info.append({
                         'column': name,
                         'type': ctype,
@@ -60,7 +72,8 @@ def get_schema_and_samples(limit: int = 5) -> tuple[dict, dict]:
                         'default': dflt,
                         'is_primary': bool(pk),
                         'is_foreign': False,
-                        'references': None
+                        'references': None,
+                        'is_auto_increment': is_auto_increment  # 新增字段
                     })
                 # 外键
                 cur.execute(f"PRAGMA foreign_key_list('{tbl}');")
@@ -105,14 +118,22 @@ def get_schema_and_samples(limit: int = 5) -> tuple[dict, dict]:
                     (tbl, tbl)
                 )
                 for name, dtype, notnull, dflt, is_pk in cur.fetchall():
+                    is_auto_increment = False
+                    # PostgreSQL的自增识别：serial类型或默认值包含nextval
+                    if dtype.lower() in ['serial', 'bigserial', 'smallserial'] or \
+                    (dflt and 'nextval' in dflt):
+                        is_auto_increment = True
+                        auto_inc_columns.append(name)
+                    
                     cols_info.append({
                         'column': name,
                         'type': dtype,
-                        'not_null': not notnull,
+                        'not_null': not notnull,  # 注意：这里原代码有误，应保持不变
                         'default': dflt,
                         'is_primary': is_pk,
                         'is_foreign': False,
-                        'references': None
+                        'references': None,
+                        'is_auto_increment': is_auto_increment  # 新增字段
                     })
                 # 外键
                 cur.execute(
@@ -152,6 +173,12 @@ def get_schema_and_samples(limit: int = 5) -> tuple[dict, dict]:
                 # 列、PK、NOT NULL、DEFAULT
                 cur.execute(f"SHOW COLUMNS FROM {quote}{tbl}{quote};")
                 for name, ctype, null, key, dflt, extra in cur.fetchall():
+                    is_auto_increment = False
+                    # MySQL的自增识别：extra字段包含auto_increment
+                    if extra and 'auto_increment' in extra.lower():
+                        is_auto_increment = True
+                        auto_inc_columns.append(name)
+                    
                     cols_info.append({
                         'column': name,
                         'type': ctype,
@@ -159,7 +186,8 @@ def get_schema_and_samples(limit: int = 5) -> tuple[dict, dict]:
                         'default': dflt,
                         'is_primary': (key == 'PRI'),
                         'is_foreign': False,
-                        'references': None
+                        'references': None,
+                        'is_auto_increment': is_auto_increment  # 新增字段
                     })
                 # 外键
                 cur.execute(
@@ -208,7 +236,54 @@ def get_schema_and_samples(limit: int = 5) -> tuple[dict, dict]:
             cur.close()
 
     return schema, samples
+def remove_auto_increment_columns(sql: str, schema: dict) -> str:
+    """
+    移除INSERT语句中的自增主键列
+    """
+    # 匹配INSERT INTO语句
+    pattern = r"INSERT\s+INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*(\([^)]+\))(?:\s*,\s*\([^)]+\))*\s*;"
+    match = re.search(pattern, sql, re.IGNORECASE)
+    if not match:
+        return sql  # 不是标准INSERT语句，直接返回
 
+    table_name = match.group(1)
+    columns_str = match.group(2)
+    values_str = match.group(3)
+
+    # 获取该表的自增列列表
+    if table_name not in schema:
+        return sql
+    auto_inc_columns = [col['column'] for col in schema[table_name]['columns'] 
+                      if col.get('is_auto_increment', False)]
+
+    if not auto_inc_columns:
+        return sql
+
+    # 解析列名
+    cols = [col.strip() for col in columns_str.split(',')]
+    # 移除自增列
+    new_cols = []
+    removed_indices = []
+    for idx, col in enumerate(cols):
+        if col in auto_inc_columns:
+            removed_indices.append(idx)
+        else:
+            new_cols.append(col)
+
+    if not removed_indices:
+        return sql
+
+    # 解析值列表并移除对应位置的值
+    values = [v.strip() for v in values_str.strip('()').split(',')]
+    new_values = [val for idx, val in enumerate(values) 
+                if idx not in removed_indices]
+
+    # 重建SQL语句
+    new_cols_str = ', '.join(new_cols)
+    new_values_str = '(' + ', '.join(new_values) + ')'
+    new_sql = sql.replace(columns_str, new_cols_str, 1)
+    new_sql = new_sql.replace(values_str, new_values_str, 1)
+    return new_sql
 
 def extract_sql(script: str) -> str:
     """
@@ -272,35 +347,148 @@ def get_sql(requirement: str, model: str = 'deepseek-reasoner', max_retries: int
             "3. 注意JOIN条件避免笛卡尔积\n\n"
         )
     }
+        # 构建自增列提示信息
+    auto_inc_prompt = ""
+    for table_name, table_info in schema.items():
+        auto_inc_cols = [col['column'] for col in table_info['columns'] 
+                        if col.get('is_auto_increment', False)]
+        if auto_inc_cols:
+            auto_inc_prompt += f"表 '{table_name}' 有自增主键列: {', '.join(auto_inc_cols)}，在INSERT语句中不要包含这些列。\n"
     
-    # 构建提示词
-    prompt = (
+    if auto_inc_prompt:
+        auto_inc_prompt = "### 自增主键列提示（不要插入）:\n" + auto_inc_prompt + "\n"
+    
+
+    # 构建基础提示词
+    base_prompt = (
         "# 数据库 schema:\n"
         f"{json.dumps(schema, indent=2)}\n\n"
         "# 示例数据 (每表前几行):\n"
         f"{json.dumps(samples, indent=2, default=str)}\n\n"
         "# 请根据以下需求生成完整的、可直接运行的SQL脚本,无需其他格式内容\n\n"
+        f"{auto_inc_prompt}"  # 新增的自增列提示
         f"### 检测到的操作类型: {operation_type}\n"
         f"{operation_prompts[operation_type]}"
         f"需求: {requirement}\n"
     )
+    # 第一步：生成任务规划
+    planning_prompt = (
+        f"{base_prompt}\n"
+        "### 任务规划步骤:\n"
+        "1. 请先生成一个详细的任务规划，包括：\n"
+        "   - 理解需求的关键点\n"
+        "   - 确定需要使用的表和字段\n"
+        "   - 考虑必要的JOIN操作\n"
+        "   - 考虑过滤条件和排序要求\n"
+        "2. 规划完成后，再生成SQL语句"
+    )
     #输出提示词
     #print("\n\n"+prompt+"\n\n")
+    # 尝试生成任务规划
+    plan = None
+    try:
+        plan_resp = client.chat.completions.create(
+            model="Qwen/Qwen2.5-72B-Instruct",
+            messages=[
+                {'role': 'system', 'content': '你是数据库操作专家。'},
+                {'role': 'user', 'content': planning_prompt}
+            ],
+            timeout=120
+        )
+        plan = plan_resp.choices[0].message.content
+    except Exception as e:
+        print(f"生成任务规划时出错: {str(e)}")
+    print(plan)
+    # 构建最终提示词（包含规划）
+    final_prompt = base_prompt
+    if plan:
+        final_prompt += (
+            "\n### 任务规划（由AI生成）:\n"
+            f"{plan}\n\n"
+            "请基于以上规划生成SQL语句:"
+        )
+    
     backoff = 1.0
+    sql = None
+    error_occurred = False
+    error_message = ""
+    
     for attempt in range(1, max_retries + 1):
         try:
+            # 如果是重试且有错误信息，添加到提示词中
+            retry_prompt = final_prompt
+            if error_occurred:
+                retry_prompt = (
+                    f"{final_prompt}\n\n"
+                    "### 上次生成的SQL执行出错，请修正:\n"
+                    f"错误信息: {error_message}\n"
+                    f"上次生成的SQL: {sql}\n"
+                    "请分析错误原因并生成修正后的SQL:"
+                )
+            
+            # 调用AI生成SQL
             resp = client.chat.completions.create(
                 model="Qwen/Qwen2.5-72B-Instruct",
                 messages=[
                     {'role': 'system', 'content': '你是数据库操作专家。'},
-                    {'role': 'user', 'content': prompt}
+                    {'role': 'user', 'content': retry_prompt}
                 ],
                 timeout=300
             )
             content = resp.choices[0].message.content
-            return extract_sql(content)
-        except (APIConnectionError, APIError, ReadTimeout) as e:
+            sql = extract_sql(content)
+            
+            # 后处理：如果是INSERT语句，移除自增列
+            if operation_type == "INSERT":
+                sql = remove_auto_increment_columns(sql, schema)
+            if isinstance(DBPool.get_connection(), sqlite3.Connection):
+                # 1) 把 LPAD(TO_HEX(...),5,'0') 换成 printf
+                sql = re.sub(
+                    r"LPAD\s*\(\s*TO_HEX\s*\(\s*([^)]+)\)\s*,\s*5\s*,\s*'0'\s*\)",
+                    r"printf('%05X', abs(\1) % 1048576)",
+                    sql,
+                    flags=re.IGNORECASE
+                )
+                # 2) 把 PostgreSQL 式的 round(x,2) 换成 SQLite 式
+                sql = re.sub(
+                    r"ROUND\s*\(\s*([^)]+)\s*,\s*2\s*\)",
+                    r"ROUND(\1, 2)",
+                    sql,
+                    flags=re.IGNORECASE
+                )
+            # 测试生成的SQL（不实际执行，只验证语法）
+            try:
+                with DBPool.get_connection() as conn:
+                    cur = conn.cursor()
+                    if operation_type.upper() == "SELECT":
+                        # 用 EXPLAIN 来校验查询语法
+                        explain_sql = f"EXPLAIN {sql}" if "EXPLAIN" not in sql.upper() else sql
+                        cur.execute(explain_sql)
+                        _ = cur.fetchall()
+                    else:
+                        # 对于 INSERT/UPDATE/DELETE，开个 SAVEPOINT，执行后回滚
+                        cur.execute("SAVEPOINT validate_sp;")
+                        cur.execute(sql)
+                        cur.execute("ROLLBACK TO SAVEPOINT validate_sp;")
+                    cur.close()
+                # 验证通过，返回 SQL
+                return sql
+            except Exception as e:
+                error_occurred = True
+                error_message = str(e)
+                print(f"SQL验证失败（尝试 {attempt}/{max_retries}）: {error_message}")
+                if attempt == max_retries:
+                    raise ValueError(f"最终生成的SQL验证失败: {error_message}")
+        
+        except (APIConnectionError, APIError, ReadTimeout, ValueError) as e:
+            # 如果是最后一次尝试，直接抛出异常
             if attempt == max_retries:
                 raise
+            # 记录错误信息
+            error_occurred = True
+            error_message = str(e)
+            print(f"API调用失败（尝试 {attempt}/{max_retries}）: {error_message}")
             time.sleep(backoff)
             backoff *= 2
+    
+    return sql
