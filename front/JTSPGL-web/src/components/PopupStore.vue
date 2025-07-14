@@ -128,17 +128,6 @@ const transferIn = async () => {
     });
     alert("调货成功");
 
-    emit("new-approval", {
-      id: `P${Date.now()}`,
-      product: transferProduct.value,
-      quantity: transferQty.value,
-      status: "待审核",
-      from: fromWarehouse,
-      to: currentWarehouseName.value,
-
-      // display 字段用于右侧面板按钮显示
-      display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`
-    });
     switch(response.data.successType){
       case 0:alert("商品编号不存在");break;
       case 1:alert("仓库无相关商品记录");break;
