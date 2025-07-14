@@ -1,10 +1,10 @@
 <template>
   <div class="container-fluid">
     <div class="row">
-      <!-- 左侧：地图和聊天区域 -->
+      <!-- 左侧：仓库操作界面和聊天区域 -->
       <div class="col-md-9 left-panel">
         <HeaderTime />
-        <WarehouseMap @show-warehouse="showWarehouseInfo" />
+        <WarehousePanel />
         <ChatBox />
       </div>
 
@@ -16,17 +16,7 @@
     </div>
 
     <!-- 弹出面板 -->
-    <PopupStore
-      ref="popupStore"
-      @close="closeStorePopup"
-      @new-approval="handleNewApproval"
-    />
-    <PopupWarehouse
-      ref="popupWarehouse"
-      @close="closeWarehousePopup"
-      @show-store="showStorePopup"
-      @new-approval="handleNewApproval"
-    />
+    
     <PopupApproval
       ref="popupApproval"
       :approvalRequests="approvalRequests"
