@@ -53,6 +53,7 @@ def API_StoreTransferIn(request):
                         "successType" : 0
                     })
                 
+                #判断仓库里是否有商品
                 query = """
                     SELECT quantity
                     FROM warehouse_inventory
@@ -66,7 +67,7 @@ def API_StoreTransferIn(request):
                         "successType" : 1
                     })
                 
-                if result[0] < quantity:
+                if result[0] <= quantity:
                     return jsonify({
                         "successType" : 2,
                         "num" : result[0]
