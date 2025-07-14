@@ -396,13 +396,21 @@ def transfer():
     data = request.get_json()
     product_id = data.get('product', '')
     quantity = data.get('quantity', '')
-    from_warehouse_id = data.get('fromWarehouse', '')
+    from_warehouse = data.get('fromWarehouse', '')
     to_warehouse_id = data.get('warehouse_id', '')
 
     try:
         # Update the database
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
+                # Get the from_warehouse_id
+                query = """
+                    SELECT warehouse_id
+                    FROM warehouse
+                    WHERE warehouse_name = %s
+                """
+                cur.execute(query, (from_warehouse, ))
+                from_warehouse_id = cur.fetchone()[0]
                 # Get the order
                 query = """
                     SELECT COUNT(*) AS count
@@ -419,7 +427,7 @@ def transfer():
                         product_id,
                         location_id,
                         change_type,
-                        change_quantity,
+                        change_quantity
                     )
                     VALUES (%s, %s, %s, %s, %s)
                 """
