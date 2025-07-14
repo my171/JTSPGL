@@ -51,6 +51,10 @@ const errorMessage = ref('');
 
 const emit = defineEmits(['submit']);
 
+const ROLE_ADMIN = 'admin';
+const ROLE_WAREHOUSE = 'wh';
+const ROLE_STORE = 'st';
+
 const handleSubmit = async () => {
   // 简单的验证逻辑
   if (!form.username || !form.password) {
@@ -69,13 +73,13 @@ const handleSubmit = async () => {
       localStorage.setItem('isAuthed', 'true');
       localStorage.setItem('RoleType', response.data.role);
       switch(response.data.role){
-        case 'ADMIN':
+        case ROLE_ADMIN:
           await router.push('/page_USER1');
           break;
-        case 'WAREHOUSE':
+        case ROLE_WAREHOUSE:
           await router.push('/page_USER2');
           break;
-        case 'STORE':
+        case ROLE_STORE:
           await router.push('/page_USER3');
           break;
       }
@@ -87,27 +91,6 @@ const handleSubmit = async () => {
     alert(error);
     errorMessage.value = '服务器运行异常';
   }
-  /*
-  if (form.username === 'fslkgg' && form.password === 'fslkgg') {
-    errorMessage.value = '';
-    emit('submit', { success: true, data: form });
-    localStorage.setItem('authenticated_UserType1', 'true');
-    await router.push('/page_USER1')
-  } else  if (form.username === 'second' && form.password === '123456') {
-    errorMessage.value = '';
-    emit('submit', { success: true, data: form });
-    localStorage.setItem('authenticated_UserType2', 'true');
-    await router.push('/page_USER2')
-  } else  if (form.username === 'third' && form.password === '123456') {
-    errorMessage.value = '';
-    emit('submit', { success: true, data: form });
-    localStorage.setItem('authenticated_UserType3', 'true');
-    await router.push('/page_USER3')
-  } else {
-    errorMessage.value = '用户名或密码错误';
-    emit('submit', { success: false, error: '验证失败' });
-  }
-  */
   
 };
 </script>

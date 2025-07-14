@@ -21,7 +21,11 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes
-})
+});
+
+const ROLE_ADMIN = 'admin';
+const ROLE_WAREHOUSE = 'wh';
+const ROLE_STORE = 'st';
 
 router.beforeEach((to, from, next) => {
   const isAuthed = localStorage.getItem('isAuthed') === 'true'
@@ -30,16 +34,16 @@ router.beforeEach((to, from, next) => {
   if (to.name == 'auth'){
     next()
   }
-  if (!isAuthed){
+  else if (!isAuthed){
     next({ name: 'auth' })
   }
-  if (to.meta.requiresAuth && to.meta.type == 1 && RoleType == 'ADMIN') {
+  else if (to.meta.requiresAuth && to.meta.type == 1 && RoleType == ROLE_ADMIN) {
     next()
   }
-  else if (to.meta.requiresAuth && to.meta.type == 2 && RoleType == 'WAREHOUSE') {
+  else if (to.meta.requiresAuth && to.meta.type == 2 && RoleType == ROLE_WAREHOUSE) {
     next()
   }
-  else if (to.meta.requiresAuth && to.meta.type == 3 && RoleType == 'STORE') {
+  else if (to.meta.requiresAuth && to.meta.type == 3 && RoleType == ROLE_STORE) {
     next()
   }
   else {

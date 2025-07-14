@@ -10,17 +10,17 @@
     {
         bool:success: 是否登录成功
         str:role: 用户身份(
-            ADMIN: 管理员
-            WAREHOUSE: 仓库
-            STORE: 商店
+            admin: 管理员
+            wh: 仓库
+            st: 商店
         )
     }
 '''
 
-TABLE_NAME = "user_list" # --> 记录密码与用户名的表名
-USERNAME_COLUMN = "username" # --> 用户名属性名称
-PASSWORD_COLUMN = "pword" # --> 密码属性名称
-ROLETYPE_COLUMN = "roletype" # --> 用户类别属性名称
+TABLE_NAME = "users" # --> 记录密码与用户名的表名
+USERNAME_COLUMN = "user_id" # --> 用户名属性名称
+PASSWORD_COLUMN = "pass_word" # --> 密码属性名称
+ROLETYPE_COLUMN = "user_type" # --> 用户类别属性名称
 
 from flask import jsonify
 from database import DBPool

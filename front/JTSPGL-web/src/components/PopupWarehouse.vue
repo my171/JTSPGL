@@ -103,8 +103,18 @@ const show = async (id, name) => {
 
   try {
     const response = await axios.get(
-      `http://localhost:5000/api/warehouses/${id}/stores`
+      `http://localhost:5000/api/warehouses/stores`,
+      {
+        params: {
+          warehouseId: id,
+        },
+      }
     );
+
+
+
+
+
     const storeList = response.data;
     let html = `<h5>${name} - 商店列表</h5>`;
     storeList.forEach((store) => {
