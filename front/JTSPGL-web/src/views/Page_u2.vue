@@ -19,13 +19,20 @@
         :approvalRequests="approvalRequests"
         @show-approval="showApprovalDetail"
       />
+      <!-- 弹窗 -->
+      <PopupApproval
+      ref="popupApproval"
+      :approvalRequests="filteredApprovals"
+      :selectedApprovalId="selectedApprovalId"
+      @close="closeApprovalPopup"
+    />
     </div>
   </div>
 </template>
 
 
 <script setup>
-import { ref, reactive } from "vue";
+import { ref, reactive, computed } from "vue";
 
 import HeaderTime from "@components/HeaderTime.vue";
 import ChatBox from "@components/ChatBox.vue";
@@ -39,16 +46,34 @@ const popupApproval = ref(null);
 const approvalRequests = reactive([]); // 所有审批流记录
 const selectedApprovalId = ref(null);
 
-const showApprovalDetail = (approvalId) => {
-  rightPanel.value.movePanel();
-  popupApproval.value.show(approvalId);
-  popupWarehouse.value.relatedclose();
-  popupStore.value.relatedclose();
-};
+const userRole = localStorage.getItem("user_role");
+const warehouseName = localStorage.getItem("warehouse_name");
+const storeName = localStorage.getItem("store_name");
+
+
+// 过滤后的审批流（带权限控制）
+const filteredApprovals = computed(() => {
+  return props.approvalRequests.filter((a) => {
+    if (userRole === "admin") return true;
+    if (userRole === "warehouse")
+      return a.from === warehouseName || a.to === warehouseName;
+    if (userRole === "store") return a.from === storeName || a.to === storeName;
+    return false;
+  });
+});
+
+// 新增审批记录
 
 const handleNewApproval = (record) => {
   approvalRequests.push(record);
 };
+
+// 显示审批详情弹窗
+const showApprovalDetail = (id) => {
+  rightPanel.value.movePanel();
+  popupApproval.value.show(id);
+};
+
 const closeApprovalPopup = () => {
   rightPanel.value.resetPanel();
 };

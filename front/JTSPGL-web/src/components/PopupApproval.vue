@@ -88,44 +88,38 @@ const props = defineProps({
 const emit = defineEmits(["close"]);
 
 const isVisible = ref(false);
-const canCancel = ref(false)
 const approval = ref(null);
 
-watch(
-  () => approval.value,
-  (newApproval) => {
-    if (!newApproval) return;
+// 权限控制
+const userRole = localStorage.getItem("user_role");
+const warehouseName = localStorage.getItem("warehouse_name");
+const storeName = localStorage.getItem("store_name");
 
-    const userRole = localStorage.getItem("user_role");
-    const isCreator = newApproval.from === localStorage.getItem("warehouse_name") ||
-                      newApproval.from === localStorage.getItem("store_name");
-
-    // 判断是否可以取消
-    canCancel.value =
-      ["待审核", "待出库"].includes(newApproval.status) &&
-      (
-        userRole === "admin" || 
-        (isCreator && (userRole === "warehouse" || userRole === "store"))
-      );
-  },
-  { immediate: true }
-);
-
+const canCancel = ref(false);
 
 watch(
   () => props.selectedApprovalId,
   (newId) => {
-    if (newId) {
-      approval.value =
-        props.approvalRequests.find((a) => a.id === newId) || null;
-      isVisible.value = true;
-    } else {
+    if (!newId) {
       isVisible.value = false;
       approval.value = null;
+      return;
     }
+
+    approval.value = props.approvalRequests.find((a) => a.id === newId) || null;
+    isVisible.value = true;
+
+    // 判断是否可取消
+    const isCreator =
+      approval.value.from === warehouseName ||
+      approval.value.from === storeName;
+
+    canCancel.value =
+      ["待审核", "待出库"].includes(approval.value?.status) &&
+      (userRole === "admin" ||
+        (isCreator && (userRole === "warehouse" || userRole === "store")));
   }
 );
-
 const cancelApproval = async () => {
   if (!approval.value) return;
 
@@ -134,7 +128,9 @@ const cancelApproval = async () => {
   try {
     await axios.post("http://localhost:5000/api/approval/cancel", {
       approval_id: approval.value.id,
-      canceled_by: localStorage.getItem("warehouse_name") || localStorage.getItem("store_name"),
+      canceled_by:
+        localStorage.getItem("warehouse_name") ||
+        localStorage.getItem("store_name"),
     });
 
     approval.value.status = "已取消";
@@ -232,5 +228,18 @@ defineExpose({ show, relatedclose });
 </script>
 
 <style scoped>
-@import "./popup-style.css";
+.popup-panel {
+  position: fixed;
+  top: 50px;
+  right: 0;
+  width: 400px;
+  background-color: #fff;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+.popup-panel.show {
+  transform: translateX(0);
+}
 </style>
