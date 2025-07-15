@@ -6,7 +6,9 @@
       <div class="col-md-9 left-panel">
         <HeaderTime />
         <StoreOpPanel @new-approval="handleNewApproval" />
-        <ChatBox />
+        <div class="flex-grow-1 d-flex flex-column">
+          <ChatBox />
+        </div>
       </div>
 
       <!-- 右侧审批流 -->
@@ -55,10 +57,22 @@ const closeApprovalPopup = () => {
 </script>
 
 <style scoped>
+html, body {
+  overflow: hidden;
+  height: 100%;
+}
+
 .left-panel {
   height: 100vh;
   padding: 20px;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.left-panel > .row,
+.left-panel > .container-fluid {
+  flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
