@@ -1,5 +1,7 @@
 '''
     仓库补货
+    向inventory_log表中添加记录，并更新warehouse_inventory表项
+    ===(为什么用的是/api/replenish？？？？)===
 
     传入
     {
@@ -9,14 +11,12 @@
     }
     返回
     {
-        bool:success: 是否登录成功
-        array(str, str): 商店编号, 商店名称
+        int:successType: (0:商品编号不存在 1:补货成功 2:出错)
     }
 '''
 
 from flask import jsonify
 from database import DBPool
-from datetime import datetime
 from API_Funcs_Light.API_of_API.InvLog_idGen import id_format, get_id
 
 def API_WarehouseReplenish(request):
