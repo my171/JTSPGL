@@ -226,6 +226,7 @@ defineExpose({ show, relatedclose });
 </script>
 
 <style scoped>
+@import "./popup-style.css";
 /* popup-style.css */
 .popup-overlay {
   position: fixed;
@@ -235,22 +236,6 @@ defineExpose({ show, relatedclose });
   height: 100%;
   pointer-events: none;
   z-index: 999;
-}
-
-.popup-panel {
-  position: fixed;
-  top: 0;
-  right: -420px; /* 初始隐藏在右侧 */
-  width: 400px;
-  height: 100vh;
-  background-color: #fff;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  transition: right 0.3s ease;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
 }
 
 .popup-panel.show {

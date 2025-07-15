@@ -5,6 +5,7 @@ from datetime import datetime
 from database import DBPool
 from flask_cors import CORS
 from tts_main import text_to_sqlite
+#from _1_Entry import API_RAG_TextGen
 
 import sys
 import locale
@@ -64,6 +65,7 @@ def UserVerify():
                 })
 
     except Exception as e:
+        print(str(e))
         return jsonify({"err": str(e)}), 500
 
 # Chatting Box Routing
@@ -75,7 +77,7 @@ def chatting():
         if not input_text:
             return jsonify({'error': '输入文本为空'}), 400
         
-        result = text_to_sqlite(input_text)
+        #result = API_RAG_TextGen(input_text)
         return jsonify({'result': result})
     
     except Exception as e:
