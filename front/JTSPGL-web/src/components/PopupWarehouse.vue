@@ -114,15 +114,15 @@ const show = async (id, name) => {
           new CustomEvent(
             'store-click', {
               detail: {
-                name: '${store}',
-                id: '${store}'
+                name: '${store[1]}',
+                id: '${store[0]}'
               },
               bubbles: true,
             }
           )
         )"
       >
-              ${store}
+              ${store[1]}
       </button>`;
     });
     content.value = html;
@@ -145,7 +145,7 @@ const queryProduct = async () => {
       `http://localhost:5000/api/warehouses/${currentWarehouseId.value}/products`,
       {
         params: {
-          productId: queryInput.value,
+          query: queryInput.value,
         },
       }
     );
@@ -171,15 +171,21 @@ const queryProduct = async () => {
 const replenish = async () => {
   /*直接给仓库加库存量，调用仓库流水表 和 库存表*/
   try {
-    const res = await axios.post("http://localhost:5000/api/replenish", {
+    const response = await axios.post("http://localhost:5000/api/replenish", {
       warehouse_id: currentWarehouseId.value,
       product: replenishProduct.value,
       quantity: Number(replenishQty.value),
     });
-    if (res.data.successType == 1) {
-      alert("补货成功");
-    } else if (res.data.successType == 0) {
-      alert("补货失败: 未知商品编号");
+    switch (response.data.successType) {
+      case 0:
+        alert("补货失败: 未知商品编号");
+        break;
+      case 1:
+        alert("补货成功");
+        break;
+      case 2:
+        alert(`补货失败：${response.data.err}`);
+        break;
     }
   } catch (err) {
     alert(`补货失败：${err.message}`);

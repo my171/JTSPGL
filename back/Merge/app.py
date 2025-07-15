@@ -301,8 +301,9 @@ def get_product_info():
                     GROUP BY unit_price
                 """
                 cur.execute(query, (product_id, store_id, year, month, ))
-                quantity = cur.fetchone()[0]
-                unit_price = cur.fetchone()[1]
+                result = cur.fetchone()
+                quantity = result[0]
+                unit_price = result[1]
                 return jsonify({
                     "successType": 2,
                     "quantity": quantity,
@@ -310,6 +311,7 @@ def get_product_info():
                     "store_inventory": store_inventory
                 })
     except Exception as e:
+        print(str(e))
         return jsonify({
             "successType": 4,
             "err": str(e)}), 500
@@ -443,6 +445,7 @@ def request_approval():
                         %s, %s, %s, %s, %s, %s, %s
                     )
                 """
+                print(approval_id, product_id, from_location_id, to_location_id, quantity, '待审核', current_time)
                 cur.execute(insert_sql, (approval_id, product_id, from_location_id, to_location_id, quantity, '待审核', current_time, ))
                 conn.commit()
                 return jsonify({
@@ -451,6 +454,7 @@ def request_approval():
                     "approval_id": approval_id
                 })
     except Exception as e:
+        print(str(e))
         return jsonify({
             "sucessType": 1,
             "err": str(e)
