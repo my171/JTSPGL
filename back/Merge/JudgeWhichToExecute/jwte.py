@@ -13,9 +13,9 @@ client = OpenAI(api_key="sk-ubjkrzodjlihepttrgdmmqsxaulmoktrzvmvzzwpkaftmtcn",
 
 def GetJudge(requirement: str) -> str:
     prompt = (
-        "公司领导向你提出了一个要求，你需要判断:1.是否需要进行数据库相关操作来获取相关数据 2.是否执行了查询语句 3.是否需要绘制图表\n"
+        "公司领导向你提出了一个要求，你需要判断是否需要进行数据库的插入、删除或更新操作"
         f"需求: {requirement}\n"
-        "请通过以下格式回复 {\"1\": Y/N, \"2\": Y/N, \"3\": Y/N}，不需要额外的解释内容。"
+        "回复Y或者N，不需要额外的解释内容，若无法判断或理解需求则回复N。"
     )
     #输出提示词
     backoff = 1.0
@@ -28,7 +28,7 @@ def GetJudge(requirement: str) -> str:
             timeout=300
         )
         content = resp.choices[0].message.content
-        return extract_sql(content)
+        return content
     except (APIConnectionError, APIError, ReadTimeout) as e:
         print(str(e))
         return 0

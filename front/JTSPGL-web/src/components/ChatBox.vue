@@ -1,4 +1,3 @@
-<!--ChatBox.vue-->
 <template>
   <div class="chat-box">
     <div class="chat-history" ref="chatHistory">
@@ -8,7 +7,16 @@
         class="chat-message-row"
         :class="message.sender"
       >
-        <div class="chat-message">{{ message.text }}</div>
+        <div class="chat-message">
+          <!-- 文本消息 -->
+          <template v-if="message.type === 'text'">
+            {{ message.text }}
+          </template>
+          <!-- 图片消息 -->
+          <template v-else-if="message.type === 'image'">
+            <img :src="message.url" class="chat-image" alt="图片" @load="scrollToBottom" />
+          </template>
+        </div>
       </div>
     </div>
     <div class="chat-input-area">
@@ -20,6 +28,11 @@
           placeholder="请输入您的问题..."
           @keyup.enter="sendMessage"
         />
+        <!-- 图片上传按钮 -->
+        <label class="btn btn-secondary">
+          <input type="file" accept="image/*" @change="handleImageUpload" hidden />
+          <i class="bi bi-image"></i>
+        </label>
         <button class="btn btn-dark" @click="sendMessage">发送</button>
       </div>
     </div>
@@ -37,6 +50,7 @@ const chatHistory = ref(null);
 const sendMessage = async () => {
   if (inputMessage.value.trim()) {
     messages.value.push({
+      type: "text",
       text: inputMessage.value,
       sender: "sender",
     });
@@ -50,17 +64,49 @@ const sendMessage = async () => {
       const response = await axios.post("http://localhost:5000/chatting", {
         text: sentText,
       });
+      if (response.data.isString){
+        messages.value.push({
+          type: "text",
+          text: response.data.result,
+          sender: "receiver",
+        });
+      }
+      else{
+        messages.value.push({
+          type: "image",
+          url: response.data.result,
+          sender: "receiver"
+        });
+      }
+    } catch (error) {
       messages.value.push({
-        text: response.data.result,
+        type: "text",
+        text: `处理出错: ${error.response?.data?.error || error.message}`,
         sender: "receiver",
       });
-    } catch (error) {
-      messages.value = `处理出错: ${
-        error.response?.data?.error || error.message
-      }`;
     }
-    //inputMessage.value = '';之前清空过，此处多余
   }
+};
+
+const handleImageUpload = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // 创建本地URL用于预览
+  const imageUrl = URL.createObjectURL(file);
+  alert(imageUrl);
+  // 添加到消息列表
+  messages.value.push({
+    type: "image",
+    url: imageUrl,
+    sender: "receiver",
+    file: file // 保留文件对象用于后续上传
+  });
+
+  // 重置文件输入，允许重复选择同一文件
+  event.target.value = null;
+  
+  scrollToBottom();
 };
 
 const scrollToBottom = () => {
@@ -128,6 +174,14 @@ const scrollToBottom = () => {
   border-top-right-radius: 0;
 }
 
+/* 图片消息样式 */
+.chat-image {
+  max-width: 100%;
+  max-height: 150px;
+  border-radius: 8px;
+  display: block;
+}
+
 .chat-input-area {
   display: flex;
   gap: 8px;
@@ -137,12 +191,15 @@ const scrollToBottom = () => {
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid #ced4da;
+  display: flex;
+  align-items: center;
 }
 
 .input-group .form-control {
   border: none;
   border-radius: 10px;
   padding: 10px 15px;
+  flex: 1;
 }
 
 .input-group .form-control:focus {
@@ -152,14 +209,26 @@ const scrollToBottom = () => {
 
 .input-group .btn {
   border-radius: 8px;
-  padding: 10px 20px;
-  background-color: #4a86e8;
-  color: white;
+  padding: 10px 15px;
   border: none;
   transition: background-color 0.3s;
 }
 
-.input-group .btn:hover {
+.input-group .btn-dark {
+  background-color: #4a86e8;
+  color: white;
+}
+
+.input-group .btn-dark:hover {
   background-color: #3a76d8;
+}
+
+.input-group .btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.input-group .btn-secondary:hover {
+  background-color: #5a6268;
 }
 </style>

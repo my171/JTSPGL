@@ -5,7 +5,9 @@ from datetime import datetime
 from database import DBPool
 from flask_cors import CORS
 from predict import predict_future_sales
-#from agentrag1 import main
+from tts_main import text_to_sqlite
+from JudgeWhichToExecute.jwte import GetJudge
+from agentrag1 import main
 
 import sys
 import locale
@@ -74,11 +76,21 @@ def chatting():
         input_text = request.get_json().get('text', '')
         
         if not input_text:
-            
             return jsonify({'error': '输入文本为空'}), 400
         
-        #result = main(input_text)
-        #return jsonify({'result': result})
+        judgeResult = GetJudge(input_text)
+        if judgeResult == "Y":
+            result = text_to_sqlite(input_text)
+            return jsonify({
+                'isString': True,
+                'result': result
+            })
+        else:
+            (isString, result) = main(input_text)
+            return jsonify({
+                'isString': isString,
+                'result': result
+            })
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
