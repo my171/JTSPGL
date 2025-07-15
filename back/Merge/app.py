@@ -237,6 +237,31 @@ def replenish():
             "err": str(e)
         }), 500
 
+# Get Name of a Certain Store
+@app.route('/api/store/name', methods = ['GET'])
+def get_store_name_by_id():
+    store_id = request.args.get('store_id', '')
+    
+    try:
+        with DBPool.get_connection() as conn:
+            with conn.cursor() as cur:
+                # Check if the product exists
+                check = """
+                    SELECT store_name 
+                    FROM store 
+                    WHERE store_id = %s
+                """
+                cur.execute(check, (store_id, ))
+                result = cur.fetchone()
+                name = result[0]
+                return jsonify({
+                    "name": name, 
+                })
+    except Exception as e:
+        print(str(e))
+        return jsonify({
+            "err": str(e)}), 500
+
 # Query the product info of a certain store 
 @app.route('/api/store/products', methods = ['GET'])
 def get_product_info():

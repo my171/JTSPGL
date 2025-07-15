@@ -87,14 +87,23 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import axios from "axios";
 
 const emit = defineEmits(["new-approval"]);
 
 // 数据字段
-const warehouseName = ref(localStorage.getItem("warehouse_name"));
+
+const warehouseList = ref([
+  { id: "WH001", name: "华北中心仓" },
+  { id: "WH002", name: "华东智能仓" },
+  { id: "WH003", name: "华南枢纽仓" },
+  { id: "WH004", name: "西南分拨中心" },
+  { id: "WH005", name: "东北冷链仓" },
+]);
+
 const warehouseId = ref(localStorage.getItem("DetailInfo"));
+const warehouseName = ref("");
 
 const queryInput = ref("");
 const productResult = ref("");
@@ -105,13 +114,13 @@ const replenishQty = ref(0);
 const transferProduct = ref("");
 const transferQty = ref(0);
 const selectedWarehouse = ref("");
-const warehouseList = ref([
-  { id: "WH001", name: "华北中心仓" },
-  { id: "WH002", name: "华东智能仓" },
-  { id: "WH003", name: "华南枢纽仓" },
-  { id: "WH004", name: "西南分拨中心" },
-  { id: "WH005", name: "东北冷链仓" },
-]);
+
+onMounted(() => {
+  const warehouse = warehouseList.value.find(item => item.id === warehouseId.value);
+  if (warehouse) {
+    warehouseName.value = warehouse.name;
+  }
+});
 
 // 查询库存
 const queryProduct = async () => {
