@@ -91,14 +91,14 @@ const queryProduct = async () => {
   try {
     const res = await axios.get("http://localhost:5000/api/store/products", {
       params: {
-        storeId: storeId.value,
-        productId: queryInput.value,
+        store_id: storeId.value,
+        query: queryInput.value,
       },
     });
     if (res.data.successType == 0) {
       productResult.value = "查询失败：商品编号不存在";
     } else if (res.data.successType == 1) {
-      productResult.value = res.data.name + ":未查询到销售记录";
+      productResult.value = "未查询到销售记录";
     } else {
       productResult.value =
         res.data.name +
@@ -180,10 +180,9 @@ const sell = async () => {
     });
     switch(response.data.successType){
       case 0:alert("商品编号不存在");break;
-      case 1:alert("仓库无相关商品记录");break;
-      case 2:alert("仓库内商品库存不足: 需求" + sellQty.value + " 储量" + response.data.num);break;
+      case 2:alert("仓库内商品库存不足");break;
       case 3:alert("卖出成功");break;
-      case 4:alert(`卖出失败：${err.message}`);break;
+      case 4:alert(`卖出失败：${response.data.err}`);break;
     }
   } catch (err) {
     alert(`卖出失败：${err.message}`);
