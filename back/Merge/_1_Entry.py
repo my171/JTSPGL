@@ -148,4 +148,13 @@ def format_result(result: Dict) -> str:
         resultString += result['pdf_result'] + "\n"
 
 if __name__ == '__main__':
-    print(API_RAG_TextGen("仓库里有哪些华为产品"))
+    text = API_RAG_TextGen("描述数据库")
+    print("==================")
+    print("==================")
+    print("==================")
+    print("==================")
+    print("==================")
+    print("==================")
+    print("==================")
+    print("==================")
+    print(text)

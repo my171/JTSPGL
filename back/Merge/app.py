@@ -5,6 +5,8 @@ from datetime import datetime
 from database import DBPool
 from flask_cors import CORS
 from tts_main import text_to_sqlite
+from _1_Entry import API_RAG_TextGen
+from agentrag1 import main
 
 import sys
 import locale
@@ -73,9 +75,10 @@ def chatting():
         input_text = request.get_json().get('text', '')
         
         if not input_text:
+            
             return jsonify({'error': '输入文本为空'}), 400
         
-        result = text_to_sqlite(input_text)
+        result = main(input_text)
         return jsonify({'result': result})
     
     except Exception as e:
