@@ -198,12 +198,12 @@ const sell = async () => {
     product_id: sellProduct.value,
     quantity: sellQty.value,
   });
-  switch(response.data.successType){
+  switch(res.data.successType){
     case 0:alert("商品编号不存在");break;
     case 1:alert("请输入正整数");break;
     case 2:alert("仓库内商品库存不足");break;
     case 3:alert("卖出成功");break;
-    case 4:alert(`卖出失败：${response.data.err}`);break;
+    case 4:alert(`卖出失败：${res.data.err}`);break;
     case 5:alert("卖出成功");break;
   }
 };
@@ -211,12 +211,14 @@ const sell = async () => {
 // 预测
 const predict = async () => {
   const res = await axios.post("http://localhost:5000/api/predict", {
-    store_id: storeId.value,
+    warehouse_id: storeId.value,
     product_id: sellPredict.value,
   });
   switch(res.data.successType){
     case 0: predictResult.value = "预测结果" + res.data.predict_sales;break;
-    case 1: predictResult.value = res.data.err;break;
+    case 1: predictResult.value = "服务器错误";break;
+    case 2: predictResult.value = "不存在相应商品编号";break;
+    case 3: predictResult.value = "不存在相应销售记录";break;
   }
 };
 </script>
