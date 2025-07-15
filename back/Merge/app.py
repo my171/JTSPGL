@@ -6,6 +6,7 @@ from database import DBPool
 from flask_cors import CORS
 from tts_main import text_to_sqlite
 from _1_Entry import API_RAG_TextGen
+from predict import predict_future_sales
 from agentrag1 import main
 
 import sys
@@ -84,7 +85,6 @@ def chatting():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-<<<<<<< HEAD
 # Predict the future sales
 @app.route('/api/predict', methods = ['POST'])
 def predict():
@@ -138,8 +138,6 @@ def predict():
             "successType": 1
         })
 
-=======
->>>>>>> origin/main
 # Fetch the list of stores by warehouse
 @app.route('/api/warehouses/<warehouse_id>/stores', methods = ['GET'])
 def get_stores_by_warehouse_id(warehouse_id):
