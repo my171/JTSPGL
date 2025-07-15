@@ -406,7 +406,7 @@ def accepted():
     #Fetch the data
     approval_id = request.get_json().get('approval_id', '')
 
-    # Get the date
+    # Get the time
     current_time = datetime.now()
 
     try:
@@ -437,7 +437,7 @@ def rejected():
     # Fetch the data
     approval_id = request.get_json().get('approval_id', '')
 
-    # Get the date
+    # Get the time
     current_time = datetime.now()
 
     try:
@@ -456,6 +456,37 @@ def rejected():
                 return jsonify({
                     "successType": 0,
                     "approval_time": current_time
+                })
+                
+    except Exception as e:
+        return jsonify({
+            "sucessType": 1,
+            "err": str(e)
+        }), 500
+
+@app.route('/api/approval/cancel', methods = ['POST'])
+def cancel():
+    # Fetch the data
+    approval_id = request.get_json().get('approval_id', '')
+
+    # Get the time
+    current_time = datetime.now()
+
+    try:
+        with DBPool.get_connection() as conn:
+            with conn.cursor() as cur:
+                # Update the transfer_approval table
+                update_sql = """
+                    UPDATE transfer_approval
+                    SET
+                        status = %s,
+                        approval_time = %s
+                    WHERE approval_id = %s
+                """
+                cur.execute(update_sql, ('已取消', current_time, approval_id, ))
+                conn.commit()
+                return jsonify({
+                    "successType": 0
                 })
                 
     except Exception as e:
