@@ -21,23 +21,29 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes
-})
+});
+
+const ROLE_ADMIN = 'admin';
+const ROLE_WAREHOUSE = 'wh';
+const ROLE_STORE = 'st';
 
 router.beforeEach((to, from, next) => {
-  const isAuthenticated1 = localStorage.getItem('authenticated_UserType1') === 'true'
-  const isAuthenticated2 = localStorage.getItem('authenticated_UserType2') === 'true'
-  const isAuthenticated3 = localStorage.getItem('authenticated_UserType3') === 'true'
+  const isAuthed = localStorage.getItem('isAuthed') === 'true'
+  const RoleType = localStorage.getItem('RoleType')
   
   if (to.name == 'auth'){
     next()
   }
-  if (to.meta.requiresAuth && to.meta.type == 1 && isAuthenticated1) {
+  else if (!isAuthed){
+    next({ name: 'auth' })
+  }
+  else if (to.meta.requiresAuth && to.meta.type == 1 && RoleType == ROLE_ADMIN) {
     next()
   }
-  else if (to.meta.requiresAuth && to.meta.type == 2 && isAuthenticated2) {
+  else if (to.meta.requiresAuth && to.meta.type == 2 && RoleType == ROLE_WAREHOUSE) {
     next()
   }
-  else if (to.meta.requiresAuth && to.meta.type == 3 && isAuthenticated3) {
+  else if (to.meta.requiresAuth && to.meta.type == 3 && RoleType == ROLE_STORE) {
     next()
   }
   else {

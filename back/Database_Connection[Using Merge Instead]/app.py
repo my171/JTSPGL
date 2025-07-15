@@ -4,6 +4,7 @@ from config import Config
 from datetime import datetime
 from database import DBPool
 from flask_cors import CORS
+from tts_main import text_to_sqlite
 
 import sys
 import locale
@@ -22,10 +23,6 @@ app = Flask(__name__)
 CORS(app)  # 允许跨域请求
 app.config.from_object(Config)
 
-# Get result from the LLM
-def get_result(input_text):
-    return f""""Original Text: {input_text}"""
-
 # Chatting Box Routing
 @app.route('/chatting', methods = ['POST'])
 def chatting():
@@ -35,7 +32,7 @@ def chatting():
         if not input_text:
             return jsonify({'error': '输入文本为空'}), 400
         
-        result = get_result(input_text)
+        result = text_to_sqlite(input_text)
         return jsonify({'result': result})
     
     except Exception as e:

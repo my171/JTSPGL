@@ -32,6 +32,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue';
+import axios from "axios";
 import router from '@/router'
 
 const props = defineProps({
@@ -50,6 +51,10 @@ const errorMessage = ref('');
 
 const emit = defineEmits(['submit']);
 
+const ROLE_ADMIN = 'admin';
+const ROLE_WAREHOUSE = 'wh';
+const ROLE_STORE = 'st';
+
 const handleSubmit = async () => {
   // 简单的验证逻辑
   if (!form.username || !form.password) {
@@ -57,26 +62,59 @@ const handleSubmit = async () => {
     return;
   }
 
-  // 示例验证 - 实际项目中应该调用API
-  if (form.username === 'first' && form.password === '123456') {
+  if (form.username === 'fslkgg' && form.password === 'fslkgg') {
     errorMessage.value = '';
     emit('submit', { success: true, data: form });
-    localStorage.setItem('authenticated_UserType1', 'true');
+    localStorage.setItem('isAuthed', 'true');
+    localStorage.setItem('RoleType', 'admin');
     await router.push('/page_USER1')
   } else  if (form.username === 'second' && form.password === '123456') {
     errorMessage.value = '';
     emit('submit', { success: true, data: form });
-    localStorage.setItem('authenticated_UserType2', 'true');
+    localStorage.setItem('isAuthed', 'true');
+    localStorage.setItem('RoleType', 'wh');
     await router.push('/page_USER2')
   } else  if (form.username === 'third' && form.password === '123456') {
     errorMessage.value = '';
     emit('submit', { success: true, data: form });
-    localStorage.setItem('authenticated_UserType3', 'true');
+    localStorage.setItem('isAuthed', 'true');
+    localStorage.setItem('RoleType', 'st');
     await router.push('/page_USER3')
   } else {
     errorMessage.value = '用户名或密码错误';
     emit('submit', { success: false, error: '验证失败' });
   }
+/*
+  try {
+    const response = await axios.post("http://localhost:5000/api/verify", {
+      username: form.username,
+      password: form.password,
+    });
+
+    if (response.data.success){
+      errorMessage.value = '';
+      localStorage.setItem('isAuthed', 'true');
+      localStorage.setItem('RoleType', response.data.role);
+      switch(response.data.role){
+        case ROLE_ADMIN:
+          await router.push('/page_USER1');
+          break;
+        case ROLE_WAREHOUSE:
+          await router.push('/page_USER2');
+          break;
+        case ROLE_STORE:
+          await router.push('/page_USER3');
+          break;
+      }
+    }
+    else{
+      errorMessage.value = '用户名或密码错误';
+    }
+  } catch (error) {
+    alert(error);
+    errorMessage.value = '服务器运行异常';
+  }*/
+  
 };
 </script>
 

@@ -8,6 +8,7 @@
     <div v-if="approvalRequests.length === 0">暂无审批流记录</div>
 
     <div v-for="(group, status) in groupedApprovals" :key="status">
+      <div v-if="group.length > 0">
       <h6 class="mt-3">{{ status }}</h6>
       <button
         v-for="item in group"
@@ -18,6 +19,7 @@
       >
         {{ item.display }}
       </button>
+    </div>
     </div>
   </div>
 </template>
@@ -36,9 +38,17 @@ const props = defineProps({
 
 const panelTransform = ref("translateX(0)");
 
+const STATUS_ORDER = [
+  "待审核",
+  "审核不通过",
+  "待出库",
+  "待收货",
+  "已完成"
+];
+
 const statusColorMap = {
   待审核: "gray",
-  审核不通过: "red",
+  已取消: "red",
   待出库: "yellow",
   待收货: "yellow",
   已完成: "green",
@@ -46,6 +56,11 @@ const statusColorMap = {
 
 const groupedApprovals = computed(() => {
   const groups = {};
+
+  for (const status of STATUS_ORDER) {
+    groups[status] = [];
+  }
+
   for (const item of props.approvalRequests) {
     if (!groups[item.status]) {
       groups[item.status] = [];

@@ -1,3 +1,4 @@
+#pip install -r requirements.txt   安装所有依赖
 aiohappyeyeballs==2.6.1
 aiohttp==3.12.13
 aiosignal==1.4.0
@@ -81,3 +82,4 @@ urllib3==2.5.0
 uvicorn==0.35.0
 yarl==1.20.1
 zstandard==0.23.0
+tabulate

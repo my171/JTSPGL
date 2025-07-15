@@ -4,7 +4,7 @@
     <button class="btn btn-sm btn-outline-secondary mb-3" @click="close">
       关闭
     </button>
-    <h5>商店：{{ storeName }}</h5>
+    <h5 v-if="storeName">商店：{{ storeName }}</h5>
 
     <hr />
 
@@ -57,8 +57,8 @@ import axios from "axios";
 const emit = defineEmits(["close"]);
 
 const isVisible = ref(false);
-const storeId = ref("");
 const storeName = ref("");
+const storeId = ref("");
 
 const queryInput = ref("");
 const productResult = ref("");
@@ -72,9 +72,9 @@ const sellProduct = ref("");
 const sellQty = ref([]);
 
 // 打开弹窗（传入商店 id 和 name）
-const show = async (id, name) => {
-  storeId.value = id;
+const show = async (name, id) => {
   storeName.value = name;
+  storeId.value = id;
   isVisible.value = true;
 
   // 加载仓库列表
@@ -91,15 +91,23 @@ const show = async (id, name) => {
 const queryProduct = async () => {
   try {
     const res = await axios.get(
-      "http://localhost:5000/api/store/product/full",
+      "http://localhost:5000/api/store/products",
       {
         params: {
-          store_id: storeId.value,
-          query: queryInput.value,
+          storeId: storeId.value,
+          productId: queryInput.value,
         },
       }
     );
-    productResult.value = JSON.stringify(res.data, null, 2);
+    if (res.data.successType == 0){
+      productResult.value = '查询失败：商品编号不存在'
+    }
+    else if (res.data.successType == 1){
+      productResult.value = res.data.name + ":未查询到销售记录";
+    }
+    else{
+      productResult.value = res.data.name + " 单价:" + res.data.unit_price + " 销量:" + res.data.quantity;
+    }
   } catch (err) {
     productResult.value = `查询失败：${err.message}`;
   }
@@ -112,7 +120,7 @@ const transferIn = async () => {
       warehouseList.value.find((w) => w.id === selectedWarehouseId.value)
         ?.name || "";
     await axios.post("http://localhost:5000/api/store/transfer-in", {
-      store_id: storeId.value,
+      store_id: storeName.value,
       product: transferProduct.value,
       quantity: Number(transferQty.value),
       from_warehouse_id: selectedWarehouseId.value,
@@ -122,10 +130,17 @@ const transferIn = async () => {
 
     emit("new-approval", {
       id: `P${Date.now()}`,
-      display: `${fromWarehouseName}-${transferProduct.value}-${transferQty.value}-待审核`,
+      product: transferProduct.value,
+      quantity: transferQty.value,
       status: "待审核",
-      from: fromWarehouseName,
-      to: storeName.value,
+      from: fromWarehouse,
+      to: currentWarehouseName.value,
+      createdAt: null,
+      approvedAt: null,
+      shippedAt: null,
+      receivedAt: null,
+      // display 字段用于右侧面板按钮显示
+      display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`
     });
   } catch (err) {
     alert(`调货失败：${err.message}`);
@@ -136,7 +151,7 @@ const transferIn = async () => {
 const sell = async () => {
   try {
     await axios.post("http://localhost:5000/api/store/sell", {
-      store_id: storeId.value,
+      store_id: storeName.value,
       product: sellProduct.value,
       quantity: Number(sellQty.value),
     });
