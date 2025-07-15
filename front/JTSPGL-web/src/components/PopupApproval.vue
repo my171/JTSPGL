@@ -29,14 +29,14 @@
         <button
           v-if="approval.status === '待审核'"
           class="btn btn-success me-2"
-          @click="approve(true)"
+          @click="approveAccepted"
         >
           审核通过
         </button>
         <button
           v-if="approval.status === '待审核'"
           class="btn btn-danger"
-          @click="approve(false)"
+          @click="approveRejected"
         >
           审核不通过
         </button>
@@ -159,29 +159,45 @@ const relatedclose = () => {
 const getNow = () => new Date().toLocaleString();
 
 //APPROVAL BUTTONS
-const approve = async (passed) => {
+const approveAccepted = async () => {
   if (!approval.value) return;
-  try {
-    const url = passed
-      ? `http://localhost:5000/api/approval/accepted`
-      : `http://localhost:5000/api/approval/rejected`;
 
-    const response = axios.post(url, {
+  try {
+    const response = await axios.post("http://localhost:5000/api/approval/accepted", {
       approval_id: approval.value.id,
     });
 
-    const { approvedAt } = response.data;
+    const { approval_time: approvedAt } = response.data;
 
-    approval.value.status = passed ? "待出库" : "已取消";
+    approval.value.status = "待出库";
     approval.value.approvedAt = approvedAt;
-    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-${approval.value.status}`;
+    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-待出库`;
 
     emit("update-approval", approval.value);
   } catch (err) {
-    alert(`操作失败：${err.message}`);
+    alert(`审核通过失败：${err.message}`);
   }
 };
 
+const approveRejected = async () => {
+  if (!approval.value) return;
+
+  try {
+    const response = await axios.post("http://localhost:5000/api/approval/rejected", {
+      approval_id: approval.value.id,
+    });
+
+    const { approval_time: rejectedAt } = response.data;
+
+    approval.value.status = "已取消";
+    approval.value.approvedAt = rejectedAt;
+    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-已取消`;
+
+    emit("update-approval", approval.value);
+  } catch (err) {
+    alert(`审核拒绝失败：${err.message}`);
+  }
+};
 //SHIP BUTTON
 const ship = async () => {
   if (!approval.value) return;

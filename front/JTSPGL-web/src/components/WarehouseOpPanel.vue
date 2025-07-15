@@ -22,8 +22,8 @@
         <pre>{{ productResult }}</pre>
       </div>
     </div>
-    <!-- 补货操作 -->
-    <div class="card mb-3">
+<!-- 补货操作 -->
+<div class="card mb-3">
       <div class="card-header">补货操作</div>
       <div class="card-body d-flex align-items-center gap-2">
         <input
@@ -44,9 +44,9 @@
     <!-- 调货操作 -->
     <div class="card mb-3">
       <div class="card-header">调货申请</div>
-      <div class="card-body position-relative" style="padding-right: 80px">
+      <div class="card-body d-flex flex-column gap-2 position-relative">
         <!-- 商品ID -->
-        <div class="mb-2" style="max-width: 1080px">
+        <div class="d-flex align-items-center">
           <input
             v-model="transferProduct"
             placeholder="商品ID"
@@ -55,7 +55,7 @@
         </div>
 
         <!-- 调货数量 -->
-        <div class="mb-2" style="max-width: 1080px">
+        <div class="d-flex align-items-center">
           <input
             v-model.number="transferQty"
             placeholder="调货数量"
@@ -64,7 +64,7 @@
         </div>
 
         <!-- 目标仓库 -->
-        <div class="mb-2" style="max-width: 1080px">
+        <div class="d-flex align-items-center">
           <select v-model="selectedWarehouse" class="form-select">
             <option disabled value="">选择目标仓库</option>
             <option v-for="w in warehouseList" :key="w.id" :value="w.id">
@@ -75,11 +75,11 @@
 
         <!-- 提交按钮 -->
         <button
-          class="btn btn-warning position-absolute translate-middle-y"
+          class="btn btn-warning position-absolute top-50 end-0 translate-middle-y"
           @click="transfer"
-          style="top: 50%; right: 15px; transform: translateY(-50%); z-index: 2"
+          style="z-index: 1"
         >
-          调货
+          提交调货
         </button>
       </div>
     </div>

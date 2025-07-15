@@ -520,7 +520,7 @@ def request_approval():
         }), 500
 
 # Accept the approval
-@app.route('/api/approval/accpeted', methods = ['POST'])
+@app.route('/api/approval/accepted', methods = ['POST'])
 def accepted():
     #Fetch the data
     approval_id = request.get_json().get('approval_id', '')
