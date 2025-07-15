@@ -1,5 +1,9 @@
 from API_TextToText.API_of_RAG._2_AgenticRAGSystem import AgenticRAGSystem
 from typing import Dict
+import os
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+os.environ["HF_HUB_OFFLINE"] = "0"
+os.environ["TRANSFORMERS_OFFLINE"] = "0"
 
 RAG_DEBUG = True
 
@@ -91,9 +95,8 @@ def API_RAG_TextGen(inputText) -> str:
         Global_RAG.memory_agent.clear_memory()
         return "对话记忆已清空"
     # 只在调试模式下显示SQL相关日志
-    # result = rag.process_query(inputText)
-    
     result = Global_RAG.process_query(inputText)
+    display_result(result)
     '''
     if RAG_DEBUG:
         result = rag.process_query(inputText)

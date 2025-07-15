@@ -1557,8 +1557,8 @@ class UniversalDatabaseAgent:
             return f"{answer}\n{insight}"
         else:
             # 5. 数据为空时才考虑知识库/LLM补充
-            kb_result = self.query_knowledge_base(question)
-            return f"未查询到相关数据库数据。\n{kb_result}"
+            #kb_result = self.query_knowledge_base(question)
+            return f"未查询到相关数据库数据。"#\n{kb_result}"
 
     def _format_query_result(self, rows, column_names):
         """将数据库查询结果格式化为结构化表格或直观文本"""
@@ -1568,3 +1568,5 @@ class UniversalDatabaseAgent:
         from tabulate import tabulate
         table = tabulate(rows, headers=column_names, tablefmt="fancy_grid", floatfmt=".2f")
         return f"\n📊 查询结果\n{table}\n"
+    
+    

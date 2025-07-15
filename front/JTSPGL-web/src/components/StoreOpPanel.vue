@@ -10,7 +10,7 @@
       <div class="card mb-3">
         <div class="card-header">商品信息与销量</div>
         <div class="card-body">
-          <input v-model="queryInput" placeholder="商品ID或名称" class="form-control mb-2" />
+          <input v-model="queryInput" placeholder="商品ID" class="form-control mb-2" />
           <button class="btn btn-primary" @click="queryProduct">查询信息</button>
           <pre v-if="productResult">{{ productResult }}</pre>
         </div>
