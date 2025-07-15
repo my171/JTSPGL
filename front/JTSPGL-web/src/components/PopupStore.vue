@@ -122,7 +122,7 @@ const transferIn = async () => {
       warehouseList.value.find((w) => w.id === selectedWarehouseId.value)
         ?.name || "";
     const response = await axios.post("http://localhost:5000/api/supply", {
-      from_id: selectedWarehouse.value,
+      from_id: selectedWarehouseId.value,
       to_id: storeId.value,
       product_id: transferProduct.value,
       quantity: Number(transferQty.value),
@@ -187,6 +187,7 @@ const sell = async () => {
       case 2:alert("仓库内商品库存不足");break;
       case 3:alert("卖出成功");break;
       case 4:alert(`卖出失败：${response.data.err}`);break;
+      case 5:alert("卖出成功");break;
     }
   } catch (err) {
     alert(`卖出失败：${err.message}`);
