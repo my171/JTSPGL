@@ -23,6 +23,49 @@ app = Flask(__name__)
 CORS(app)  # 允许跨域请求
 app.config.from_object(Config)
 
+def is_positive_integer(num):
+    return (type(num) == int and num > 0)
+
+@app.route('/api/verify', methods = ['POST'])
+def UserVerify():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    # If not connected to database, use the following account
+    if (username == 'admin' and password == '123456'):
+        return jsonify({
+                "success" : True,
+                "role" : 'ADMIN',
+        })
+
+    try:
+        with DBPool.get_connection() as conn:
+            with conn.cursor() as cur:
+                # Query the user_type and detail_info
+                query = f"""
+                    SELECT user_type, detail_info
+                    FROM users
+                    WHERE user_id = %s
+                    AND pass_word = %s
+                """
+                cur.execute(query, (username, password, ))
+                result = cur.fetchone()
+                if result is None:
+                    return jsonify({
+                        "success" : False
+                    })
+                role = result[0]
+                detail = result[1]
+
+                return jsonify({
+                    "success" : True,
+                    "role" : role,
+                    "detail" : detail,
+                })
+
+    except Exception as e:
+        return jsonify({"err": str(e)}), 500
+
 # Chatting Box Routing
 @app.route('/chatting', methods = ['POST'])
 def chatting():
@@ -45,11 +88,11 @@ def get_stores_by_warehouse_id(warehouse_id):
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
                 query = """
-                    SELECT store_name
+                    SELECT store_id, store_name
                     FROM store
                     WHERE store.warehouse_id = %s
                 """
-                cur.execute(query, (warehouse_id,))
+                cur.execute(query, (warehouse_id, ))
                 return jsonify([row for row in cur.fetchall()])
     except Exception as e:
         return jsonify({"err": str(e)}), 500
@@ -57,9 +100,6 @@ def get_stores_by_warehouse_id(warehouse_id):
 # Query the inventory and the name of a certain product
 @app.route('/api/warehouses/<warehouse_id>/products', methods = ['GET'])
 def get_product_inventory(warehouse_id):
-    current_date = datetime.now().date()
-    year = current_date.year
-    month = current_date.month
     product_id = request.args.get('query', '')
     # Check if the parameter exists
     if len(product_id) < 1:
@@ -76,7 +116,7 @@ def get_product_inventory(warehouse_id):
                     FROM product
                     WHERE product_id = %s;
                 """
-                cur.execute(query, (product_id,))
+                cur.execute(query, (product_id, ))
                 result = cur.fetchone()
                 # Check if the product exists
                 if result is None:
@@ -90,10 +130,8 @@ def get_product_inventory(warehouse_id):
                     FROM warehouse_inventory
                     WHERE product_id = %s
                     AND warehouse_id = %s
-                    AND EXTRACT(YEAR FROM record_date) = %s
-                    AND EXTRACT(MONTH FROM record_date) = %s;
                 """
-                cur.execute(query, (product_id, warehouse_id, year, month))
+                cur.execute(query, (product_id, warehouse_id, ))
                 quantity = cur.fetchone()[0]
                 # Check if there is inventory
                 if quantity == 0:
@@ -125,7 +163,7 @@ def get_id(prefix, cnt) -> str:
     year = current_date.year
     month = current_date.month
     day = current_date.day
-    id = f"{prefix}{year % 100:02d}{month:02d}{day:02d}{cnt:.3d}"
+    id = f"{prefix}{year % 100:02d}{month:02d}{day:02d}{cnt:03d}"
     return id
 
 # Replenish Stocks
@@ -135,15 +173,30 @@ def replenish():
     data = request.get_json()
     product_id = data.get('product', '')
     quantity = data.get('quantity', '')
+    # Check if the quantity is correct
+    if not (is_positive_integer):
+        return jsonify({
+            "successType": 3
+        })
     warehouse_id = data.get('warehouse_id', '')
-
-    # Get the time
-    current_date = datetime.now().date()
 
     try:
         # Update the database
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
+                # Check if the product exists
+                check = """
+                    SELECT EXISTS(
+                        SELECT 1 
+                        FROM product 
+                        WHERE product_id = %s
+                    ) AS is_product_exists
+                """
+                cur.execute(check, (product_id, ))
+                if not cur.fetchone()[0]:
+                    return jsonify({
+                        "successType": 0
+                    })
                 # Get the log_id
                 query = """
                     SELECT COUNT(*) AS count
@@ -163,36 +216,86 @@ def replenish():
                     )
                     VALUES (%s, %s, %s, %s, %s)
                 """
-                cur.execute(insert_sql, (log_id, product_id, warehouse_id, 'IN', quantity))
+                cur.execute(insert_sql, (log_id, product_id, warehouse_id, 'IN', quantity, ))
                 # Update the warehouse_inventory table
                 update_sql = """
                     UPDATE warehouse_inventory
                     SET 
                         quantity = quantity + %s,
-                        record_date = %s
+                        record_date = CURRENT_DATE
                     WHERE warehouse_id = %s
-                    AND EXTRACT(YEAR FROM record_date) = %s
-                    AND EXTRACT(MONTH FROM record_date) = %s
                     AND product_id = %s
                 """
-                cur.execute(update_sql, (quantity, warehouse_id, current_date, product_id))
+                cur.execute(update_sql, (quantity, warehouse_id, product_id, ))
                 conn.commit()
+                return (jsonify({
+                    "successType": 1
+                }))
     except Exception as e:
-        return jsonify({"err": str(e)}), 500
+        return jsonify({
+            "successType": 2,
+            "err": str(e)
+        }), 500
 
-# Query the product inventory of a certain store 
-@app.route('/api/store/product/full', methods = ['GET'])
+# Query the product info of a certain store 
+@app.route('/api/store/products', methods = ['GET'])
 def get_product_info():
     # Fetch the data
     store_id = request.args.get('store_id', '')
     product_id = request.args.get('query', '')
     # Check if it lacks parameter
     if len(product_id) < 1:
-        return jsonify({"err", "缺少查询参数"}), 400
+        return jsonify({
+            "successType": 3,    
+        }), 400
+
+    #Get the time
+    current_date = datetime.now().date()
+    year = current_date.year
+    month = current_date.month
 
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
+                # Check if the product exists
+                check = """
+                    SELECT product_name 
+                    FROM product 
+                    WHERE product_id = %s
+                """
+                cur.execute(check, (product_id, ))
+                name = cur.fetchone()[0]
+                if not name:
+                    return jsonify({
+                        "successType": 0
+                    })
+                # Query the store inventory
+                query = """
+                    SELECT stock_quantity
+                    FROM store_inventory
+                    WHERE store_id = %s
+                    AND product_id = %s
+                """
+                cur.execute(query, (store_id, product_id, ))
+                store_inventory = cur.fetchone()[0]
+                # Check if the sales records exists
+                check = """
+                    SELECT EXISTS(
+                        SELECT 1 
+                        FROM sales 
+                        WHERE product_id = %s
+                        AND store_id = %s
+                        AND EXTRACT(YEAR FROM sale_date) = %s
+                        AND EXTRACT(MONTH FROM sale_date) = %s
+                    ) AS is_sales_records_exists
+                """
+                cur.execute(check, (product_id, store_id, year, month, ))
+                if not cur.fetchone()[0]:
+                    return jsonify({
+                        "successType": 1,
+                        "name": name, 
+                        "inventory": store_inventory
+                    })
                 # Query the quantity and price
                 query = """
                     SELECT 
@@ -201,17 +304,26 @@ def get_product_info():
                     FROM sales
                     WHERE product_id = %s
                     AND store_id = %s
+                    AND EXTRACT(YEAR FROM sale_date) = %s
+                    AND EXTRACT(MONTH FROM sale_date) = %s
                     GROUP BY unit_price
                 """
-            cur.execute(query, (product_id, store_id))
-            quantity = cur.fetchone()[0]
-            unit_price = cur.fetchone()[1]
-            return jsonify({
-                "quantity": quantity,
-                "unit_price": unit_price
-            })
+                cur.execute(query, (product_id, store_id, year, month, ))
+                result = cur.fetchone()
+                quantity = result[0]
+                unit_price = result[1]
+                return jsonify({
+                    "successType": 2, 
+                    "name": name, 
+                    "quantity": quantity,
+                    "unit_price": unit_price, 
+                    "store_inventory": store_inventory
+                })
     except Exception as e:
-        return jsonify({"err": str(e)}), 500
+        print(str(e))
+        return jsonify({
+            "successType": 4,
+            "err": str(e)}), 500
 
 # Sell products
 @app.route('/api/store/sell', methods = ['POST'])
@@ -221,6 +333,11 @@ def sell():
     store_id = data.get('store_id', '')
     product_id = data.get('product_id', '')
     quantity = data.get('quantity', '')
+    # Check if the quantity is correct
+    if not (is_positive_integer):
+        return jsonify({
+            "successType": 1
+        })
 
     # Get the date
     current_date = datetime.now().date()
@@ -228,6 +345,19 @@ def sell():
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
+                # Check if the product exists
+                check = """
+                    SELECT EXISTS(
+                        SELECT 1 
+                        FROM product 
+                        WHERE product_id = %s
+                    ) AS is_product_exists
+                """
+                cur.execute(check, (product_id, ))
+                if not cur.fetchone()[0]:
+                    return jsonify({
+                        "successType": 0
+                    })
                 # Query the inventory of the product
                 query_sql = """
                     SELECT stock_quantity
@@ -239,7 +369,9 @@ def sell():
                 rest_quantity = cur.fetchone()[0]
                 # Check if the inventory is sufficient
                 if quantity > rest_quantity:
-                    return jsonify({"err": "商品数量不足！"})
+                    return jsonify({
+                        "successType": 2
+                    })
                 # Update the store_inventory table
                 update_sql = """
                     UPDATE store_inventory
@@ -257,7 +389,7 @@ def sell():
                     WHERE product_id = %s
                     GROUP BY unit_price
                 """
-                cur.execute(query_sql, (product_id))
+                cur.execute(query_sql, (product_id, ))
                 unit_price = cur.fetchone()[0]
                 #Query the sales_id
                 query_sql = """
@@ -265,7 +397,7 @@ def sell():
                     FROM sales
                     WHERE sales_id LIKE %s
                 """
-                cur.execute(query_sql, id_format('SL') + '%')
+                cur.execute(query_sql, (id_format('SL') + '%', ))
                 sales_id = get_id('SL', cur.fetchone()[0] + 1)
                 # Insert into the sales table
                 update_sql = """
@@ -275,20 +407,31 @@ def sell():
                         product_id,
                         sale_date,
                         quantity,
-                        unit_price,
+                        unit_price
                     ) VALUES (%s, %s, %s, %s, %s, %s)
                 """
-                cur.execute(update_sql, (sales_id, store_id, product_id, current_date, quantity, unit_price))
+                cur.execute(update_sql, (sales_id, store_id, product_id, current_date, quantity, unit_price, ))
                 conn.commit()
+                return jsonify({
+                    "successType": 3
+                })
     except Exception as e:
-        return jsonify({"err": str(e)}), 500
+        return jsonify({
+            "successType": 4, 
+            "err": str(e)
+        }), 500
 
 # Send request
 @app.route('/api/request', methods = ['POST'])
-def request():
+def request_approval():
     # Fetch the data
     data = request.get_json()
     quantity = data.get('quantity', '')
+    # Check if the quantity is correct
+    if not (is_positive_integer):
+        return jsonify({
+            "successType": 2
+        })
     from_location_id = data.get('from_id', '')
     to_location_id = data.get('to_id', '')
     product_id = data.get('product_id', '')
@@ -321,14 +464,20 @@ def request():
                         %s, %s, %s, %s, %s, %s, %s
                     )
                 """
-                cur.execute(insert_sql, (approval_id, product_id, from_location_id, to_location_id, quantity, '待审核', current_time))
+                print(approval_id, product_id, from_location_id, to_location_id, quantity, '待审核', current_time)
+                cur.execute(insert_sql, (approval_id, product_id, from_location_id, to_location_id, quantity, '待审核', current_time, ))
                 conn.commit()
                 return jsonify({
+                    "successType": 0,
                     "request_time": current_time,
                     "approval_id": approval_id
                 })
     except Exception as e:
-        return jsonify({"err": str(e)}), 500
+        print(str(e))
+        return jsonify({
+            "sucessType": 1,
+            "err": str(e)
+        }), 500
 
 # Accept the approval
 @app.route('/api/approval/accpeted', methods = ['POST'])
@@ -336,21 +485,12 @@ def accepted():
     #Fetch the data
     approval_id = request.get_json().get('approval_id', '')
 
-    # Get the date
+    # Get the time
     current_time = datetime.now()
 
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
-                # Query approval data
-                query = """
-                    SELECT from_location_id, product_id, quantity
-                    FROM transfer_approval
-                    WHERE approval_id = %s
-                """
-                cur.execute(query, (approval_id, ))
-                approval_data = cur.fetchone()[0]
-                from_location_id, product_id, quantity = approval_data
                 # Update the transfer_approval table
                 update_sql = """
                     UPDATE transfer_approval
@@ -366,14 +506,17 @@ def accepted():
                     "approval_time": current_time
                 })
     except Exception as e:
-        return jsonify({"err": str(e)}), 500
+        return jsonify({
+            "successType": 1,
+            "err": str(e)
+        }), 500
 
 @app.route('/api/approval/rejected', methods = ['POST'])
 def rejected():
     # Fetch the data
     approval_id = request.get_json().get('approval_id', '')
 
-    # Get the date
+    # Get the time
     current_time = datetime.now()
 
     try:
@@ -390,11 +533,46 @@ def rejected():
                 cur.execute(update_sql, ('已驳回', current_time, approval_id, ))
                 conn.commit()
                 return jsonify({
+                    "successType": 0,
                     "approval_time": current_time
                 })
                 
     except Exception as e:
-        return jsonify({"err": str(e)}), 500
+        return jsonify({
+            "sucessType": 1,
+            "err": str(e)
+        }), 500
+
+@app.route('/api/approval/cancel', methods = ['POST'])
+def cancel():
+    # Fetch the data
+    approval_id = request.get_json().get('approval_id', '')
+
+    # Get the time
+    current_time = datetime.now()
+
+    try:
+        with DBPool.get_connection() as conn:
+            with conn.cursor() as cur:
+                # Update the transfer_approval table
+                update_sql = """
+                    UPDATE transfer_approval
+                    SET
+                        status = %s,
+                        approval_time = %s
+                    WHERE approval_id = %s
+                """
+                cur.execute(update_sql, ('已取消', current_time, approval_id, ))
+                conn.commit()
+                return jsonify({
+                    "successType": 0
+                })
+                
+    except Exception as e:
+        return jsonify({
+            "sucessType": 1,
+            "err": str(e)
+        }), 500
 
 @app.route('/api/shipment', methods = ['POST'])
 def shipment():
@@ -404,8 +582,6 @@ def shipment():
     # Get the time
     current_time = datetime.now()
     current_date = current_time.date()
-    year = current_date.year
-    month = current_date.month
 
     try:
         with DBPool.get_connection() as conn:
@@ -425,10 +601,8 @@ def shipment():
                     FROM warehouse_inventory
                     WHERE warehouse_id = %s
                     AND product_id = %s
-                    AND EXTRACT(YEAR FROM record_date) = %s
-                    AND EXTRACT(MONTH FROM record_date) = %s;
                 """
-                cur.execute(query, (from_location_id, product_id, year, month, ))
+                cur.execute(query, (from_location_id, product_id, ))
                 rest_quantity = cur.fetchone()[0]
                 # Check if the inventory is sufficient
                 if quantity < rest_quantity:
@@ -466,7 +640,7 @@ def shipment():
                 """
                 cur.execute(insert_sql, [insert_params, ])
                 # Update the warehouse_inventory table
-                update_params = (-quantity, current_date, from_location_id, product_id, year, month)
+                update_params = (-quantity, current_date, from_location_id, product_id)
                 update_sql = """
                     UPDATE warehouse_inventory
                     SET 
@@ -474,8 +648,6 @@ def shipment():
                         record_date = %s
                     WHERE warehouse_id = %s
                     AND product_id = %s
-                    AND EXTRACT(YEAR FROM record_date) = %s
-                    AND EXTRACT(MONTH FROM record_date) = %s
                 """
                 cur.execute(update_sql, [update_params, ])
                 conn.commit()
@@ -485,7 +657,10 @@ def shipment():
                 })
 
     except Exception as e:
-        return jsonify({"err": str(e)}), 500
+        return jsonify({
+            "successType": 2,
+            "err": str(e)
+        }), 500
 
 @app.route('/api/receipt/warehouse', methods = ['POST'])
 def receipt_warehouse():
@@ -495,8 +670,6 @@ def receipt_warehouse():
     # Get the time
     current_time = datetime.now()
     current_date = current_time.date()
-    year = current_date.year
-    month = current_date.month
 
     try:
         with DBPool.get_connection() as conn:
@@ -541,23 +714,27 @@ def receipt_warehouse():
                 """
                 cur.execute(insert_sql, [insert_params, ])
                 # Update the warehouse_inventory table
-                update_params = (quantity, to_location_id, product_id, year, month)
+                update_params = (quantity, current_date, to_location_id, product_id)
                 update_sql = """
                     UPDATE warehouse_inventory
-                    SET quantity = quantity + %s
+                    SET 
+                        quantity = quantity + %s,
+                        record_date = %s
                     WHERE warehouse_id = %s
                     AND product_id = %s
-                    AND EXTRACT(YEAR FROM record_date) = %s
-                    AND EXTRACT(MONTH FROM record_date) = %s
                 """
                 cur.execute(update_sql, [update_params, ])
                 conn.commit()
                 return jsonify({
+                    "successType": 0,
                     "receipt_time": current_time
                 })
 
     except Exception as e:
-        return jsonify({"err": str(e)}), 500
+        return jsonify({
+            "successType": 1,
+            "err": str(e)
+        }), 500
 
 @app.route('/api/receipt/store', methods = ['POST'])
 def receipt_store():
@@ -566,9 +743,6 @@ def receipt_store():
 
     # Get the time
     current_time = datetime.now()
-    current_date = current_time.date()
-    year = current_date.year
-    month = current_date.month
 
     try:
         with DBPool.get_connection() as conn:
@@ -618,141 +792,23 @@ def receipt_store():
                         product_id,
                         shipment_date,
                         shipped_quantity,
-                        received_quantity,
+                        received_quantity
                     )
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
-                cur.execute(insert_sql, (RP_id, from_location_id, store_id, product_id, datetime.now().date(), quantity, quantity))
+                cur.execute(insert_sql, (RP_id, from_location_id, store_id, product_id, datetime.now().date(), quantity, quantity, ))
                 conn.commit()
                 return jsonify({
+                    "successType": 0,
                     "receipt_time": current_time
                 })
 
     except Exception as e:
-        return jsonify({"err": str(e)}), 500
+        return jsonify({
+            "successType": 1,
+            "err": str(e)
+        }), 500
 
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-'''
-from flask import Flask, render_template, request, jsonify, redirect, url_for
-from models import Warehouse, Store, Product, Inventory, Sales, Supply
-from config import Config
-from datetime import datetime
-from database import DBPool
-from flask_cors import CORS
-from tts_main import text_to_sqlite
-from API_Funcs_Light.user_verify_API import API_UserVerify
-from API_Funcs_Light.warehouse_get_products_API import API_GetWarehouseProduct
-from API_Funcs_Light.store_get_products_API import API_GetStoreProduct
-from API_Funcs_Light.warehouse_get_stores_API import API_GetStoreByWarehouse
-from API_Funcs_Light.warehouse_replenish_API import API_WarehouseReplenish
-from API_Funcs_Light.store_transfer_in_API import API_StoreTransferIn
-from API_Funcs_Light.store_sell_products_API import API_StoreSellProducts
-
-
-import sys
-import locale
-
-# 设置默认编码为UTF-8
-if sys.version_info[0] < 3:
-    reload(sys)
-    sys.setdefaultencoding('utf8')
-else:
-    sys.stdout.reconfigure(encoding='utf-8')
-
-# 设置locale
-locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-
-app = Flask(__name__)
-CORS(app)  # 允许跨域请求
-app.config.from_object(Config)
-
-@app.route('/')
-def dashboard():
-    warehouses = Warehouse.get_all()
-    stores = Store.get_all()
-    low_inventory = Inventory.get_low_inventory()
-    return render_template('dashboard.html',
-                         warehouses=warehouses,
-                         stores=stores,
-                         low_inventory=low_inventory)
-
-
-@app.route('/api/verify', methods=['POST'])
-def verify_api():
-    return API_UserVerify(request=request)
-
-
-@app.route('/api/warehouses/products', methods = ['GET'])
-def get_product_price():
-    return API_GetWarehouseProduct(request=request)
-
-
-@app.route('/api/store/products', methods = ['GET'])
-def get_product_info():
-    return API_GetStoreProduct(request=request)
-
-
-@app.route('/api/warehouses/stores', methods = ['GET'])
-def get_stores_by_warehouse_id():
-    return API_GetStoreByWarehouse(request=request)
-
-
-@app.route('/api/replenish', methods = ['POST'])
-def replenish():
-    return API_WarehouseReplenish(request=request)
-
-
-@app.route('/api/store/transfer-in', methods = ['POST'])
-def get_supply():
-    return API_StoreTransferIn(request=request)
-
-
-@app.route('/api/store/sell', methods = ['POST'])
-def sell():
-    return API_StoreSellProducts(request=request)
-def get_result(input_text):
-    return f""""Original Text: {input_text}"""
-
-# Chatting Box Routing
-@app.route('/chatting', methods = ['POST'])
-def chatting():
-    try:
-        input_text = request.get_json().get('text', '')
-        
-        if not input_text:
-            return jsonify({'error': '输入文本为空'}), 400
-        
-        result = text_to_sqlite(input_text)
-        return jsonify({'result': result})
-    
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-
-
-# Functions regarding id
-def id_format(prefix) -> str:
-    current_date = datetime.now().date()
-    year = current_date.year
-    month = current_date.month
-    day = current_date.day
-    log_format = f"{prefix}{year % 100:02d}{month:02d}{day:02d}"
-    return log_format
-
-def get_id(prefix, cnt) -> str:
-    current_date = datetime.now().date()
-    year = current_date.year
-    month = current_date.month
-    day = current_date.day
-    id = f"{prefix}{year % 100:02d}{month:02d}{day:02d}{cnt}"
-    return id
-
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
-'''

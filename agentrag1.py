@@ -3,7 +3,7 @@ os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 os.environ["HF_HUB_OFFLINE"] = "0"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
 #sk-FxhjDpv1D62n33JGICef3aVagezAr73GFnoXmSQ4ikMpf9Hb ；sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "sk-FxhjDpv1D62n33JGICef3aVagezAr73GFnoXmSQ4ikMpf9Hb")#其他api密钥直接改这里，如果closeai的欠费了用这个密钥：sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
+os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X")#其他api密钥直接改这里，如果closeai的欠费了用这个密钥：sk-tgq6Xw43DMpw510JMGFofD8UPoBZTRUSrtoywgnbIdx8Z88X
 os.environ["OPENAI_API_URL"] = os.getenv("OPENAI_API_URL", "https://api.openai-proxy.org/v1")
 os.environ["MODEL_NAME"] = os.getenv("MODEL_NAME", "gpt-4.1")#使用的是closeai 的(  gpt-4.1-nano/deepseek-chat  )模型
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
@@ -27,15 +27,18 @@ from contextlib import asynccontextmanager
 from collections import deque
 import re
 import textwrap
+import subprocess  # 添加绘图功能
+import sys  # 添加绘图功能
+import time  # 添加绘图功能
 # PostgreSQL配置
-PG_HOST = os.getenv('PG_HOST', '127.0.0.1')
+PG_HOST = os.getenv('PG_HOST', '192.168.28.135')
 PG_PORT = os.getenv('PG_PORT', '5432')
-PG_NAME = os.getenv('PG_NAME', 'postgres')
-PG_USER = os.getenv('PG_USER', 'postgres')
-PG_PASSWORD = os.getenv('PG_PASSWORD', 'ab12AB!@')
+PG_NAME = os.getenv('PG_NAME', 'companylink')
+PG_USER = os.getenv('PG_USER', 'myuser')
+PG_PASSWORD = os.getenv('PG_PASSWORD', '123456abc.')
 
 #本地知识库所需要pdf文件路径
-PDF_DIR = './knowledge_pdfs'
+PDF_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'knowledge_pdfs')
 
 class DatabaseSchemaAnalyzer:
     """动态数据库模式分析器 - 支持任何PostgreSQL数据库"""    
@@ -154,6 +157,19 @@ class UniversalDatabaseAgent:
             host=PG_HOST, port=PG_PORT, database=PG_NAME, user=PG_USER, password=PG_PASSWORD
         )
         self.schema_analyzer = DatabaseSchemaAnalyzer(self.conn)
+    
+    def get_data_for_plotting(self, sql: str) -> Optional[List[Dict]]:
+        """执行SQL查询并返回字典列表，用于绘图"""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            columns = [description[0] for description in cursor.description]
+            rows = cursor.fetchall()
+            cursor.close()
+            return [dict(zip(columns, row)) for row in rows]
+        except Exception as e:
+            print(f"❌ SQL执行以获取绘图数据时失败: {e}")
+            return None
     
     def analyze_query_intent(self, question: str) -> Dict:
         """智能分析用户查询意图，将自然语言转换为数据库查询需求"""
@@ -1956,13 +1972,144 @@ class MemoryAgent:
         self.conversation_history.clear()
         self.context_summary = ""
 
+class DrawingAgent:
+    """绘图Agent - 负责生成并执行绘图代码"""
+    
+    def __init__(self):
+        self.llm = ChatOpenAI(
+            model_name=os.getenv("MODEL_NAME", "gpt-4.1"),
+            openai_api_key=os.getenv("OPENAI_API_KEY"),
+            openai_api_base=os.getenv("OPENAI_API_URL"),
+            temperature=0.4
+        )
+    
+    def _extract_code(self, text: str) -> str:
+        """从文本中提取Python代码块"""
+        if '```python' in text:
+            start = text.find('```python') + len('```python')
+            end = text.find('```', start)
+            return text[start:end].strip()
+        elif '```' in text:
+            start = text.find('```') + 3
+            end = text.find('```', start)
+            return text[start:end].strip()
+        return text
+    
+    def draw(self, question: str, data_context: str = "") -> str:
+        """根据问题和数据上下文生成并执行绘图代码"""
+        timestamp = int(time.time())
+        plot_filename = f"plot_{timestamp}.png"
+        plot_context = ""
+        if data_context:
+            plot_context = f"""
+Please use the following JSON data for plotting, do not fabricate data:
+--- DATA START ---
+{data_context}
+--- DATA END ---
+"""
+        plot_prompt_template = PromptTemplate.from_template("""
+You are a data visualization expert. Please generate complete Python code to create charts based on the user's question and provided data.
+
+{plot_context}
+
+User Question: {question}
+
+Code Requirements:
+1. Use `matplotlib.pyplot` library and alias it as `plt`.
+2. **Before calling `plt.show()`, you must save the chart to a file named '{plot_filename}'.**
+3. **Finally, you must call `plt.show()` to display the image.**
+4. The code must be complete and directly runnable.
+5. Use English for chart labels and titles to avoid encoding issues.
+6. If JSON data is provided, parse it and use the actual data. If no data provided, create reasonable sample data.
+7. Add appropriate title and axis labels to the chart.
+8. Add a note at the bottom center: 'Note: Data is for reference only.'
+9. For database data, focus on meaningful visualizations like bar charts, pie charts, or line charts.
+10. Only return Python code block wrapped in ```python ... ```, no additional explanations.
+
+Data Processing Tips:
+- If JSON data is provided, use `json.loads()` to parse it
+- Handle potential encoding issues with Chinese characters
+- Choose appropriate chart types based on data structure
+- For numerical data, consider bar charts or line charts
+- For categorical data, consider pie charts or bar charts
+""")
+        final_prompt = plot_prompt_template.format(question=question, plot_context=plot_context,
+                                                   plot_filename=plot_filename)
+        attempt = 0
+        max_attempts = 5
+        conversation = [{"role": "system",
+                         "content": "You are a helpful AI assistant that generates Python code for plotting graphs using matplotlib."}]
+        conversation.append({"role": "user", "content": final_prompt})
+        while attempt < max_attempts:
+            attempt += 1
+            print(f"\n[绘图尝试 {attempt}/{max_attempts}] 正在向LLM请求绘图代码...")
+            response = self.llm.invoke(conversation)
+            ai_response = response.content.strip()
+            code = self._extract_code(ai_response)
+            if not code:
+                print(f"❌ 绘图失败: LLM未返回有效的代码。")
+                conversation.append({"role": "assistant", "content": ai_response})
+                conversation.append(
+                    {"role": "user", "content": "You did not return any code. Please only return code blocks wrapped in ```python."})
+                continue
+
+            # 清理代码，移除可能的问题代码
+            code = code.replace("matplotlib.use('Agg')", "")
+            code = code.replace("plt.show()", "")
+            code = re.sub(r"plt\.savefig\s*\(['\"].*?['\"]\)", "", code, flags=re.DOTALL)
+            
+            # 添加系统控制的保存和显示命令
+            code += f"\n\n# Adding save and show commands by the system #wh_add_draw\n"
+            code += f"plt.savefig('{plot_filename}', dpi=300, bbox_inches='tight') #wh_add_draw\n"
+            code += f"plt.show() #wh_add_draw\n"
+
+            script_name = f"temp_plot_{timestamp}_{attempt}.py"
+            with open(script_name, "w", encoding="utf-8") as f:
+                f.write(code)
+            try:
+                # 修复Windows编码问题
+                result = subprocess.run(
+                    [sys.executable, script_name],
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',  # 明确指定UTF-8编码
+                    timeout=30,
+                    env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}  # 设置Python IO编码
+                )
+                if result.returncode == 0 and os.path.exists(plot_filename):
+                    print(f"✅ 绘图成功! 图像已保存到: {os.path.abspath(plot_filename)}")
+                    os.remove(script_name)
+                    return f"绘图成功，文件保存在: {os.path.abspath(plot_filename)}"
+                else:
+                    error_msg = f"代码执行失败或未生成图像文件。\nReturn Code: {result.returncode}\nStderr: {result.stderr}"
+                    print(f"❌ {error_msg}")
+                    conversation.append({"role": "assistant", "content": ai_response})
+                    feedback = f"Your generated code execution failed, error message: {error_msg}. Please fix it and regenerate complete code."
+                    conversation.append({"role": "user", "content": feedback})
+            except subprocess.TimeoutExpired:
+                error_msg = "Execution timeout: Plotting code ran too long."
+                print(f"❌ {error_msg}")
+                conversation.append({"role": "assistant", "content": ai_response})
+                conversation.append(
+                    {"role": "user", "content": f"Your generated code execution timed out. Please optimize the code to run faster."})
+            except Exception as e:
+                error_msg = f"Execution exception: {str(e)}"
+                print(f"❌ {error_msg}")
+                os.remove(script_name)
+                return f"绘图时发生未知错误: {error_msg}"
+            finally:
+                if os.path.exists(script_name):
+                    os.remove(script_name)
+        return f"⚠️ 经过 {max_attempts} 次尝试，仍然无法成功生成图像。"
+
 class TopAgent:
     """TopAgent - 作为中枢大脑，负责理解、分析和Agent协调"""
-    def __init__(self, memory_agent: MemoryAgent, db_agent, pdf_agent, kb):
+    def __init__(self, memory_agent: MemoryAgent, db_agent, pdf_agent, kb, drawing_agent):
         self.memory_agent = memory_agent
         self.db_agent = db_agent
         self.pdf_agent = pdf_agent
         self.kb = kb
+        self.drawing_agent = drawing_agent
         self.llm = ChatOpenAI(
             model_name=os.getenv("MODEL_NAME", "gpt-4.1"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
@@ -2134,12 +2281,17 @@ class TopAgent:
 
 请分析问题类型，并返回JSON格式的决策：
 {{
-    "requires_database": true/false,  // 是否需要数据库查询
+    "requires_database": true/false,  // 是否需要数据库查询获取数据
     "requires_pdf": true/false,       // 是否需要PDF检索
     "requires_knowledge_base": true/false,  // 是否需要知识库检索
-    "primary_agent": "database/pdf/knowledge_base/multi",  // 主要Agent
+    "requires_drawing": true/false, // 是否需要调用绘图Agent
+    "primary_agent": "database/pdf/knowledge_base/drawing/multi",  // 主要Agent
     "reasoning": "分析理由"
 }}
+
+- 如果问题是关于"画图"、"绘制图表"、"可视化"、"图表"、"柱状图"、"折线图"、"饼图"等，请设置 "requires_drawing": true 并且 "primary_agent": "drawing"。
+- 如果绘图需要查询数据库中的数据（如"画出每个仓库的库存量"），请同时设置 "requires_database": true。
+- 其他情况照常分析。
 
 只返回JSON，不要其他内容。
 """)
@@ -2154,18 +2306,96 @@ class TopAgent:
             return intent_data
             
         except Exception as e:
-            #(f"⚠️ 意图分析失败: {e}")
+            # 检查是否包含画图关键词
+            drawing_keywords = ["画图", "绘制", "图表", "可视化", "柱状图", "折线图", "饼图", "plot", "draw", "chart"]
+            if any(keyword in question for keyword in drawing_keywords):
+                return {
+                    "requires_database": True,
+                    "requires_pdf": False,
+                    "requires_knowledge_base": False,
+                    "requires_drawing": True,
+                    "primary_agent": "drawing",
+                    "reasoning": "关键词触发绘图模式"
+                }
             # 默认返回多Agent模式
             return {
                 "requires_database": True,
                 "requires_pdf": True,
                 "requires_knowledge_base": True,
+                "requires_drawing": False,
                 "primary_agent": "multi",
                 "reasoning": "默认多Agent模式"
             }
     
     def coordinate_agents(self, question: str, context: str = "") -> Dict:
         """协调各个Agent，获取综合回答"""
+        # 检查是否是画图需求
+        drawing_keywords = ["画图", "绘制", "图表", "可视化", "柱状图", "折线图", "饼图", "plot", "draw", "chart"]
+        if any(keyword in question for keyword in drawing_keywords):
+            print("🎨 检测到画图需求，启动绘图流程...")
+            db_data_context = ""
+            data_summary = ""
+            
+            # 智能判断是否需要数据库数据
+            # 1. 明确包含数据库相关关键词
+            db_related_keywords = ["仓库", "库存", "销售", "产品", "门店", "补货", "warehouse", "inventory", "sales", "product", "store"]
+            is_db_related = any(keyword in question for keyword in db_related_keywords)
+            
+            # 2. 检查是否是通用画图需求（如历史、地理等）
+            general_keywords = ["历史", "朝代", "国家", "地理", "人口", "经济", "历史", "dynasty", "country", "geography", "population", "economy"]
+            is_general = any(keyword in question for keyword in general_keywords)
+            
+            if is_db_related and not is_general:
+                # 静默获取数据库数据，不显示技术细节
+                try:
+                    sql = self.db_agent.generate_sql(question)
+                    if sql:
+                        plot_data = self.db_agent.get_data_for_plotting(sql)
+                        if plot_data and len(plot_data) > 0:
+                            db_data_context = json.dumps(plot_data, ensure_ascii=False, indent=2)
+                            # 生成数据摘要
+                            data_summary = self._generate_data_summary_for_plot(plot_data, question)
+                            print(f"✅ 成功获取数据库数据用于绘图，共{len(plot_data)}条记录")
+                        else:
+                            print("📊 数据库无相关数据，将使用示例数据")
+                    else:
+                        print("📊 无法生成数据库查询，将使用示例数据")
+                except Exception as e:
+                    print(f"📊 数据库查询异常，将使用示例数据: {str(e)}")
+            else:
+                print("📊 检测到通用画图需求，将使用示例数据...")
+            
+            # 调用绘图Agent
+            plot_result = self.drawing_agent.draw(question, db_data_context)
+            
+            # 构建用户友好的回答
+            if "成功" in plot_result:
+                if data_summary:
+                    user_answer = f"🎨 已根据数据库信息生成图表\n\n{data_summary}\n\n{plot_result}"
+                else:
+                    user_answer = f"🎨 已生成图表\n\n{plot_result}"
+            else:
+                user_answer = f"❌ 图表生成失败: {plot_result}"
+            
+            return {
+                "answer": user_answer,
+                "knowledge_context": "",
+                "db_result": data_summary if data_summary else "使用示例数据",
+                "pdf_result": "",
+                "source_type": "drawing_agent",
+                "confidence": 0.95,
+                "agent_decision": {
+                    "primary_agent": "drawing",
+                    "reasoning": "用户输入包含画图关键词，直接触发绘图模式",
+                    "requires_database": is_db_related and not is_general,
+                    "requires_pdf": False,
+                    "requires_knowledge_base": False,
+                    "requires_drawing": True
+                },
+                "semantic_results": [],
+                "plot_path": plot_result if "成功" in plot_result else None
+            }
+        
         # 1. 语义检索增强
         enhanced_question = self._enhance_query_with_semantic_context(question)
         semantic_results = self._knn_semantic_search(question, k=3)
@@ -2186,6 +2416,7 @@ class TopAgent:
                 "requires_database": True,
                 "requires_pdf": True,
                 "requires_knowledge_base": True,
+                "requires_drawing": False,
                 "primary_agent": "multi",
                 "reasoning": "默认多Agent协调模式"
             }
@@ -2354,6 +2585,57 @@ class TopAgent:
         
         return "\n".join(formatted_contexts)
     
+    def _generate_data_summary_for_plot(self, plot_data: List[Dict], question: str) -> str:
+        """为绘图生成数据摘要"""
+        try:
+            if not plot_data:
+                return ""
+            
+            # 分析数据结构
+            sample_record = plot_data[0]
+            columns = list(sample_record.keys())
+            
+            # 生成摘要
+            summary_parts = []
+            summary_parts.append(f"📊 数据概览：基于 {len(plot_data)} 条记录")
+            
+            # 识别关键字段
+            numeric_fields = []
+            categorical_fields = []
+            
+            for field in columns:
+                if field in ['quantity', 'total_amount', 'unit_price', 'cost_price', 'stock_quantity', 'safety_stock']:
+                    numeric_fields.append(field)
+                elif field in ['product_name', 'category', 'warehouse_name', 'store_name']:
+                    categorical_fields.append(field)
+            
+            # 添加数值字段统计
+            if numeric_fields:
+                for field in numeric_fields[:3]:  # 最多显示3个数值字段
+                    try:
+                        values = [float(record[field]) for record in plot_data if record[field] is not None]
+                        if values:
+                            total = sum(values)
+                            avg = total / len(values)
+                            summary_parts.append(f"• {field}: 总计 {total:,.2f}, 平均 {avg:.2f}")
+                    except:
+                        continue
+            
+            # 添加分类字段统计
+            if categorical_fields:
+                for field in categorical_fields[:2]:  # 最多显示2个分类字段
+                    try:
+                        unique_values = set(record[field] for record in plot_data if record[field] is not None)
+                        if unique_values:
+                            summary_parts.append(f"• {field}: {len(unique_values)} 个不同值")
+                    except:
+                        continue
+            
+            return "\n".join(summary_parts)
+            
+        except Exception as e:
+            return f"数据摘要生成失败: {str(e)}"
+
     def _generate_intelligent_answer(self, question: str, results: Dict, intent: Dict, semantic_results: List) -> str:
         """智能生成综合回答"""
         try:
@@ -2443,7 +2725,8 @@ class AgenticRAGSystem:
         # 5. 初始化其他Agent
         self.pdf_agent = PDFMultiAgent(self.kb)
         self.memory_agent = MemoryAgent()
-        self.top_agent = TopAgent(self.memory_agent, self.db_agent, self.pdf_agent, self.kb)
+        self.drawing_agent = DrawingAgent()  # 添加绘图Agent
+        self.top_agent = TopAgent(self.memory_agent, self.db_agent, self.pdf_agent, self.kb, self.drawing_agent)
         
         # 6. 初始化LLM
         self.llm = ChatOpenAI(
@@ -2505,6 +2788,13 @@ def display_result(result: Dict):
     print("="*50)
     print(result.get('answer', '无回答'))
     
+    # 绘图结果特殊处理
+    if result.get("source_type") == "drawing_agent":
+        if result.get("plot_path"):
+            print("✅ 图像已尝试在窗口中显示，并已保存到本地。")
+        # 对于画图功能，不显示其他技术细节
+        return
+    
     # 置信度和相关性
     if 'confidence' in result:
         print(f"\n🎯 置信度: {result['confidence']:.1%}")
@@ -2534,8 +2824,9 @@ def display_result(result: Dict):
         print(result['pdf_result'])
 
 def main():
-    print("🚀 === 智能多Agent RAG仓库管理系统 ===")
+    print("🚀 === 智能多Agent RAG仓库管理系统（支持画图功能） ===")
     print("💡 请输入您的查询：")
+    print("🎨 支持画图功能：输入包含'画图'、'绘制'、'图表'等关键词的问题")
     print("🔚 输入'退出'、'quit'、'exit'或'q'结束会话")
     print("🧹 输入'clear'清空对话记忆\n")
     
@@ -2554,25 +2845,101 @@ def main():
                 rag.memory_agent.clear_memory()
                 print("🧹 对话记忆已清空")
                 continue
-            # 只在调试模式下显示SQL相关日志
-            # result = rag.process_query(query)
-            import os
-            if os.getenv('RAG_DEBUG', '0') == '1':
-                result = rag.process_query(query)
-            else:
-                # 临时屏蔽SQL相关print
+            
+            # 检查是否是画图需求
+            drawing_keywords = ["画图", "绘制", "图表", "可视化", "柱状图", "折线图", "饼图", "plot", "draw", "chart"]
+            is_drawing_request = any(keyword in query for keyword in drawing_keywords)
+            
+            if is_drawing_request:
+                print("🎨 检测到画图需求，启动绘图流程...")
+                # 画图功能静默处理，不显示技术细节
                 import sys
                 class DummyFile:
-                    def write(self, x): pass
+                    def write(self, x): 
+                        # 只显示画图相关的输出
+                        if any(keyword in x for keyword in ["🎨", "📊", "✅", "❌", "绘图", "画图", "图像", "图表"]):
+                            sys.__stdout__.write(x)
                 old_stdout = sys.stdout
                 sys.stdout = DummyFile()
                 result = rag.process_query(query)
                 sys.stdout = old_stdout
+            else:
+                # 只在调试模式下显示SQL相关日志
+                import os
+                if os.getenv('RAG_DEBUG', '0') == '1':
+                    result = rag.process_query(query)
+                else:
+                    # 临时屏蔽SQL相关print
+                    import sys
+                    class DummyFile:
+                        def write(self, x): pass
+                    old_stdout = sys.stdout
+                    sys.stdout = DummyFile()
+                    result = rag.process_query(query)
+                    sys.stdout = old_stdout
+            
             display_result(result)
     finally:
         rag.close()
         print("\n👋 系统已关闭")
 
+# Flask集成支持
+def create_rag_app():
+    """创建Flask集成的RAG应用实例"""
+    return AgenticRAGSystem()
+
+# 画图功能支持
+def is_drawing_request(question: str) -> bool:
+    """检查是否是画图请求"""
+    drawing_keywords = ["画图", "绘制", "图表", "可视化", "柱状图", "折线图", "饼图", "plot", "draw", "chart"]
+    return any(keyword in question for keyword in drawing_keywords)
+
 # 命令行交互
 if __name__ == "__main__":
     main()
+
+def process_terminal_input(query: str) -> str:
+    """处理一次终端输入，返回终端风格输出（只保留answer部分）"""
+    global rag
+    if rag is None:
+        rag = AgenticRAGSystem()
+    if query.lower() in ['quit', 'exit', '退出', 'q']:
+        rag.memory_agent.clear_memory()
+        return '🧹 正在清空对话记忆...\n✅ 对话记忆已清空\n👋 系统已关闭'
+    if query.lower() == 'clear':
+        rag.memory_agent.clear_memory()
+        return '🧹 对话记忆已清空'
+    try:
+        result = rag.process_query(query)
+        # 只返回终端风格的主回答内容
+        return result.get('answer', '无回答')
+    except Exception as e:
+        return f'❌ 处理失败: {str(e)}'
+
+def process_draw_input(query: str) -> str:
+    """专门处理画图请求，结合数据库数据，返回图片路径或错误信息"""
+    global rag
+    if rag is None:
+        rag = AgenticRAGSystem()
+    try:
+        # 1. 用数据库Agent生成SQL
+        sql = rag.db_agent.generate_sql(query)
+        plot_data = None
+        if sql:
+            plot_data = rag.db_agent.get_data_for_plotting(sql)
+        db_data_context = ''
+        if plot_data and len(plot_data) > 0:
+            import json
+            db_data_context = json.dumps(plot_data, ensure_ascii=False, indent=2)
+        # 2. 只用数据库数据作图
+        plot_result = rag.drawing_agent.draw(query, db_data_context)
+        if '成功' in plot_result and '文件保存在' in plot_result:
+            # 提取图片路径
+            import re
+            m = re.search(r'文件保存在: (.+)', plot_result)
+            if m:
+                return m.group(1).strip()
+        return plot_result
+    except Exception as e:
+        return f"❌ 画图失败: {str(e)}"
+

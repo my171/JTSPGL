@@ -1,12 +1,14 @@
 <!-- StoreOpPanel.vue -->
 <template>
   <div class="store-op-panel">
-    <h4>商店操作中心</h4>
-    <p><strong>当前商店：</strong>{{ storeName }}</p>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h4 class="mb-0"><strong>商店操作中心</strong></h4>
+      <h5 class="mb-0">当前商店：{{ storeName }}</h5>
+    </div>
 
     <!-- 商品信息查询 -->
     <div class="card mb-3">
-      <div class="card-header">商品信息与销量</div>
+      <div class="card-header">商品库存与销量</div>
       <div class="card-body d-flex align-items-center">
         <input
           v-model="queryInput"
@@ -24,19 +26,24 @@
     <!-- 调货 -->
     <div class="card mb-3">
       <div class="card-header">从仓库调货</div>
-      <div class="card-body d-flex flex-wrap align-items-center gap-2">
+      <div class="card-body d-flex align-items-center gap-2">
+        <!-- 商品ID -->
         <input
           v-model="transferProduct"
           placeholder="商品ID"
           class="form-control"
           style="flex: 1"
         />
+
+        <!-- 数量 -->
         <input
           v-model.number="transferQty"
           placeholder="数量"
           class="form-control"
           style="flex: 1"
         />
+
+        <!-- 目标仓库 -->
         <select
           v-model="selectedWarehouseId"
           class="form-select"
@@ -47,9 +54,9 @@
             {{ w.name }}
           </option>
         </select>
-        <button class="btn btn-warning" @click="transferIn" style="flex: 1">
-          调货
-        </button>
+
+        <!-- 提交按钮 -->
+        <button class="btn btn-warning" @click="transferIn">调货</button>
       </div>
     </div>
 

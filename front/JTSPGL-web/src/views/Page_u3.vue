@@ -18,19 +18,12 @@
         @show-approval="showApprovalDetail"
       />
     </div>
-
-    <!-- 弹窗 -->
-    <PopupApproval
-      ref="popupApproval"
-      :approvalRequests="approvalRequests"
-      :selectedApprovalId="selectedApprovalId"
-      @close="closeApprovalPopup"
-    />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from "vue";
+import { ref, reactive, computed } from "vue";
+
 import HeaderTime from "@components/HeaderTime.vue";
 import ChatBox from "@components/ChatBox.vue";
 import RightPanel from "@components/RightPanel.vue";
@@ -39,8 +32,24 @@ import StoreOpPanel from "@components/StoreOpPanel.vue";
 
 const rightPanel = ref(null);
 const popupApproval = ref(null);
+
 const approvalRequests = reactive([]);
 const selectedApprovalId = ref(null);
+
+const userRole = localStorage.getItem("user_role");
+const warehouseName = localStorage.getItem("warehouse_name");
+const storeName = localStorage.getItem("store_name");
+
+// 权限过滤后的审批流
+const filteredApprovals = computed(() => {
+  return approvalRequests.filter((a) => {
+    if (userRole === "admin") return true;
+    if (userRole === "warehouse")
+      return a.from === warehouseName || a.to === warehouseName;
+    if (userRole === "store") return a.from === storeName || a.to === storeName;
+    return false;
+  });
+});
 
 const handleNewApproval = (record) => {
   approvalRequests.push(record);
