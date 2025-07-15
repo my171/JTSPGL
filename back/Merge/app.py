@@ -422,7 +422,8 @@ def sell():
         })
 
     # Get the date
-    current_date = datetime.now().date()
+    current_time = datetime.now()
+    current_date = current_time.date()
 
     try:
         with DBPool.get_connection() as conn:
@@ -493,6 +494,74 @@ def sell():
                     ) VALUES (%s, %s, %s, %s, %s, %s)
                 """
                 cur.execute(update_sql, (sales_id, store_id, product_id, current_date, quantity, unit_price, ))
+                # Get the query_params
+                target_month = f"{current_date.year}-{current_date:02d}"
+                previous_months = []
+                historical_months = []
+                for i in range(1, 5):
+                    month = current_date.month - i
+                    year = current_date.year
+                    if month < 1:
+                        month += 12
+                        year -= 1
+                    previous_months.append((year, month))
+                    historical_months.append(f"{year}-{month:02d}")
+                query_params = []
+                for year_month_pair in previous_months:
+                    query_params.append((product_id, store_id, year_month_pair[0], year_month_pair[1]))
+                # Predict the sales of the current month
+                historical_sales = []
+                for each_param in query_params:
+                    query = """
+                        SELECT 
+                        SUM(quantity) AS total_quantity,
+                        FROM sales
+                        WHERE product_id = %s
+                        AND store_id = %s
+                        AND EXTRACT(YEAR FROM sale_date) = %s
+                        AND EXTRACT(MONTH FROM sale_date) = %s
+                    """
+                    cur.execute(query, each_param)
+                    historical_sales.append(cur.fetchone()[0])
+
+                predict_sales = predict_future_sales(historical_sales, historical_months, target_month)
+                if (predict_sales * current_date.day / 30.0 > rest_quantity - quantity):
+                    # Query the warehouse_id
+                    query = """
+                        SELECT warehouse_id
+                        FROM store
+                        WHERE store_id = %s
+                    """
+                    cur.execute(query, (store_id, ))
+                    warehouse_id = cur.fetchone()[0]
+                    # Get the approval_id
+                    query = """
+                        SELECT COUNT(*) AS count
+                        FROM transfer_approval
+                        WHERE approval_id LIKE %s
+                    """
+                    cur.execute(query, (id_format('AP') + '%', ))
+                    approval_id = get_id('AP', cur.fetchone()[0] + 1)
+                    # Insert into the transfer_approval table
+                    insert_sql = """
+                        INSERT INTO transfer_approval (
+                            approval_id,
+                            product_id,
+                            from_location_id,
+                            to_location_id,
+                            quantity,
+                            status,
+                            request_time
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s
+                        )
+                    """
+                    cur.execute(insert_sql, (approval_id, product_id, warehouse_id, store_id, quantity, '待审核', current_time, ))
+                    conn.commit()
+                    return jsonify({
+                        "successType": 5,
+                        "approval_id": approval_id
+                    })
                 conn.commit()
                 return jsonify({
                     "successType": 3
