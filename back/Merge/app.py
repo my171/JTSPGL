@@ -442,6 +442,19 @@ def request_approval():
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
+                # Check if the product_id exists
+                query = """
+                    SELECT EXISTS(
+                        SELECT 1 
+                        FROM product 
+                        WHERE product_id = %s
+                    ) AS is_product_exists;
+                """
+                cur.execute(query, (product_id, ))
+                if not(cur.fetchone()[0]):
+                    return jsonify({
+                        "successType": 1
+                    })
                 # Get the approval_id
                 query = """
                     SELECT COUNT(*) AS count
@@ -468,14 +481,14 @@ def request_approval():
                 cur.execute(insert_sql, (approval_id, product_id, from_location_id, to_location_id, quantity, '待审核', current_time, ))
                 conn.commit()
                 return jsonify({
-                    "successType": 0,
+                    "successType": 3,
                     "request_time": current_time,
                     "approval_id": approval_id
                 })
     except Exception as e:
         print(str(e))
         return jsonify({
-            "sucessType": 1,
+            "sucessType": 4,
             "err": str(e)
         }), 500
 
