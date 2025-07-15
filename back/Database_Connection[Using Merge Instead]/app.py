@@ -45,7 +45,7 @@ def UserVerify():
                     WHERE user_id = %s
                     AND pass_word = %s
                 """
-                cur.execute(query, (username, password,))
+                cur.execute(query, (username, password, ))
                 result = cur.fetchone()
                 if result is None:
                     return jsonify({
@@ -89,7 +89,7 @@ def get_stores_by_warehouse_id(warehouse_id):
                     FROM store
                     WHERE store.warehouse_id = %s
                 """
-                cur.execute(query, (warehouse_id,))
+                cur.execute(query, (warehouse_id, ))
                 return jsonify([row for row in cur.fetchall()])
     except Exception as e:
         return jsonify({"err": str(e)}), 500
@@ -113,7 +113,7 @@ def get_product_inventory(warehouse_id):
                     FROM product
                     WHERE product_id = %s;
                 """
-                cur.execute(query, (product_id,))
+                cur.execute(query, (product_id, ))
                 result = cur.fetchone()
                 # Check if the product exists
                 if result is None:
@@ -160,7 +160,7 @@ def get_id(prefix, cnt) -> str:
     year = current_date.year
     month = current_date.month
     day = current_date.day
-    id = f"{prefix}{year % 100:02d}{month:02d}{day:02d}{cnt:.3d}"
+    id = f"{prefix}{year % 100:02d}{month:02d}{day:02d}{cnt:03d}"
     return id
 
 # Replenish Stocks
@@ -208,7 +208,7 @@ def replenish():
                     )
                     VALUES (%s, %s, %s, %s, %s)
                 """
-                cur.execute(insert_sql, (log_id, product_id, warehouse_id, 'IN', quantity))
+                cur.execute(insert_sql, (log_id, product_id, warehouse_id, 'IN', quantity, ))
                 # Update the warehouse_inventory table
                 update_sql = """
                     UPDATE warehouse_inventory
@@ -373,7 +373,7 @@ def sell():
                     WHERE product_id = %s
                     GROUP BY unit_price
                 """
-                cur.execute(query_sql, (product_id))
+                cur.execute(query_sql, (product_id, ))
                 unit_price = cur.fetchone()[0]
                 #Query the sales_id
                 query_sql = """
@@ -381,7 +381,7 @@ def sell():
                     FROM sales
                     WHERE sales_id LIKE %s
                 """
-                cur.execute(query_sql, id_format('SL') + '%')
+                cur.execute(query_sql, (id_format('SL') + '%', ))
                 sales_id = get_id('SL', cur.fetchone()[0] + 1)
                 # Insert into the sales table
                 update_sql = """
@@ -391,10 +391,10 @@ def sell():
                         product_id,
                         sale_date,
                         quantity,
-                        unit_price,
+                        unit_price
                     ) VALUES (%s, %s, %s, %s, %s, %s)
                 """
-                cur.execute(update_sql, (sales_id, store_id, product_id, current_date, quantity, unit_price))
+                cur.execute(update_sql, (sales_id, store_id, product_id, current_date, quantity, unit_price, ))
                 conn.commit()
                 return jsonify({
                     "successType": 3
@@ -443,7 +443,7 @@ def request_approval():
                         %s, %s, %s, %s, %s, %s, %s
                     )
                 """
-                cur.execute(insert_sql, (approval_id, product_id, from_location_id, to_location_id, quantity, '待审核', current_time))
+                cur.execute(insert_sql, (approval_id, product_id, from_location_id, to_location_id, quantity, '待审核', current_time, ))
                 conn.commit()
                 return jsonify({
                     "successType": 0,
@@ -769,11 +769,11 @@ def receipt_store():
                         product_id,
                         shipment_date,
                         shipped_quantity,
-                        received_quantity,
+                        received_quantity
                     )
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
-                cur.execute(insert_sql, (RP_id, from_location_id, store_id, product_id, datetime.now().date(), quantity, quantity))
+                cur.execute(insert_sql, (RP_id, from_location_id, store_id, product_id, datetime.now().date(), quantity, quantity, ))
                 conn.commit()
                 return jsonify({
                     "successType": 0,
