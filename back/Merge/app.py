@@ -145,7 +145,7 @@ def predict_function():
                         return jsonify({
                             "successType": 3
                         })
-                    historical_sales.append(cur.fetchone()[0])
+                    historical_sales.append(each_sale)
 
                 predict_sales = predict_future_sales(historical_sales, historical_months, target_month)
                 return jsonify({
@@ -547,7 +547,7 @@ def sell():
                         return jsonify({
                             "successType": 3
                         })
-                    historical_sales.append(cur.fetchone()[0])
+                    historical_sales.append(each_sale)
 
                 predict_sales = predict_future_sales(historical_sales, historical_months, target_month)
                 if (predict_sales * current_date.day / 30.0 > rest_quantity - quantity):
