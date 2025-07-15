@@ -351,7 +351,7 @@ def sell():
 
 # Send request
 @app.route('/api/request', methods = ['POST'])
-def request():
+def request_approval():
     # Fetch the data
     data = request.get_json()
     quantity = data.get('quantity', '')
