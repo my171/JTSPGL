@@ -87,7 +87,7 @@ def chatting():
 
 # Predict the future sales
 @app.route('/api/predict', methods = ['POST'])
-def predict():
+def predict_function():
     # Fetch the data
     data = request.get_json()
     store_id = data.get('warehouse_id', '')
@@ -95,6 +95,7 @@ def predict():
 
     # Get the time
     current_time = datetime.now()
+    target_month = f"{current_time.year}-{current_time:02d}"
 
     # Get the query_params
     previous_months = []
@@ -131,7 +132,7 @@ def predict():
                 predict_sales = predict_future_sales(historical_sales, historical_months, target_month)
                 return jsonify({
                     "successType": 0,
-                    "predict_sales": predict_sales
+                    "predict_sales": format(predict_sales, '.2f')
                 })
     except Exception as e:
         return jsonify({
