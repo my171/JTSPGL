@@ -93,7 +93,7 @@ def predict_function():
 
     # Get the time
     current_time = datetime.now()
-    target_month = f"{current_time.year}-{current_time:02d}"
+    target_month = f"{current_time.year}-{current_time.month:02d}"
 
     # Get the query_params
     previous_months = []
@@ -113,11 +113,25 @@ def predict_function():
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
+                # Check if the product exists
+                check = """
+                    SELECT EXISTS(
+                        SELECT 1 
+                        FROM product 
+                        WHERE product_id = %s
+                    ) AS is_product_exists
+                """
+                cur.execute(check, (product_id, ))
+                if not cur.fetchone()[0]:
+                    return jsonify({
+                        "successType": 2
+                    })
+                # Query the historical sales
                 historical_sales = []
                 for each_param in query_params:
                     query = """
                         SELECT 
-                        SUM(quantity) AS total_quantity,
+                        SUM(quantity) AS total_quantity
                         FROM sales
                         WHERE product_id = %s
                         AND store_id = %s
@@ -125,6 +139,12 @@ def predict_function():
                         AND EXTRACT(MONTH FROM sale_date) = %s
                     """
                     cur.execute(query, each_param)
+                    each_sale = cur.fetchone()[0]
+                    # Check if sales record exists
+                    if each_sale is None:
+                        return jsonify({
+                            "successType": 3
+                        })
                     historical_sales.append(cur.fetchone()[0])
 
                 predict_sales = predict_future_sales(historical_sales, historical_months, target_month)
@@ -493,7 +513,7 @@ def sell():
                 """
                 cur.execute(update_sql, (sales_id, store_id, product_id, current_date, quantity, unit_price, ))
                 # Get the query_params
-                target_month = f"{current_date.year}-{current_date:02d}"
+                target_month = f"{current_date.year}-{current_date.month:02d}"
                 previous_months = []
                 historical_months = []
                 for i in range(1, 5):
@@ -512,7 +532,7 @@ def sell():
                 for each_param in query_params:
                     query = """
                         SELECT 
-                        SUM(quantity) AS total_quantity,
+                        SUM(quantity) AS total_quantity
                         FROM sales
                         WHERE product_id = %s
                         AND store_id = %s
@@ -520,6 +540,13 @@ def sell():
                         AND EXTRACT(MONTH FROM sale_date) = %s
                     """
                     cur.execute(query, each_param)
+                    each_sale = cur.fetchone()[0]
+                    # Check if sales record exists, else terminate the prediction, and return ordinary result
+                    if each_sale is None:
+                        conn.commit()
+                        return jsonify({
+                            "successType": 3
+                        })
                     historical_sales.append(cur.fetchone()[0])
 
                 predict_sales = predict_future_sales(historical_sales, historical_months, target_month)
