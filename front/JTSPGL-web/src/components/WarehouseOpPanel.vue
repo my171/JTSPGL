@@ -22,8 +22,8 @@
         <pre>{{ productResult }}</pre>
       </div>
     </div>
-    <!-- 补货操作 -->
-    <div class="card mb-3">
+<!-- 补货操作 -->
+<div class="card mb-3">
       <div class="card-header">补货操作</div>
       <div class="card-body d-flex align-items-center gap-2">
         <input
