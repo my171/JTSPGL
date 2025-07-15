@@ -1,7 +1,7 @@
 import sql_generator
 from database import DBPool
 import sys
-def text_to_sqlite(requirement: str, max_retries: int = 9 ):
+def text_to_sqlite(requirement: str, max_retries: int = 2):
     """
     将文本需求转换为 SQL，并在 SQLite 中执行；若执行报错，则将错误信息与原 SQL 反馈给 AI，生成修复后的 SQL，直至成功或达到重试上限。
     """
@@ -68,3 +68,6 @@ def text_to_sqlite(requirement: str, max_retries: int = 9 ):
                     return f"执行失败: {last_error}\n原 SQL:\n{sql}"
             finally:
                 cur.close()
+
+
+#text_to_sqlite("描述数据库")

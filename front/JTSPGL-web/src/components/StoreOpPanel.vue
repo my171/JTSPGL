@@ -83,13 +83,13 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import axios from "axios";
 
 const emit = defineEmits(["new-approval"]);
 
 // 当前商店信息（来自登录后本地存储）
-const storeName = ref(localStorage.getItem("store_name"));
+const storeName = ref('');
 const storeId = ref(localStorage.getItem("DetailInfo"));
 
 // 商品查询
@@ -111,6 +111,15 @@ const warehouseList = ref([
 // 卖出字段
 const sellProduct = ref("");
 const sellQty = ref(0);
+
+onMounted(async () => {
+  const res = await axios.get("http://localhost:5000/api/store/name", {
+    params: {
+      store_id: storeId.value,
+    },
+  });
+  storeName.value = res.data.name;
+});
 
 // 查询商品
 const queryProduct = async () => {

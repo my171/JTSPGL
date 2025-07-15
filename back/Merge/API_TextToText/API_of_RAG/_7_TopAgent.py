@@ -14,6 +14,7 @@ from langchain.prompts import PromptTemplate
 from langchain_huggingface import HuggingFaceEmbeddings
 
 from API_TextToText.API_of_RAG._6_MemoryAgent import MemoryAgent
+#from API_TextToText.API_of_RAG._9_Draw import _generate_data_summary_for_plot
 
 class TopAgent:
     def __init__(self, memory_agent: MemoryAgent, db_agent, pdf_agent, kb):
@@ -212,18 +213,96 @@ class TopAgent:
             return intent_data
             
         except Exception as e:
-            #(f"⚠️ 意图分析失败: {e}")
+            # 检查是否包含画图关键词
+            drawing_keywords = ["画图", "绘制", "图表", "可视化", "柱状图", "折线图", "饼图", "plot", "draw", "chart"]
+            if any(keyword in question for keyword in drawing_keywords):
+                return {
+                    "requires_database": True,
+                    "requires_pdf": False,
+                    "requires_knowledge_base": False,
+                    "requires_drawing": True,
+                    "primary_agent": "drawing",
+                    "reasoning": "关键词触发绘图模式"
+                }
             # 默认返回多Agent模式
             return {
                 "requires_database": True,
                 "requires_pdf": True,
                 "requires_knowledge_base": True,
+                "requires_drawing": False,
                 "primary_agent": "multi",
                 "reasoning": "默认多Agent模式"
             }
     
+    
     def coordinate_agents(self, question: str, context: str = "") -> Dict:
         """协调各个Agent，获取综合回答"""
+        # 检查是否是画图需求
+        drawing_keywords = ["画图", "绘制", "图表", "可视化", "柱状图", "折线图", "饼图", "plot", "draw", "chart"]
+        if any(keyword in question for keyword in drawing_keywords):
+            print("🎨 检测到画图需求，启动绘图流程...")
+            db_data_context = ""
+            data_summary = ""
+            
+            # 智能判断是否需要数据库数据
+            # 1. 明确包含数据库相关关键词
+            db_related_keywords = ["仓库", "库存", "销售", "产品", "门店", "补货", "warehouse", "inventory", "sales", "product", "store"]
+            is_db_related = any(keyword in question for keyword in db_related_keywords)
+            
+            # 2. 检查是否是通用画图需求（如历史、地理等）
+            general_keywords = ["历史", "朝代", "国家", "地理", "人口", "经济", "历史", "dynasty", "country", "geography", "population", "economy"]
+            is_general = any(keyword in question for keyword in general_keywords)
+            
+            if is_db_related and not is_general:
+                # 静默获取数据库数据，不显示技术细节
+                try:
+                    sql = self.db_agent.generate_sql(question)
+                    if sql:
+                        plot_data = self.db_agent.get_data_for_plotting(sql)
+                        if plot_data and len(plot_data) > 0:
+                            db_data_context = json.dumps(plot_data, ensure_ascii=False, indent=2)
+                            # 生成数据摘要
+                            #data_summary = _generate_data_summary_for_plot(plot_data, question)
+                            print(f"✅ 成功获取数据库数据用于绘图，共{len(plot_data)}条记录")
+                        else:
+                            print("📊 数据库无相关数据，将使用示例数据")
+                    else:
+                        print("📊 无法生成数据库查询，将使用示例数据")
+                except Exception as e:
+                    print(f"📊 数据库查询异常，将使用示例数据: {str(e)}")
+            else:
+                print("📊 检测到通用画图需求，将使用示例数据...")
+            
+            # 调用绘图Agent
+            plot_result = self.drawing_agent.draw(question, db_data_context)
+            
+            # 构建用户友好的回答
+            if "成功" in plot_result:
+                if data_summary:
+                    user_answer = f"🎨 已根据数据库信息生成图表\n\n{data_summary}\n\n{plot_result}"
+                else:
+                    user_answer = f"🎨 已生成图表\n\n{plot_result}"
+            else:
+                user_answer = f"❌ 图表生成失败: {plot_result}"
+            
+            return {
+                "answer": user_answer,
+                "knowledge_context": "",
+                "db_result": data_summary if data_summary else "使用示例数据",
+                "pdf_result": "",
+                "source_type": "drawing_agent",
+                "confidence": 0.95,
+                "agent_decision": {
+                    "primary_agent": "drawing",
+                    "reasoning": "用户输入包含画图关键词，直接触发绘图模式",
+                    "requires_database": is_db_related and not is_general,
+                    "requires_pdf": False,
+                    "requires_knowledge_base": False,
+                    "requires_drawing": True
+                },
+                "semantic_results": [],
+                "plot_path": plot_result if "成功" in plot_result else None
+            }
         # 1. 语义检索增强
         enhanced_question = self._enhance_query_with_semantic_context(question)
         semantic_results = self._knn_semantic_search(question, k=3)

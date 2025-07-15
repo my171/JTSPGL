@@ -206,6 +206,5 @@ defineExpose({ show, relatedclose });
 </script>
 
 <style scoped>
-
 @import "./popup-style.css";
 </style>

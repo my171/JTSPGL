@@ -3,10 +3,10 @@ from flask import Flask, request, jsonify
 from config import Config
 from datetime import datetime
 from database import DBPool
-from predict import predict_future_sales
 from flask_cors import CORS
 from tts_main import text_to_sqlite
-#from _1_Entry import API_RAG_TextGen
+from _1_Entry import API_RAG_TextGen
+from agentrag1 import main
 
 import sys
 import locale
@@ -66,7 +66,6 @@ def UserVerify():
                 })
 
     except Exception as e:
-        print(str(e))
         return jsonify({"err": str(e)}), 500
 
 # Chatting Box Routing
@@ -76,14 +75,16 @@ def chatting():
         input_text = request.get_json().get('text', '')
         
         if not input_text:
+            
             return jsonify({'error': '输入文本为空'}), 400
         
-        #result = API_RAG_TextGen(input_text)
+        result = main(input_text)
         return jsonify({'result': result})
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+<<<<<<< HEAD
 # Predict the future sales
 @app.route('/api/predict', methods = ['POST'])
 def predict():
@@ -137,6 +138,8 @@ def predict():
             "successType": 1
         })
 
+=======
+>>>>>>> origin/main
 # Fetch the list of stores by warehouse
 @app.route('/api/warehouses/<warehouse_id>/stores', methods = ['GET'])
 def get_stores_by_warehouse_id(warehouse_id):
@@ -317,7 +320,6 @@ def get_store_name_by_id():
         print(str(e))
         return jsonify({
             "err": str(e)}), 500
-
 # Query the product info of a certain store 
 @app.route('/api/store/products', methods = ['GET'])
 def get_product_info():
@@ -574,7 +576,7 @@ def request_approval():
         }), 500
 
 # Accept the approval
-@app.route('/api/approval/accepted', methods = ['POST'])
+@app.route('/api/approval/accpeted', methods = ['POST'])
 def accepted():
     #Fetch the data
     approval_id = request.get_json().get('approval_id', '')
@@ -624,7 +626,7 @@ def rejected():
                         approval_time = %s
                     WHERE approval_id = %s
                 """
-                cur.execute(update_sql, ('已取消', current_time, approval_id, ))
+                cur.execute(update_sql, ('已驳回', current_time, approval_id, ))
                 conn.commit()
                 return jsonify({
                     "successType": 0,
