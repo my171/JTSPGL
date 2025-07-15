@@ -161,6 +161,7 @@ const queryProduct = async () => {
         break;
       case 3:
         productResult.value = "查询失败: 信息未输入"
+        break;
     }
   } catch (err) {
     productResult.value = `查询失败：${err.message}`;
@@ -195,7 +196,8 @@ const replenish = async () => {
   }
 };
 
-// transfer production
+
+//Send request
 const transfer = async () => {
   try {
     const fromWarehouse =
@@ -203,8 +205,8 @@ const transfer = async () => {
       "";
 
     const response = await axios.post("http://localhost:5000/api/request", {
-      fromWarehouseID: selectedWarehouse.value,
-      warehouse_id: currentWarehouseId.value,
+      from_id: selectedWarehouse.value,
+      to_id: currentWarehouseId.value,
       product_id: transferProduct.value,
       quantity: Number(transferQty.value),
     });
@@ -213,25 +215,17 @@ const transfer = async () => {
 
     // 使用后端返回的 approval_id 和 request_time
     switch (response.data.successType) {
-      case 0:
-        alert("仓库编号不存在");
-        break;
       case 1:
         alert("仓库无相关商品记录");
         break;
       case 2:
-        alert(
-          "仓库内商品库存不足: 需求" +
-            transferQty.value +
-            " 储量" +
-            response.data.num
-        );
+        alert("商品输入数量有误");
         break;
       case 3:
         alert("调货申请已提交");
         break;
       case 4:
-        alert("调货失败：${err.message}");
+        alert(`调货失败：${err.message}`);
         break;
     }
     if (response.data.successType == 3) {
@@ -240,8 +234,8 @@ const transfer = async () => {
         product: transferProduct.value,
         quantity: transferQty.value,
         status: "待审核",
-        from: fromWarehouse,
-        to: currentWarehouseName.value,
+        from: selectedWarehouse.value,
+        to: currentWarehouseId.value,
         request_time: data.request_time, // 后端返回的时间
         approved_time: null,
         //accepted_time: null,

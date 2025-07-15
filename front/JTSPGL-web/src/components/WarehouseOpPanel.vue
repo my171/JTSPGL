@@ -22,8 +22,8 @@
         <pre>{{ productResult }}</pre>
       </div>
     </div>
-    <!-- 补货操作 -->
-    <div class="card mb-3">
+<!-- 补货操作 -->
+<div class="card mb-3">
       <div class="card-header">补货操作</div>
       <div class="card-body d-flex align-items-center gap-2">
         <input
@@ -87,15 +87,23 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import axios from "axios";
 
 const emit = defineEmits(["new-approval"]);
 
 // 数据字段
 
-const warehouseName = ref(localStorage.getItem("warehouse_name"));
-const warehouseId = ref(localStorage.getItem("warehouse_id"));
+const warehouseList = ref([
+  { id: "WH001", name: "华北中心仓" },
+  { id: "WH002", name: "华东智能仓" },
+  { id: "WH003", name: "华南枢纽仓" },
+  { id: "WH004", name: "西南分拨中心" },
+  { id: "WH005", name: "东北冷链仓" },
+]);
+
+const warehouseId = ref(localStorage.getItem("DetailInfo"));
+const warehouseName = ref("");
 
 const queryInput = ref("");
 const productResult = ref("");
@@ -106,27 +114,39 @@ const replenishQty = ref(0);
 const transferProduct = ref("");
 const transferQty = ref(0);
 const selectedWarehouse = ref("");
-const warehouseList = ref([
-  { id: "WH001", name: "华北中心仓" },
-  { id: "WH002", name: "华东智能仓" },
-  { id: "WH003", name: "华南枢纽仓" },
-  { id: "WH004", name: "西南分拨中心" },
-  { id: "WH005", name: "东北冷链仓" },
-]);
+
+onMounted(() => {
+  const warehouse = warehouseList.value.find(item => item.id === warehouseId.value);
+  if (warehouse) {
+    warehouseName.value = warehouse.name;
+  }
+});
 
 // 查询库存
 const queryProduct = async () => {
   try {
     const res = await axios.get(
-      "http://localhost:5000/api/warehouses/products",
+      `http://localhost:5000/api/warehouses/${warehouseId.value}/products`,
       {
         params: {
-          warehouseId: warehouseId.value,
-          productId: queryInput.value,
+          query: queryInput.value,
         },
       }
     );
-    productResult.value = `${res.data.name}: 库存${res.data.quantity}`;
+    switch (res.data.successType){
+      case 0:
+        productResult.value = "查询失败: 商品编号不存在";
+        break;
+      case 1:
+        productResult.value = res.data.name + ":暂无库存";
+        break;
+      case 2:
+        productResult.value = res.data.name + ":库存量" + res.data.quantity;
+        break;
+      case 3:
+        productResult.value = "查询失败: 信息未输入"
+        break;
+    }
   } catch (err) {
     productResult.value = "查询失败：" + err.message;
   }
@@ -135,12 +155,25 @@ const queryProduct = async () => {
 // 补货
 const replenish = async () => {
   try {
-    const res = await axios.post("http://localhost:5000/api/replenish", {
+    const response = await axios.post("http://localhost:5000/api/replenish", {
       warehouse_id: warehouseId.value,
       product: replenishProduct.value,
       quantity: replenishQty.value,
     });
-    alert("补货成功");
+    switch (response.data.successType) {
+      case 0:
+        alert("补货失败: 未知商品编号");
+        break;
+      case 1:
+        alert("补货成功");
+        break;
+      case 2:
+        alert(`补货失败：${response.data.err}`);
+        break;
+      case 3:
+        alert("商品数量输入有误");
+        break;
+    }
   } catch (err) {
     alert("补货失败：" + err.message);
   }

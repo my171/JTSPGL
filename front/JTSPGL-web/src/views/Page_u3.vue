@@ -14,7 +14,7 @@
       <!-- 右侧审批流 -->
       <RightPanel
         ref="rightPanel"
-        :approvalRequests="approvalRequests"
+        :approvalRequests="filteredApprovals"
         @show-approval="showApprovalDetail"
       />
     </div>
@@ -43,13 +43,9 @@ const storeName = localStorage.getItem("store_name");
 // 权限过滤后的审批流
 const filteredApprovals = computed(() => {
   return approvalRequests.filter((a) => {
-    if (userRole === "admin") return true;
-    if (userRole === "warehouse")
-      return a.from === warehouseName || a.to === warehouseName;
-    if (userRole === "store") return a.from === storeName || a.to === storeName;
-    return false;
+    return a.from === storeName || a.to === storeName;
   });
-});
+})
 
 const handleNewApproval = (record) => {
   approvalRequests.push(record);

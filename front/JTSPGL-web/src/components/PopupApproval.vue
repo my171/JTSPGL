@@ -5,8 +5,9 @@
       关闭
     </button>
 
-    <h5>审批详情</h5>
+    <div class="popup-content">
     <div v-if="approval">
+      <h5>审批详情</h5>
       <p><strong>审批ID: </strong> {{ approval.id }}</p>
       <p><strong>当前状态:</strong> {{ approval.status }}</p>
       <p><strong>发货仓库:</strong> {{ approval.from }}</p>
@@ -28,14 +29,14 @@
         <button
           v-if="approval.status === '待审核'"
           class="btn btn-success me-2"
-          @click="approve(true)"
+          @click="approveAccepted"
         >
           审核通过
         </button>
         <button
           v-if="approval.status === '待审核'"
           class="btn btn-danger"
-          @click="approve(false)"
+          @click="approveRejected"
         >
           审核不通过
         </button>
@@ -62,6 +63,7 @@
           取消申请
         </button>
       </div>
+    </div>
     </div>
   </div>
 </template>
@@ -157,29 +159,45 @@ const relatedclose = () => {
 const getNow = () => new Date().toLocaleString();
 
 //APPROVAL BUTTONS
-const approve = async (passed) => {
+const approveAccepted = async () => {
   if (!approval.value) return;
-  try {
-    const url = passed
-      ? `http://localhost:5000/api/approval/accepted`
-      : `http://localhost:5000/api/approval/rejected`;
 
-    const response = axios.post(url, {
+  try {
+    const response = await axios.post("http://localhost:5000/api/approval/accepted", {
       approval_id: approval.value.id,
     });
 
-    const { approvedAt } = response.data;
+    const { approval_time: approvedAt } = response.data;
 
-    approval.value.status = passed ? "待出库" : "已取消";
+    approval.value.status = "待出库";
     approval.value.approvedAt = approvedAt;
-    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-${approval.value.status}`;
+    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-待出库`;
 
     emit("update-approval", approval.value);
   } catch (err) {
-    alert(`操作失败：${err.message}`);
+    alert(`审核通过失败：${err.message}`);
   }
 };
 
+const approveRejected = async () => {
+  if (!approval.value) return;
+
+  try {
+    const response = await axios.post("http://localhost:5000/api/approval/rejected", {
+      approval_id: approval.value.id,
+    });
+
+    const { approval_time: rejectedAt } = response.data;
+
+    approval.value.status = "已取消";
+    approval.value.approvedAt = rejectedAt;
+    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-已取消`;
+
+    emit("update-approval", approval.value);
+  } catch (err) {
+    alert(`审核拒绝失败：${err.message}`);
+  }
+};
 //SHIP BUTTON
 const ship = async () => {
   if (!approval.value) return;
@@ -224,18 +242,25 @@ defineExpose({ show, relatedclose });
 </script>
 
 <style scoped>
-.popup-panel {
+@import "./popup-style.css";
+/* popup-style.css */
+.popup-overlay {
   position: fixed;
-  top: 50px;
-  right: 0;
-  width: 400px;
-  background-color: #fff;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s ease;
-  z-index: 1000;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 999;
 }
+
 .popup-panel.show {
-  transform: translateX(0);
+  right: 0; /* 弹出到屏幕右侧 */
+}
+
+.popup-overlay.show .popup-mask {
+  background-color: rgba(0, 0, 0, 0.4);
+  visibility: visible;
+  opacity: 1;
 }
 </style>

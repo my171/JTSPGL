@@ -16,7 +16,7 @@
       <!-- 右侧面板 -->
       <RightPanel
         ref="rightPanel"
-        :approvalRequests="approvalRequests"
+        :approvalRequests="filteredApprovals"
         @show-approval="showApprovalDetail"
       />
     </div>
@@ -37,21 +37,16 @@ const rightPanel = ref(null);
 const popupApproval = ref(null);
 
 const approvalRequests = reactive([]); // 所有审批流记录
-const selectedApprovalId = ref(null);
+
 
 const userRole = localStorage.getItem("user_role");
 const warehouseName = localStorage.getItem("warehouse_name");
-const storeName = localStorage.getItem("store_name");
 
 
 // 过滤后的审批流（带权限控制）
 const filteredApprovals = computed(() => {
-  return props.approvalRequests.filter((a) => {
-    if (userRole === "admin") return true;
-    if (userRole === "warehouse")
-      return a.from === warehouseName || a.to === warehouseName;
-    if (userRole === "store") return a.from === storeName || a.to === storeName;
-    return false;
+  return approvalRequests.filter((a) => {
+    return a.from === warehouseName || a.to === warehouseName;
   });
 });
 

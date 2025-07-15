@@ -5,7 +5,7 @@
 
     <h5 class="mt-4">审批流进度</h5>
 
-    <div v-if="approvalRequests.length === 0">暂无审批流记录</div>
+    <!--div v-if="approvalRequests.length === 0">暂无审批流记录</div-->
 
     <div v-for="(group, status) in groupedApprovals" :key="status">
       <div v-if="group.length > 0">

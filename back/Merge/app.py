@@ -6,6 +6,7 @@ from database import DBPool
 from predict import predict_future_sales
 from flask_cors import CORS
 from tts_main import text_to_sqlite
+#from _1_Entry import API_RAG_TextGen
 
 import sys
 import locale
@@ -65,6 +66,7 @@ def UserVerify():
                 })
 
     except Exception as e:
+        print(str(e))
         return jsonify({"err": str(e)}), 500
 
 # Chatting Box Routing
@@ -76,7 +78,7 @@ def chatting():
         if not input_text:
             return jsonify({'error': '输入文本为空'}), 400
         
-        result = text_to_sqlite(input_text)
+        #result = API_RAG_TextGen(input_text)
         return jsonify({'result': result})
     
     except Exception as e:
@@ -276,6 +278,31 @@ def replenish():
             "successType": 2,
             "err": str(e)
         }), 500
+
+# Get Name of a Certain Store
+@app.route('/api/store/name', methods = ['GET'])
+def get_store_name_by_id():
+    store_id = request.args.get('store_id', '')
+    
+    try:
+        with DBPool.get_connection() as conn:
+            with conn.cursor() as cur:
+                # Check if the product exists
+                check = """
+                    SELECT store_name 
+                    FROM store 
+                    WHERE store_id = %s
+                """
+                cur.execute(check, (store_id, ))
+                result = cur.fetchone()
+                name = result[0]
+                return jsonify({
+                    "name": name, 
+                })
+    except Exception as e:
+        print(str(e))
+        return jsonify({
+            "err": str(e)}), 500
 
 # Query the product info of a certain store 
 @app.route('/api/store/products', methods = ['GET'])

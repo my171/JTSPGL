@@ -90,7 +90,7 @@ const emit = defineEmits(["new-approval"]);
 
 // 当前商店信息（来自登录后本地存储）
 const storeName = ref(localStorage.getItem("store_name"));
-const storeId = ref(localStorage.getItem("store_id"));
+const storeId = ref(localStorage.getItem("DetailInfo"));
 
 // 商品查询
 const queryInput = ref("");
@@ -116,13 +116,25 @@ const sellQty = ref(0);
 const queryProduct = async () => {
   const res = await axios.get("http://localhost:5000/api/store/products", {
     params: {
-      storeId: storeId.value,
-      productId: queryInput.value,
+      store_id: storeId.value,
+      query: queryInput.value,
     },
   });
-  productResult.value = res.data.name
-    ? `单价:${res.data.unit_price}, 销量:${res.data.quantity}`
-    : "无记录";
+  switch(res.data.successType){
+    case 0:
+      productResult.value = "查询失败：商品编号不存在";break;
+    case 1:
+      productResult.value = res.data.name + ": 未查询到销售记录\n商店库存量: " + res.data.inventory;break;
+    case 2:
+      productResult.value =
+        res.data.name +
+        " 单价:" +
+        res.data.unit_price +
+        " 销量:" +
+        res.data.quantity +
+        "\n商店库存量: " + res.data.inventory;
+      break;
+  }
 };
 
 // 调货逻辑
