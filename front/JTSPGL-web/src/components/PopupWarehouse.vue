@@ -103,12 +103,7 @@ const show = async (id, name) => {
 
   try {
     const response = await axios.get(
-      `http://localhost:5000/api/warehouses/stores`,
-      {
-        params: {
-          warehouseId: id,
-        },
-      }
+      `http://localhost:5000/api/warehouses/${id}/stores`
     );
 
     const storeList = response.data;
@@ -119,15 +114,15 @@ const show = async (id, name) => {
           new CustomEvent(
             'store-click', {
               detail: {
-                name: '${store[1]}',
-                id: '${store[0]}'
+                name: '${store}',
+                id: '${store}'
               },
               bubbles: true,
             }
           )
         )"
       >
-              ${store[1]}
+              ${store}
       </button>`;
     });
     content.value = html;
@@ -147,20 +142,25 @@ const handleStoreClick = (e) => {
 const queryProduct = async () => {
   try {
     const res = await axios.get(
-      `http://localhost:5000/api/warehouses/products`,
+      `http://localhost:5000/api/warehouses/${currentWarehouseId.value}/products`,
       {
         params: {
-          warehouseId: currentWarehouseId.value,
           productId: queryInput.value,
         },
       }
     );
-    if (res.data.successType == 0) {
-      productResult.value = "查询失败：商品编号不存在";
-    } else if (res.data.successType == 1) {
-      productResult.value = res.data.name + ":暂无库存";
-    } else {
-      productResult.value = res.data.name + ":库存量" + res.data.quantity;
+    switch (res.data.successType){
+      case 0:
+        productResult.value = "查询失败: 商品编号不存在";
+        break;
+      case 1:
+        productResult.value = res.data.name + ":暂无库存";
+        break;
+      case 2:
+        productResult.value = res.data.name + ":库存量" + res.data.quantity;
+        break;
+      case 3:
+        productResult.value = "查询失败: 信息未输入"
     }
   } catch (err) {
     productResult.value = `查询失败：${err.message}`;

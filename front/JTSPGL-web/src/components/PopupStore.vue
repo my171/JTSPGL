@@ -14,7 +14,7 @@
       <input
         class="form-control"
         v-model="queryInput"
-        placeholder="输入商品ID或名称"
+        placeholder="输入商品ID"
       />
       <button class="btn btn-primary" @click="queryProduct">查询信息</button>
     </div>
