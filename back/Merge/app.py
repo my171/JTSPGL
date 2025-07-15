@@ -264,7 +264,6 @@ def get_store_name_by_id():
         print(str(e))
         return jsonify({
             "err": str(e)}), 500
-
 # Query the product info of a certain store 
 @app.route('/api/store/products', methods = ['GET'])
 def get_product_info():
