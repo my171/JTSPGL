@@ -147,7 +147,7 @@ def predict_function():
                         })
                     historical_sales.append(each_sale)
 
-                predict_sales = predict_future_sales(historical_sales, historical_months, target_month)
+                predict_sales = predict_future_sales(historical_sales[::-1], historical_months[::-1], target_month)
                 return jsonify({
                     "successType": 0,
                     "predict_sales": format(predict_sales, '.2f')
@@ -549,7 +549,7 @@ def sell():
                         })
                     historical_sales.append(each_sale)
 
-                predict_sales = predict_future_sales(historical_sales, historical_months, target_month)
+                predict_sales = predict_future_sales(historical_sales[::-1], historical_months[::-1], target_month)
                 if (predict_sales * current_date.day / 30.0 > rest_quantity - quantity):
                     # Query the warehouse_id
                     query = """
