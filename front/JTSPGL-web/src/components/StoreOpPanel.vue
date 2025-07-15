@@ -21,37 +21,44 @@
       </div>
     </div>
 
-    <!-- 调货 -->
-    <div class="card mb-3">
-      <div class="card-header">从仓库调货</div>
-      <div class="card-body d-flex flex-wrap align-items-center gap-2">
-        <input
-          v-model="transferProduct"
-          placeholder="商品ID"
-          class="form-control"
-          style="flex: 1"
-        />
-        <input
-          v-model.number="transferQty"
-          placeholder="数量"
-          class="form-control"
-          style="flex: 1"
-        />
-        <select
-          v-model="selectedWarehouseId"
-          class="form-select"
-          style="flex: 1"
-        >
-          <option disabled value="">选择调出仓库</option>
-          <option v-for="w in warehouseList" :key="w.id" :value="w.id">
-            {{ w.name }}
-          </option>
-        </select>
-        <button class="btn btn-warning" @click="transferIn" style="flex: 1">
-          调货
-        </button>
-      </div>
-    </div>
+<!-- 调货 -->
+<div class="card mb-3">
+  <div class="card-header">从仓库调货</div>
+  <div class="card-body d-flex align-items-center gap-2">
+    <!-- 商品ID -->
+    <input
+      v-model="transferProduct"
+      placeholder="商品ID"
+      class="form-control"
+      style="flex: 1"
+    />
+
+    <!-- 数量 -->
+    <input
+      v-model.number="transferQty"
+      placeholder="数量"
+      class="form-control"
+      style="flex: 1"
+    />
+
+    <!-- 目标仓库 -->
+    <select
+      v-model="selectedWarehouseId"
+      class="form-select"
+      style="flex: 1"
+    >
+      <option disabled value="">选择调出仓库</option>
+      <option v-for="w in warehouseList" :key="w.id" :value="w.id">
+        {{ w.name }}
+      </option>
+    </select>
+
+    <!-- 提交按钮 -->
+    <button class="btn btn-warning" @click="transferIn">
+      调货
+    </button>
+  </div>
+</div>
 
     <!-- 卖出商品 -->
     <div class="card mb-3">

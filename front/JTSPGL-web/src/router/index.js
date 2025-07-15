@@ -29,7 +29,7 @@ const ROLE_WAREHOUSE = 'wh';
 const ROLE_STORE = 'st';
 
 
-//
+/*
 router.beforeEach((to, from, next) => {
   const isAuthed = localStorage.getItem('isAuthed') === 'true'
   const RoleType = localStorage.getItem('RoleType')
@@ -53,7 +53,7 @@ router.beforeEach((to, from, next) => {
     next({ name: 'auth' })
   }
 })
-
+*/
 /*
   // 如果访问的是登录页
   if (to.name === 'auth') {

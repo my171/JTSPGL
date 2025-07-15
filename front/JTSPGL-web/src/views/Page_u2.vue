@@ -1,32 +1,28 @@
+<!-- Page_u2.vue -->
 <template>
-  <div class="container-fluid">
-    <div class="row">
+  <div class="container-fluid h-100 d-flex flex-column">
+    <div class="row flex-grow-1 overflow-hidden">
       <!-- 左侧：仓库操作界面和聊天区域 -->
-      <div class="col-md-9 left-panel">
+      <div class="col-md-9 d-flex flex-column px-3 py-3" style="position: relative;">
         <HeaderTime />
         <WarehouseOpPanel @new-approval="handleNewApproval" />
-        <div class="flex-grow-1 d-flex flex-column">
+
+        <!-- ChatBox 区域 -->
+        <div class="mt-3 mb-4"> <!-- mb-4 提供底部留白 -->
           <ChatBox />
         </div>
       </div>
 
+      <!-- 右侧面板 -->
       <RightPanel
         ref="rightPanel"
         :approvalRequests="approvalRequests"
         @show-approval="showApprovalDetail"
       />
     </div>
-
-    <!-- 弹出面板 -->
-    
-    <PopupApproval
-      ref="popupApproval"
-      :approvalRequests="approvalRequests"
-      :selectedApprovalId="selectedApprovalId"
-      @close="closeApprovalPopup"
-    />
   </div>
 </template>
+
 
 <script setup>
 import { ref, reactive } from "vue";
