@@ -25,7 +25,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+import axios from "axios";
 
 const emit = defineEmits(["show-approval"]);
 
@@ -53,6 +54,15 @@ const statusColorMap = {
   待收货: "yellow",
   已完成: "green",
 };
+
+onMounted(async () => {
+  const res = await axios.get("http://localhost:5000/api/approval/fetch_all", {
+  });
+  const approvalList = res.data;
+  approvalList.forEach((appr) => {
+    props.approvalRequests.push(appr);
+  });
+});
 
 const groupedApprovals = computed(() => {
   const groups = {};

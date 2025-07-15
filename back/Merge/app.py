@@ -5,7 +5,7 @@ from datetime import datetime
 from database import DBPool
 from flask_cors import CORS
 from predict import predict_future_sales
-from agentrag1 import main
+#from agentrag1 import main
 
 import sys
 import locale
@@ -77,8 +77,8 @@ def chatting():
             
             return jsonify({'error': '输入文本为空'}), 400
         
-        result = main(input_text)
-        return jsonify({'result': result})
+        #result = main(input_text)
+        #return jsonify({'result': result})
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -667,6 +667,37 @@ def request_approval():
             "sucessType": 4,
             "err": str(e)
         }), 500
+
+# Fetch all approval that associated with some users
+@app.route('/api/approval/fetch_all', methods = ['GET'])
+def approval_fetch_all():
+    try:
+        with DBPool.get_connection() as conn:
+            with conn.cursor() as cur:
+                query = """
+                    SELECT *
+                    FROM transfer_approval
+                    WHERE (status != '已取消' AND status != '已收货')
+                    OR age(CURRENT_DATE, request_time) <= '1 month'::interval
+                """
+                cur.execute(query)
+                return jsonify([{
+                    "id":row[0],
+                    "product": row[1],
+                    "quantity": row[4],
+                    "status": row[5],
+                    "from": row[2],
+                    "to": row[3],
+                    "request_time": row[6],
+                    "approved_time": row[7],
+                    "shipment_time": row[8],
+                    "receipt_time": row[9],
+                    "display": f"""{row[2]}-{row[1]}-{row[4]}-{row[5]}""",
+                } for row in cur.fetchall()])
+
+    except Exception as e:
+        print(str(e))
+        return jsonify({"err": str(e)}), 500
 
 # Accept the approval
 @app.route('/api/approval/accepted', methods = ['POST'])
