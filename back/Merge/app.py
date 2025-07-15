@@ -174,7 +174,7 @@ def replenish():
     product_id = data.get('product', '')
     quantity = data.get('quantity', '')
     # Check if the quantity is correct
-    if not (is_positive_integer):
+    if not (is_positive_integer(quantity)):
         return jsonify({
             "successType": 3
         })
@@ -334,7 +334,7 @@ def sell():
     product_id = data.get('product_id', '')
     quantity = data.get('quantity', '')
     # Check if the quantity is correct
-    if not (is_positive_integer):
+    if not (is_positive_integer(quantity)):
         return jsonify({
             "successType": 1
         })
@@ -428,7 +428,7 @@ def request_approval():
     data = request.get_json()
     quantity = data.get('quantity', '')
     # Check if the quantity is correct
-    if not (is_positive_integer):
+    if not (is_positive_integer(quantity)):
         return jsonify({
             "successType": 2
         })
