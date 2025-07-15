@@ -5,8 +5,9 @@
       关闭
     </button>
 
-    <h5>审批详情</h5>
+    <div class="popup-content">
     <div v-if="approval">
+      <h5>审批详情</h5>
       <p><strong>审批ID: </strong> {{ approval.id }}</p>
       <p><strong>当前状态:</strong> {{ approval.status }}</p>
       <p><strong>发货仓库:</strong> {{ approval.from }}</p>
@@ -63,7 +64,7 @@
         </button>
       </div>
     </div>
-    <div class="popup-mask" @click.self="close"></div>
+    </div>
   </div>
 </template>
 
@@ -238,32 +239,22 @@ defineExpose({ show, relatedclose });
 
 .popup-panel {
   position: fixed;
-  top: 50px;
-  right: -420px; /* 初始隐藏在屏幕外 */
+  top: 0;
+  right: -420px; /* 初始隐藏在右侧 */
   width: 400px;
+  height: 100vh;
   background-color: #fff;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   transition: right 0.3s ease;
   z-index: 1000;
-  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .popup-panel.show {
   right: 0; /* 弹出到屏幕右侧 */
-}
-
-.popup-mask {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: transparent;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.3s ease;
-  z-index: 998;
 }
 
 .popup-overlay.show .popup-mask {
