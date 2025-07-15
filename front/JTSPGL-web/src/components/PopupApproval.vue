@@ -63,6 +63,7 @@
         </button>
       </div>
     </div>
+    <div class="popup-mask" @click.self="close"></div>
   </div>
 </template>
 
@@ -224,18 +225,50 @@ defineExpose({ show, relatedclose });
 </script>
 
 <style scoped>
+/* popup-style.css */
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 999;
+}
+
 .popup-panel {
   position: fixed;
   top: 50px;
-  right: 0;
+  right: -420px; /* 初始隐藏在屏幕外 */
   width: 400px;
   background-color: #fff;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s ease;
+  transition: right 0.3s ease;
   z-index: 1000;
+  pointer-events: auto;
 }
+
 .popup-panel.show {
-  transform: translateX(0);
+  right: 0; /* 弹出到屏幕右侧 */
+}
+
+.popup-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: transparent;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  z-index: 998;
+}
+
+.popup-overlay.show .popup-mask {
+  background-color: rgba(0, 0, 0, 0.4);
+  visibility: visible;
+  opacity: 1;
 }
 </style>

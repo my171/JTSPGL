@@ -43,14 +43,14 @@ const userRole = localStorage.getItem("user_role");
 const warehouseName = localStorage.getItem("warehouse_name");
 
 
-// 过滤后的审批流（带权限控制）
+/*/ 过滤后的审批流（带权限控制）
 const filteredApprovals = computed(() => {
   return props.approvalRequests.filter((a) => {
     return a.from === warehouseName || a.to === warehouseName;
   });
 });
 
-// 新增审批记录
+*/// 新增审批记录
 
 const handleNewApproval = (record) => {
   approvalRequests.push(record);
