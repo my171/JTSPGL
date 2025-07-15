@@ -23,6 +23,46 @@ app = Flask(__name__)
 CORS(app)  # 允许跨域请求
 app.config.from_object(Config)
 
+@app.route('/api/verify', methods = ['POST'])
+def UserVerify():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    # If not connected to database, use the following account
+    if (username == 'admin' and password == '123456'):
+        return jsonify({
+                "success" : True,
+                "role" : 'ADMIN',
+        })
+
+    try:
+        with DBPool.get_connection() as conn:
+            with conn.cursor() as cur:
+                # Query the user_type and detail_info
+                query = f"""
+                    SELECT user_type, detail_info
+                    FROM users
+                    WHERE user_id = %s
+                    AND pass_word = %s
+                """
+                cur.execute(query, (username, password,))
+                result = cur.fetchone()
+                if result is None:
+                    return jsonify({
+                        "success" : False
+                    })
+                role = result[0]
+                detail = result[1]
+
+                return jsonify({
+                    "success" : True,
+                    "role" : role,
+                    "detail" : detail,
+                })
+
+    except Exception as e:
+        return jsonify({"err": str(e)}), 500
+
 # Chatting Box Routing
 @app.route('/chatting', methods = ['POST'])
 def chatting():
@@ -189,7 +229,7 @@ def replenish():
             "err": str(e)
         }), 500
 
-# Query the product sales quantity of a certain store 
+# Query the product info of a certain store 
 @app.route('/api/store/products', methods = ['GET'])
 def get_product_info():
     # Fetch the data
@@ -222,18 +262,31 @@ def get_product_info():
                     return jsonify({
                         "successType": 0
                     })
+                # Query the store inventory
+                query = """
+                    SELECT stock_quantity
+                    FROM store_inventory
+                    WHERE store_id = %s
+                    AND product_id = %s
+                """
+                cur.execute(query, (store_id, product_id, ))
+                store_inventory = cur.fetchone()[0]
                 # Check if the sales records exists
                 check = """
                     SELECT EXISTS(
                         SELECT 1 
                         FROM sales 
                         WHERE product_id = %s
+                        AND store_id = %s
+                        AND EXTRACT(YEAR FROM sale_date) = %s
+                        AND EXTRACT(MONTH FROM sale_date) = %s
                     ) AS is_sales_records_exists
                 """
-                cur.execute(check, (product_id, ))
+                cur.execute(check, (product_id, store_id, year, month, ))
                 if not cur.fetchone()[0]:
                     return jsonify({
-                        "successType": 1
+                        "successType": 1,
+                        "inventory": store_inventory
                     })
                 # Query the quantity and price
                 query = """
@@ -247,16 +300,19 @@ def get_product_info():
                     AND EXTRACT(MONTH FROM sale_date) = %s
                     GROUP BY unit_price
                 """
-            cur.execute(query, (product_id, store_id, year, month, ))
-            quantity = cur.fetchone()[0]
-            unit_price = cur.fetchone()[1]
-            return jsonify({
-                "successType": 2,
-                "quantity": quantity,
-                "unit_price": unit_price
-            })
+                cur.execute(query, (product_id, store_id, year, month, ))
+                quantity = cur.fetchone()[0]
+                unit_price = cur.fetchone()[1]
+                return jsonify({
+                    "successType": 2,
+                    "quantity": quantity,
+                    "unit_price": unit_price, 
+                    "store_inventory": store_inventory
+                })
     except Exception as e:
-        return jsonify({"err": str(e)}), 500
+        return jsonify({
+            "successType": 4,
+            "err": str(e)}), 500
 
 # Sell products
 @app.route('/api/store/sell', methods = ['POST'])
