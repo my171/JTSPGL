@@ -4,8 +4,6 @@ from config import Config
 from datetime import datetime
 from database import DBPool
 from flask_cors import CORS
-from tts_main import text_to_sqlite
-from _1_Entry import API_RAG_TextGen
 from predict import predict_future_sales
 from agentrag1 import main
 
@@ -571,7 +569,7 @@ def sell():
             "successType": 4, 
             "err": str(e)
         }), 500
-
+    
 # Send request
 @app.route('/api/request', methods = ['POST'])
 def request_approval():
@@ -644,7 +642,7 @@ def request_approval():
         }), 500
 
 # Accept the approval
-@app.route('/api/approval/accpeted', methods = ['POST'])
+@app.route('/api/approval/accepted', methods = ['POST'])
 def accepted():
     #Fetch the data
     approval_id = request.get_json().get('approval_id', '')
@@ -670,6 +668,7 @@ def accepted():
                     "approval_time": current_time
                 })
     except Exception as e:
+        print(str(e))
         return jsonify({
             "successType": 1,
             "err": str(e)
@@ -694,7 +693,7 @@ def rejected():
                         approval_time = %s
                     WHERE approval_id = %s
                 """
-                cur.execute(update_sql, ('已驳回', current_time, approval_id, ))
+                cur.execute(update_sql, ('已取消', current_time, approval_id, ))
                 conn.commit()
                 return jsonify({
                     "successType": 0,
@@ -702,6 +701,7 @@ def rejected():
                 })
                 
     except Exception as e:
+        print(str(e))
         return jsonify({
             "sucessType": 1,
             "err": str(e)
