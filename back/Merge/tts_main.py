@@ -69,5 +69,5 @@ def text_to_sqlite(requirement: str, max_retries: int = 2):
             finally:
                 cur.close()
 
-
-#text_to_sqlite("描述数据库")
+if __name__ == "__main__":
+    text_to_sqlite("仓库里还有多少电子产品")

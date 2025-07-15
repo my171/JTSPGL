@@ -269,7 +269,8 @@ def get_sql(requirement: str, model: str = 'deepseek-reasoner', max_retries: int
             "### 重要提示: \n"
             "1. 使用明确的列名而不是SELECT *\n"
             "2. 大表查询添加LIMIT限制\n"
-            "3. 注意JOIN条件避免笛卡尔积\n\n"
+            "3. 注意JOIN条件避免笛卡尔积\n"
+            "4. 尽可能使用模糊查询\n\n"
         )
     }
     

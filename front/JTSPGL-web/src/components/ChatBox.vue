@@ -28,11 +28,6 @@
           placeholder="请输入您的问题..."
           @keyup.enter="sendMessage"
         />
-        <!-- 图片上传按钮 -->
-        <label class="btn btn-secondary">
-          <input type="file" accept="image/*" @change="handleImageUpload" hidden />
-          <i class="bi bi-image"></i>
-        </label>
         <button class="btn btn-dark" @click="sendMessage">发送</button>
       </div>
     </div>
