@@ -187,7 +187,7 @@ const replenish = async () => {
         alert(`补货失败：${response.data.err}`);
         break;
       case 3:
-        alert("补货失败: 请输入正整数");
+        alert("商品数量输入有误");
         break;
     }
   } catch (err) {

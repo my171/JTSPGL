@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 class Config:
 
-    DB_HOST = 'yd.frp-era.com'
-    DB_PORT = '11103'
-    DB_NAME = 'postgres'
-    DB_USER = 'postgres'
-    DB_PASSWORD = 'ab12AB!@'
+    DB_HOST = '192.168.28.135'
+    DB_PORT = '5432'
+    DB_NAME = 'companylink'
+    DB_USER = 'myuser'
+    DB_PASSWORD = '123456abc.'
     client_encoding='utf8'
     
     SQLALCHEMY_DATABASE_URI = f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?client_encoding=utf8'
