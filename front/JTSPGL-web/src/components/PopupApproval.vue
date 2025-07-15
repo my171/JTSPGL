@@ -16,7 +16,9 @@
       <hr />
 
       <h6>时间记录</h6>
-      <p><strong>申请发出时间:</strong> {{ approval.request_time || "暂无" }}</p>
+      <p>
+        <strong>申请发出时间:</strong> {{ approval.request_time || "暂无" }}
+      </p>
       <p><strong>审核时间:</strong> {{ approval.approved_time || "暂无" }}</p>
       <p><strong>发货时间:</strong> {{ approval.shipment_time || "暂无" }}</p>
       <p><strong>收货时间:</strong> {{ approval.receipt_time || "暂无" }}</p>
@@ -52,9 +54,16 @@
         >
           收货
         </button>
+        <button
+          v-if="canCancel"
+          class="btn btn-outline-danger mt-3"
+          @click="cancelApproval"
+        >
+          取消申请
+        </button>
       </div>
     </div>
-    
+
     <div v-else>
       <p>未选择审批项</p>
     </div>
@@ -81,20 +90,59 @@ const emit = defineEmits(["close"]);
 const isVisible = ref(false);
 const approval = ref(null);
 
+// 权限控制
+const userRole = localStorage.getItem("user_role");
+const warehouseName = localStorage.getItem("warehouse_name");
+const storeName = localStorage.getItem("store_name");
+
+const canCancel = ref(false);
+
 watch(
   () => props.selectedApprovalId,
   (newId) => {
-    if (newId) {
-      approval.value =
-        props.approvalRequests.find((a) => a.id === newId) || null;
-      isVisible.value = true;
-    } else {
+    if (!newId) {
       isVisible.value = false;
       approval.value = null;
+      return;
     }
+
+    approval.value = props.approvalRequests.find((a) => a.id === newId) || null;
+    isVisible.value = true;
+
+    // 判断是否可取消
+    const isCreator =
+      approval.value.from === warehouseName ||
+      approval.value.from === storeName;
+
+    canCancel.value =
+      ["待审核", "待出库"].includes(approval.value?.status) &&
+      (userRole === "admin" ||
+        (isCreator && (userRole === "warehouse" || userRole === "store")));
   }
 );
+const cancelApproval = async () => {
+  if (!approval.value) return;
 
+  if (!confirm(`确定要取消此调货申请吗？\n状态将变为“已取消”。`)) return;
+
+  try {
+    await axios.post("http://localhost:5000/api/approval/cancel", {
+      approval_id: approval.value.id,
+      canceled_by:
+        localStorage.getItem("warehouse_name") ||
+        localStorage.getItem("store_name"),
+    });
+
+    approval.value.status = "已取消";
+    approval.value.canceled_time = new Date().toISOString();
+    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-已取消`;
+
+    emit("update-approval", approval.value);
+    alert("调货申请已取消");
+  } catch (err) {
+    alert("取消失败：" + err.message);
+  }
+};
 const close = () => {
   isVisible.value = false;
   emit("close");
@@ -121,7 +169,7 @@ const approve = async (passed) => {
       : `http://localhost:5000/api/approval/rejected`;
 
     const response = axios.post(url, {
-      approval_id: approval.value.id
+      approval_id: approval.value.id,
     });
 
     const { approvedAt } = response.data;
@@ -129,7 +177,7 @@ const approve = async (passed) => {
     approval.value.status = passed ? "待出库" : "已取消";
     approval.value.approvedAt = approvedAt;
     approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-${approval.value.status}`;
-    
+
     emit("update-approval", approval.value);
   } catch (err) {
     alert(`操作失败：${err.message}`);
@@ -141,7 +189,7 @@ const ship = async () => {
   if (!approval.value) return;
   try {
     const response = await axios.post("http://localhost:5000/api/shipment", {
-      approval_id: approval.value.id
+      approval_id: approval.value.id,
     });
 
     const { shippedAt } = response.data;
@@ -156,13 +204,12 @@ const ship = async () => {
   }
 };
 
-
 //RECEIVE BUTTON
 const receive = async () => {
   if (!approval.value) return;
   try {
     const response = await axios.post("http://localhost:5000/api/shipment", {
-      approval_id: approval.value.id
+      approval_id: approval.value.id,
     });
 
     const { receivedAt } = response.data;
@@ -181,5 +228,18 @@ defineExpose({ show, relatedclose });
 </script>
 
 <style scoped>
-@import "./popup-style.css";
+.popup-panel {
+  position: fixed;
+  top: 50px;
+  right: 0;
+  width: 400px;
+  background-color: #fff;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+.popup-panel.show {
+  transform: translateX(0);
+}
 </style>
