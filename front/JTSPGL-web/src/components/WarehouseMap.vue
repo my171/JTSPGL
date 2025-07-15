@@ -3,7 +3,7 @@
   <div class="map-container">
     <div class="map-area" ref="mapContainer">
       <div
-        v-for="warehouse in filteredWarehouses"
+        v-for="warehouse in warehouses"
         :key="warehouse.id"
         class="warehouse"
         :style="warehouse.style"
@@ -41,12 +41,6 @@ const warehousePositions = ref([
 
 const detailInfo = ref(localStorage.getItem('DetailInfo'));
 
-const filteredWarehouses = computed(() => {
-  if (detailInfo.value == "ADMIN") return warehouses.value;
-  return warehouses.value.filter(wh => 
-    wh.id == detailInfo.value
-  );
-});
 
 
 
