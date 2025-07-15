@@ -97,6 +97,7 @@ def predict():
 
     # Get the query_params
     previous_months = []
+    historical_months = []
     for i in range(1, 5):
         month = current_time.month - i
         year = current_time.year
@@ -104,6 +105,7 @@ def predict():
             month += 12
             year -= 1
         previous_months.append((year, month))
+        historical_months.append(f"{year}-{month:02d}")
     query_params = []
     for year_month_pair in previous_months:
         query_params.append((product_id, store_id, year_month_pair[0], year_month_pair[1]))
@@ -111,17 +113,29 @@ def predict():
     try:
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
-                query = """
-                    SELECT 
-                    SUM(quantity) AS total_quantity,
-                    FROM sales
-                    WHERE product_id = %s
-                    AND store_id = %s
-                    AND EXTRACT(YEAR FROM sale_date) = %s
-                    AND EXTRACT(MONTH FROM sale_date) = %s
-                """
-                cur.execute(query, query_params)
+                historical_sales = []
+                for each_param in query_params:
+                    query = """
+                        SELECT 
+                        SUM(quantity) AS total_quantity,
+                        FROM sales
+                        WHERE product_id = %s
+                        AND store_id = %s
+                        AND EXTRACT(YEAR FROM sale_date) = %s
+                        AND EXTRACT(MONTH FROM sale_date) = %s
+                    """
+                    cur.execute(query, each_param)
+                    historical_sales.append(cur.fetchone()[0])
 
+                predict_sales = predict_future_sales(historical_sales, historical_months, target_month)
+                return jsonify({
+                    "successType": 0,
+                    "predict_sales": predict_sales
+                })
+    except Exception as e:
+        return jsonify({
+            "successType": 1
+        })
 
 # Fetch the list of stores by warehouse
 @app.route('/api/warehouses/<warehouse_id>/stores', methods = ['GET'])
