@@ -23,6 +23,9 @@ app = Flask(__name__)
 CORS(app)  # 允许跨域请求
 app.config.from_object(Config)
 
+def is_positive_integer(num):
+    return (type(num) == int and num > 0)
+
 @app.route('/api/verify', methods = ['POST'])
 def UserVerify():
     data = request.get_json()
@@ -170,6 +173,11 @@ def replenish():
     data = request.get_json()
     product_id = data.get('product', '')
     quantity = data.get('quantity', '')
+    # Check if the quantity is correct
+    if not (is_positive_integer):
+        return jsonify({
+            "successType": 3
+        })
     warehouse_id = data.get('warehouse_id', '')
 
     try:
@@ -251,14 +259,13 @@ def get_product_info():
             with conn.cursor() as cur:
                 # Check if the product exists
                 check = """
-                    SELECT EXISTS(
-                        SELECT 1 
-                        FROM product 
-                        WHERE product_id = %s
-                    ) AS is_product_exists
+                    SELECT product_name 
+                    FROM product 
+                    WHERE product_id = %s
                 """
                 cur.execute(check, (product_id, ))
-                if not cur.fetchone()[0]:
+                name = cur.fetchone()[0]
+                if not name:
                     return jsonify({
                         "successType": 0
                     })
@@ -286,6 +293,7 @@ def get_product_info():
                 if not cur.fetchone()[0]:
                     return jsonify({
                         "successType": 1,
+                        "name": name, 
                         "inventory": store_inventory
                     })
                 # Query the quantity and price
@@ -301,10 +309,12 @@ def get_product_info():
                     GROUP BY unit_price
                 """
                 cur.execute(query, (product_id, store_id, year, month, ))
-                quantity = cur.fetchone()[0]
-                unit_price = cur.fetchone()[1]
+                result = cur.fetchone()
+                quantity = result[0]
+                unit_price = result[1]
                 return jsonify({
-                    "successType": 2,
+                    "successType": 2, 
+                    "name": name, 
                     "quantity": quantity,
                     "unit_price": unit_price, 
                     "store_inventory": store_inventory
@@ -322,6 +332,11 @@ def sell():
     store_id = data.get('store_id', '')
     product_id = data.get('product_id', '')
     quantity = data.get('quantity', '')
+    # Check if the quantity is correct
+    if not (is_positive_integer):
+        return jsonify({
+            "successType": 1
+        })
 
     # Get the date
     current_date = datetime.now().date()
@@ -411,6 +426,11 @@ def request_approval():
     # Fetch the data
     data = request.get_json()
     quantity = data.get('quantity', '')
+    # Check if the quantity is correct
+    if not (is_positive_integer):
+        return jsonify({
+            "successType": 2
+        })
     from_location_id = data.get('from_id', '')
     to_location_id = data.get('to_id', '')
     product_id = data.get('product_id', '')
