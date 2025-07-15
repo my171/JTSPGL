@@ -63,10 +63,6 @@
         </button>
       </div>
     </div>
-
-    <div v-else>
-      <p>未选择审批项</p>
-    </div>
   </div>
 </template>
 

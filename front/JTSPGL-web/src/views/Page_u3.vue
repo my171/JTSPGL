@@ -18,14 +18,6 @@
         @show-approval="showApprovalDetail"
       />
     </div>
-
-    <!-- 弹窗 -->
-    <PopupApproval
-      ref="popupApproval"
-      :approvalRequests="approvalRequests"
-      :selectedApprovalId="selectedApprovalId"
-      @close="closeApprovalPopup"
-    />
   </div>
 </template>
 
