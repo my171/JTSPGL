@@ -1,7 +1,6 @@
 <!-- StoreOpPanel.vue -->
 <template>
   <div class="store-op-panel">
-<<<<<<< Updated upstream
     <div class="d-flex align-items-center justify-content-between mb-3">
       <h4 class="mb-0"><strong>商店操作中心</strong></h4>
       <h5 class="mb-0">当前商店：{{ storeName }}</h5>
@@ -10,14 +9,6 @@
     <!-- 商品信息查询 -->
     <div class="card mb-3">
       <div class="card-header">商品库存与销量</div>
-=======
-    <h4>商店操作中心</h4>
-    <p><strong>当前商店：</strong>{{ storeName }}</p>
-
-    <!-- 商品信息查询 -->
-    <div class="card mb-3">
-      <div class="card-header">商品信息与销量</div>
->>>>>>> Stashed changes
       <div class="card-body d-flex align-items-center">
         <input
           v-model="queryInput"
@@ -35,34 +26,24 @@
     <!-- 调货 -->
     <div class="card mb-3">
       <div class="card-header">从仓库调货</div>
-<<<<<<< Updated upstream
       <div class="card-body d-flex align-items-center gap-2">
         <!-- 商品ID -->
-=======
-      <div class="card-body d-flex flex-wrap align-items-center gap-2">
->>>>>>> Stashed changes
         <input
           v-model="transferProduct"
           placeholder="商品ID"
           class="form-control"
           style="flex: 1"
         />
-<<<<<<< Updated upstream
 
         <!-- 数量 -->
-=======
->>>>>>> Stashed changes
         <input
           v-model.number="transferQty"
           placeholder="数量"
           class="form-control"
           style="flex: 1"
         />
-<<<<<<< Updated upstream
 
         <!-- 目标仓库 -->
-=======
->>>>>>> Stashed changes
         <select
           v-model="selectedWarehouseId"
           class="form-select"
@@ -73,45 +54,27 @@
             {{ w.name }}
           </option>
         </select>
-<<<<<<< Updated upstream
 
         <!-- 提交按钮 -->
         <button class="btn btn-warning" @click="transferIn">调货</button>
-=======
-        <button class="btn btn-warning" @click="transferIn" style="flex: 1">
-          调货
-        </button>
->>>>>>> Stashed changes
       </div>
     </div>
 
     <!-- 卖出商品 -->
     <div class="card mb-3">
       <div class="card-header">卖出商品</div>
-<<<<<<< Updated upstream
       <div class="card-body d-flex align-items-center gap-2">
         <input
           v-model="sellProduct"
           placeholder="商品ID"
           class="form-control me-2"
           style="flex: 1"
-=======
-      <div class="card-body">
-        <input
-          v-model="sellProduct"
-          placeholder="商品ID"
-          class="form-control mb-2"
->>>>>>> Stashed changes
         />
         <input
           v-model.number="sellQty"
           placeholder="数量"
-<<<<<<< Updated upstream
           class="form-control me-2"
           style="flex: 1"
-=======
-          class="form-control mb-2"
->>>>>>> Stashed changes
         />
         <button class="btn btn-success" @click="sell">卖出</button>
       </div>
@@ -127,11 +90,7 @@ const emit = defineEmits(["new-approval"]);
 
 // 当前商店信息（来自登录后本地存储）
 const storeName = ref(localStorage.getItem("store_name"));
-<<<<<<< Updated upstream
 const storeId = ref(localStorage.getItem("DetailInfo"));
-=======
-const storeId = ref(localStorage.getItem("store_id"));
->>>>>>> Stashed changes
 
 // 商品查询
 const queryInput = ref("");
@@ -157,7 +116,6 @@ const sellQty = ref(0);
 const queryProduct = async () => {
   const res = await axios.get("http://localhost:5000/api/store/products", {
     params: {
-<<<<<<< Updated upstream
       store_id: storeId.value,
       query: queryInput.value,
     },
@@ -177,15 +135,6 @@ const queryProduct = async () => {
         "\n商店库存量: " + res.data.inventory;
       break;
   }
-=======
-      storeId: storeId.value,
-      productId: queryInput.value,
-    },
-  });
-  productResult.value = res.data.name
-    ? `单价:${res.data.unit_price}, 销量:${res.data.quantity}`
-    : "无记录";
->>>>>>> Stashed changes
 };
 
 // 调货逻辑
