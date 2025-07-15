@@ -93,7 +93,6 @@ import axios from "axios";
 const emit = defineEmits(["new-approval"]);
 
 // 数据字段
-
 const warehouseName = ref(localStorage.getItem("warehouse_name"));
 const warehouseId = ref(localStorage.getItem("DetailInfo"));
 

@@ -27,6 +27,11 @@
       @show-store="showStorePopup"
       @new-approval="handleNewApproval"
     />
+    <PopupApproval
+      ref="popupApproval"
+      :approvalRequests="approvalRequests"
+      @close="closeApprovalPopup"
+    />
   </div>
 </template>
 
