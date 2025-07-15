@@ -98,7 +98,7 @@ const queryProduct = async () => {
     if (res.data.successType == 0) {
       productResult.value = "查询失败：商品编号不存在";
     } else if (res.data.successType == 1) {
-      productResult.value = "未查询到销售记录";
+      productResult.value = res.data.name + ": 未查询到销售记录";
     } else {
       productResult.value =
         res.data.name +
@@ -180,6 +180,7 @@ const sell = async () => {
     });
     switch(response.data.successType){
       case 0:alert("商品编号不存在");break;
+      case 1:alert("请输入正整数");break;
       case 2:alert("仓库内商品库存不足");break;
       case 3:alert("卖出成功");break;
       case 4:alert(`卖出失败：${response.data.err}`);break;
