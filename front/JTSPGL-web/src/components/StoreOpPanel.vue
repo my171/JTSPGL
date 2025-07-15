@@ -1,12 +1,14 @@
 <!-- StoreOpPanel.vue -->
 <template>
   <div class="store-op-panel">
-    <h4>商店操作中心</h4>
-    <p><strong>当前商店：</strong>{{ storeName }}</p>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h4 class="mb-0"><strong>商店操作中心</strong></h4>
+      <h5 class="mb-0">当前商店：{{ storeName }}</h5>
+    </div>
 
     <!-- 商品信息查询 -->
     <div class="card mb-3">
-      <div class="card-header">商品信息与销量</div>
+      <div class="card-header">商品库存与销量</div>
       <div class="card-body d-flex align-items-center">
         <input
           v-model="queryInput"
@@ -24,19 +26,24 @@
     <!-- 调货 -->
     <div class="card mb-3">
       <div class="card-header">从仓库调货</div>
-      <div class="card-body d-flex flex-wrap align-items-center gap-2">
+      <div class="card-body d-flex align-items-center gap-2">
+        <!-- 商品ID -->
         <input
           v-model="transferProduct"
           placeholder="商品ID"
           class="form-control"
           style="flex: 1"
         />
+
+        <!-- 数量 -->
         <input
           v-model.number="transferQty"
           placeholder="数量"
           class="form-control"
           style="flex: 1"
         />
+
+        <!-- 目标仓库 -->
         <select
           v-model="selectedWarehouseId"
           class="form-select"
@@ -47,25 +54,27 @@
             {{ w.name }}
           </option>
         </select>
-        <button class="btn btn-warning" @click="transferIn" style="flex: 1">
-          调货
-        </button>
+
+        <!-- 提交按钮 -->
+        <button class="btn btn-warning" @click="transferIn">调货</button>
       </div>
     </div>
 
     <!-- 卖出商品 -->
     <div class="card mb-3">
       <div class="card-header">卖出商品</div>
-      <div class="card-body">
+      <div class="card-body d-flex align-items-center gap-2">
         <input
           v-model="sellProduct"
           placeholder="商品ID"
-          class="form-control mb-2"
+          class="form-control me-2"
+          style="flex: 1"
         />
         <input
           v-model.number="sellQty"
           placeholder="数量"
-          class="form-control mb-2"
+          class="form-control me-2"
+          style="flex: 1"
         />
         <button class="btn btn-success" @click="sell">卖出</button>
       </div>
@@ -81,7 +90,7 @@ const emit = defineEmits(["new-approval"]);
 
 // 当前商店信息（来自登录后本地存储）
 const storeName = ref(localStorage.getItem("store_name"));
-const storeId = ref(localStorage.getItem("store_id"));
+const storeId = ref(localStorage.getItem("DetailInfo"));
 
 // 商品查询
 const queryInput = ref("");
@@ -107,13 +116,25 @@ const sellQty = ref(0);
 const queryProduct = async () => {
   const res = await axios.get("http://localhost:5000/api/store/products", {
     params: {
-      storeId: storeId.value,
-      productId: queryInput.value,
+      store_id: storeId.value,
+      query: queryInput.value,
     },
   });
-  productResult.value = res.data.name
-    ? `单价:${res.data.unit_price}, 销量:${res.data.quantity}`
-    : "无记录";
+  switch(res.data.successType){
+    case 0:
+      productResult.value = "查询失败：商品编号不存在";break;
+    case 1:
+      productResult.value = res.data.name + ": 未查询到销售记录\n商店库存量: " + res.data.inventory;break;
+    case 2:
+      productResult.value =
+        res.data.name +
+        " 单价:" +
+        res.data.unit_price +
+        " 销量:" +
+        res.data.quantity +
+        "\n商店库存量: " + res.data.inventory;
+      break;
+  }
 };
 
 // 调货逻辑

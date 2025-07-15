@@ -44,9 +44,9 @@
     <!-- 调货操作 -->
     <div class="card mb-3">
       <div class="card-header">调货申请</div>
-      <div class="card-body d-flex flex-column gap-2 position-relative">
+      <div class="card-body position-relative" style="padding-right: 80px">
         <!-- 商品ID -->
-        <div class="d-flex align-items-center">
+        <div class="mb-2" style="max-width: 1080px">
           <input
             v-model="transferProduct"
             placeholder="商品ID"
@@ -55,7 +55,7 @@
         </div>
 
         <!-- 调货数量 -->
-        <div class="d-flex align-items-center">
+        <div class="mb-2" style="max-width: 1080px">
           <input
             v-model.number="transferQty"
             placeholder="调货数量"
@@ -64,7 +64,7 @@
         </div>
 
         <!-- 目标仓库 -->
-        <div class="d-flex align-items-center">
+        <div class="mb-2" style="max-width: 1080px">
           <select v-model="selectedWarehouse" class="form-select">
             <option disabled value="">选择目标仓库</option>
             <option v-for="w in warehouseList" :key="w.id" :value="w.id">
@@ -75,11 +75,11 @@
 
         <!-- 提交按钮 -->
         <button
-          class="btn btn-warning position-absolute top-50 end-0 translate-middle-y"
+          class="btn btn-warning position-absolute translate-middle-y"
           @click="transfer"
-          style="z-index: 1"
+          style="top: 50%; right: 15px; transform: translateY(-50%); z-index: 2"
         >
-          提交调货
+          调货
         </button>
       </div>
     </div>
