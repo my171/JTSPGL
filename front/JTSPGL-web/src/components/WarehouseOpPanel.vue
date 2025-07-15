@@ -1,6 +1,4 @@
 <!--WarehouseOpPanel.vue-->
-//仓库用户的主操作界面
-<!-- WarehouseOpPanel.vue -->
 <template>
   <div class="warehouse-op-panel">
     <h4>仓库操作中心</h4>
@@ -8,48 +6,77 @@
     <!-- 商品库存查询 -->
     <div class="card mb-3">
       <div class="card-header">商品库存查询</div>
-      <div class="card-body">
-        <div class="input-group mb-2">
-          <input v-model="queryInput" placeholder="输入商品ID" class="form-control" />
-          <button class="btn btn-primary" @click="queryProduct">查询</button>
-        </div>
-        <pre v-if="productResult">{{ productResult }}</pre>
+      <div class="card-body d-flex align-items-center">
+        <input
+          v-model="queryInput"
+          placeholder="输入商品ID"
+          class="form-control me-2"
+          style="flex: 1"
+        />
+        <button class="btn btn-primary" @click="queryProduct">查询</button>
+      </div>
+      <div class="card-body" v-if="productResult">
+        <pre>{{ productResult }}</pre>
       </div>
     </div>
-
-    <!-- 补货操作 -->
-    <div class="card mb-3">
+<!-- 补货操作 -->
+<div class="card mb-3">
       <div class="card-header">补货操作</div>
-      <div class="card-body position-relative">
-        <div class="mb-2">
-          <input v-model="replenishProduct" placeholder="商品ID" class="form-control" />
-        </div>
-        <div class="mb-2">
-          <input v-model.number="replenishQty" placeholder="补货数量" class="form-control" />
-        </div>
-        <button class="btn btn-success position-absolute" style="top: 50%; right: 10px; transform: translateY(-50%);" @click="replenish">
-          补货
-        </button>
+      <div class="card-body d-flex align-items-center gap-2">
+        <input
+          v-model="replenishProduct"
+          placeholder="商品ID"
+          class="form-control me-2"
+          style="flex: 1"
+        />
+        <input
+          v-model.number="replenishQty"
+          placeholder="补货数量"
+          class="form-control me-2"
+          style="flex: 1"
+        />
+        <button class="btn btn-success" @click="replenish">补货</button>
       </div>
     </div>
 
     <!-- 调货操作 -->
     <div class="card mb-3">
       <div class="card-header">调货申请</div>
-      <div class="card-body position-relative">
-        <div class="mb-2">
-          <input v-model="transferProduct" placeholder="商品ID" class="form-control" />
+      <div class="card-body d-flex flex-column gap-2 position-relative">
+        <!-- 商品ID -->
+        <div class="d-flex align-items-center">
+          <input
+            v-model="transferProduct"
+            placeholder="商品ID"
+            class="form-control"
+          />
         </div>
-        <div class="mb-2">
-          <input v-model.number="transferQty" placeholder="调货数量" class="form-control" />
+
+        <!-- 调货数量 -->
+        <div class="d-flex align-items-center">
+          <input
+            v-model.number="transferQty"
+            placeholder="调货数量"
+            class="form-control"
+          />
         </div>
-        <div class="mb-2">
+
+        <!-- 目标仓库 -->
+        <div class="d-flex align-items-center">
           <select v-model="selectedWarehouse" class="form-select">
             <option disabled value="">选择目标仓库</option>
-            <option v-for="w in warehouseList" :key="w.id" :value="w.id">{{ w.name }}</option>
+            <option v-for="w in warehouseList" :key="w.id" :value="w.id">
+              {{ w.name }}
+            </option>
           </select>
         </div>
-        <button class="btn btn-warning position-absolute" style="top: 50%; right: 10px; transform: translateY(-50%);" @click="transfer">
+
+        <!-- 提交按钮 -->
+        <button
+          class="btn btn-warning position-absolute top-50 end-0 translate-middle-y"
+          @click="transfer"
+          style="z-index: 1"
+        >
           提交调货
         </button>
       </div>
