@@ -119,8 +119,8 @@ const transferIn = async () => {
       warehouseList.value.find((w) => w.id === selectedWarehouseId.value)
         ?.name || "";
     const response = await axios.post("http://localhost:5000/api/supply", {
-      fromWarehouseID: selectedWarehouse.value,
-      store_id: storeId.value,
+      from_id: selectedWarehouse.value,
+      to_id: storeId.value,
       product_id: transferProduct.value,
       quantity: Number(transferQty.value),
     });
