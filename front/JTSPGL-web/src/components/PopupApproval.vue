@@ -187,10 +187,10 @@ const approveRejected = async () => {
       approval_id: approval.value.id,
     });
 
-    const { approval_time: rejectedAt } = response.data;
+    const { approval_time: approvedAt } = response.data;
 
     approval.value.status = "已取消";
-    approval.value.approvedAt = rejectedAt;
+    approval.value.approvedAt = approvedAt;
     approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-已取消`;
 
     emit("update-approval", approval.value);
