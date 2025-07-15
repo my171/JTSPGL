@@ -95,17 +95,20 @@ const queryProduct = async () => {
         query: queryInput.value,
       },
     });
-    if (res.data.successType == 0) {
-      productResult.value = "查询失败：商品编号不存在";
-    } else if (res.data.successType == 1) {
-      productResult.value = res.data.name + ": 未查询到销售记录";
-    } else {
-      productResult.value =
-        res.data.name +
-        " 单价:" +
-        res.data.unit_price +
-        " 销量:" +
-        res.data.quantity;
+    switch(res.data.successType){
+      case 0:
+        productResult.value = "查询失败：商品编号不存在";break;
+      case 1:
+        productResult.value = res.data.name + ": 未查询到销售记录\n商店库存量: " + res.data.inventory;break;
+      case 2:
+        productResult.value =
+          res.data.name +
+          " 单价:" +
+          res.data.unit_price +
+          " 销量:" +
+          res.data.quantity +
+          "\n商店库存量: " + res.data.inventory;
+        break;
     }
   } catch (err) {
     productResult.value = `查询失败：${err.message}`;

@@ -161,6 +161,7 @@ const queryProduct = async () => {
         break;
       case 3:
         productResult.value = "查询失败: 信息未输入"
+        break;
     }
   } catch (err) {
     productResult.value = `查询失败：${err.message}`;
