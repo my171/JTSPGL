@@ -3,10 +3,10 @@ from flask import Flask, request, jsonify
 from config import Config
 from datetime import datetime
 from database import DBPool
-from predict import predict_future_sales
 from flask_cors import CORS
 from tts_main import text_to_sqlite
-#from _1_Entry import API_RAG_TextGen
+from _1_Entry import API_RAG_TextGen
+from agentrag1 import main
 
 import sys
 import locale
@@ -66,7 +66,6 @@ def UserVerify():
                 })
 
     except Exception as e:
-        print(str(e))
         return jsonify({"err": str(e)}), 500
 
 # Chatting Box Routing
@@ -79,50 +78,11 @@ def chatting():
             
             return jsonify({'error': '输入文本为空'}), 400
         
-        #result = API_RAG_TextGen(input_text)
+        result = main(input_text)
         return jsonify({'result': result})
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-# Predict the future sales
-@app.route('/api/predict', methods = ['POST'])
-def predict():
-    # Fetch the data
-    data = request.get_json()
-    store_id = data.get('warehouse_id', '')
-    product_id = data.get('product_id', '')
-
-    # Get the time
-    current_time = datetime.now()
-
-    # Get the query_params
-    previous_months = []
-    for i in range(1, 5):
-        month = current_time.month - i
-        year = current_time.year
-        if month < 1:
-            month += 12
-            year -= 1
-        previous_months.append((year, month))
-    query_params = []
-    for year_month_pair in previous_months:
-        query_params.append((product_id, store_id, year_month_pair[0], year_month_pair[1]))
-
-    try:
-        with DBPool.get_connection() as conn:
-            with conn.cursor() as cur:
-                query = """
-                    SELECT 
-                    SUM(quantity) AS total_quantity,
-                    FROM sales
-                    WHERE product_id = %s
-                    AND store_id = %s
-                    AND EXTRACT(YEAR FROM sale_date) = %s
-                    AND EXTRACT(MONTH FROM sale_date) = %s
-                """
-                cur.execute(query, query_params)
-
 
 # Fetch the list of stores by warehouse
 @app.route('/api/warehouses/<warehouse_id>/stores', methods = ['GET'])
@@ -561,7 +521,7 @@ def request_approval():
         }), 500
 
 # Accept the approval
-@app.route('/api/approval/accepted', methods = ['POST'])
+@app.route('/api/approval/accpeted', methods = ['POST'])
 def accepted():
     #Fetch the data
     approval_id = request.get_json().get('approval_id', '')
@@ -611,7 +571,7 @@ def rejected():
                         approval_time = %s
                     WHERE approval_id = %s
                 """
-                cur.execute(update_sql, ('已取消', current_time, approval_id, ))
+                cur.execute(update_sql, ('已驳回', current_time, approval_id, ))
                 conn.commit()
                 return jsonify({
                     "successType": 0,
