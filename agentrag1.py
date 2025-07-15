@@ -168,7 +168,10 @@ class UniversalDatabaseAgent:
             cursor.close()
             return [dict(zip(columns, row)) for row in rows]
         except Exception as e:
+            import traceback
             print(f"❌ SQL执行以获取绘图数据时失败: {e}")
+            print(f"SQL语句: {sql}")
+            traceback.print_exc()
             return None
     
     def analyze_query_intent(self, question: str) -> Dict:
@@ -1973,8 +1976,7 @@ class MemoryAgent:
         self.context_summary = ""
 
 class DrawingAgent:
-    """绘图Agent - 负责生成并执行绘图代码"""
-    
+    """绘图Agent - 负责生成并执行绘图代码（融合本地和主流程优点，支持中英文prompt）"""
     def __init__(self):
         self.llm = ChatOpenAI(
             model_name=os.getenv("MODEL_NAME", "gpt-4.1"),
@@ -1982,7 +1984,7 @@ class DrawingAgent:
             openai_api_base=os.getenv("OPENAI_API_URL"),
             temperature=0.4
         )
-    
+
     def _extract_code(self, text: str) -> str:
         """从文本中提取Python代码块"""
         if '```python' in text:
@@ -1994,51 +1996,44 @@ class DrawingAgent:
             end = text.find('```', start)
             return text[start:end].strip()
         return text
-    
+
     def draw(self, question: str, data_context: str = "") -> str:
-        """根据问题和数据上下文生成并执行绘图代码"""
+        """根据问题和数据上下文生成并执行绘图代码，优先用数据库数据，失败降级为示例数据"""
         timestamp = int(time.time())
         plot_filename = f"plot_{timestamp}.png"
-        plot_context = ""
+        # 支持中英文prompt
         if data_context:
             plot_context = f"""
-Please use the following JSON data for plotting, do not fabricate data:
+请使用以下JSON格式的数据进行绘图，不要自己编造数据：
 --- DATA START ---
 {data_context}
 --- DATA END ---
 """
+        else:
+            plot_context = ""
         plot_prompt_template = PromptTemplate.from_template("""
-You are a data visualization expert. Please generate complete Python code to create charts based on the user's question and provided data.
+你是一个数据可视化专家。请根据用户的问题和提供的数据，生成一段完整的Python代码来绘制图表。
 
 {plot_context}
 
-User Question: {question}
+用户问题：{question}
 
-Code Requirements:
-1. Use `matplotlib.pyplot` library and alias it as `plt`.
-2. **Before calling `plt.show()`, you must save the chart to a file named '{plot_filename}'.**
-3. **Finally, you must call `plt.show()` to display the image.**
-4. The code must be complete and directly runnable.
-5. Use English for chart labels and titles to avoid encoding issues.
-6. If JSON data is provided, parse it and use the actual data. If no data provided, create reasonable sample data.
-7. Add appropriate title and axis labels to the chart.
-8. Add a note at the bottom center: 'Note: Data is for reference only.'
-9. For database data, focus on meaningful visualizations like bar charts, pie charts, or line charts.
-10. Only return Python code block wrapped in ```python ... ```, no additional explanations.
-
-Data Processing Tips:
-- If JSON data is provided, use `json.loads()` to parse it
-- Handle potential encoding issues with Chinese characters
-- Choose appropriate chart types based on data structure
-- For numerical data, consider bar charts or line charts
-- For categorical data, consider pie charts or bar charts
+代码要求：
+1. 使用matplotlib.pyplot库，并将其别名为plt。
+2. 在调用plt.show()之前，必须将图表保存到名为'{plot_filename}'的文件中。
+3. 最后必须调用plt.show()来显示图像。
+4. 代码必须是完整且可以直接运行的。
+5. 图表的标签、标题请用英文，避免乱码。
+6. 如果提供了数据，请务必使用提供的数据库数据。如果提供了SQL查询语句，在数据库中进行查询根据查询到的具体数据进行画图。
+7. 如果没有提供数据，可以使用合理、简洁的示例数据。
+7. 给图表添加合适的标题(Title)和坐标轴标签(X/Y Label)。
+8. 在图表底部中心位置添加注释：'Note: Data is for reference only.'
+9. 只返回Python代码块，用```python ... ```包围，不要任何额外的解释。
 """)
-        final_prompt = plot_prompt_template.format(question=question, plot_context=plot_context,
-                                                   plot_filename=plot_filename)
+        final_prompt = plot_prompt_template.format(question=question, plot_context=plot_context, plot_filename=plot_filename)
         attempt = 0
         max_attempts = 5
-        conversation = [{"role": "system",
-                         "content": "You are a helpful AI assistant that generates Python code for plotting graphs using matplotlib."}]
+        conversation = [{"role": "system", "content": "You are a helpful AI assistant that generates Python code for plotting graphs using matplotlib."}]
         conversation.append({"role": "user", "content": final_prompt})
         while attempt < max_attempts:
             attempt += 1
@@ -2049,32 +2044,28 @@ Data Processing Tips:
             if not code:
                 print(f"❌ 绘图失败: LLM未返回有效的代码。")
                 conversation.append({"role": "assistant", "content": ai_response})
-                conversation.append(
-                    {"role": "user", "content": "You did not return any code. Please only return code blocks wrapped in ```python."})
+                conversation.append({"role": "user", "content": "你没有返回任何代码。请只返回被```python包围的代码块。"})
                 continue
-
-            # 清理代码，移除可能的问题代码
+            # 清理代码，移除不必要的后端设置和多余的plt.show/plt.savefig
             code = code.replace("matplotlib.use('Agg')", "")
             code = code.replace("plt.show()", "")
-            code = re.sub(r"plt\.savefig\s*\(['\"].*?['\"]\)", "", code, flags=re.DOTALL)
-            
-            # 添加系统控制的保存和显示命令
+            code = re.sub(r"plt\\.savefig\\s*\\(['\"].*?['\"]\\)", "", code, flags=re.DOTALL)
+            # 强制添加保存和显示命令
             code += f"\n\n# Adding save and show commands by the system #wh_add_draw\n"
             code += f"plt.savefig('{plot_filename}', dpi=300, bbox_inches='tight') #wh_add_draw\n"
             code += f"plt.show() #wh_add_draw\n"
-
             script_name = f"temp_plot_{timestamp}_{attempt}.py"
             with open(script_name, "w", encoding="utf-8") as f:
                 f.write(code)
             try:
-                # 修复Windows编码问题
+                # 兼容Windows编码
                 result = subprocess.run(
                     [sys.executable, script_name],
                     capture_output=True,
                     text=True,
-                    encoding='utf-8',  # 明确指定UTF-8编码
+                    encoding='utf-8',
                     timeout=30,
-                    env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}  # 设置Python IO编码
+                    env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}
                 )
                 if result.returncode == 0 and os.path.exists(plot_filename):
                     print(f"✅ 绘图成功! 图像已保存到: {os.path.abspath(plot_filename)}")
@@ -2084,16 +2075,15 @@ Data Processing Tips:
                     error_msg = f"代码执行失败或未生成图像文件。\nReturn Code: {result.returncode}\nStderr: {result.stderr}"
                     print(f"❌ {error_msg}")
                     conversation.append({"role": "assistant", "content": ai_response})
-                    feedback = f"Your generated code execution failed, error message: {error_msg}. Please fix it and regenerate complete code."
+                    feedback = f"你生成的代码执行失败了，错误信息是: {error_msg}。请修复它并重新生成完整的代码。"
                     conversation.append({"role": "user", "content": feedback})
             except subprocess.TimeoutExpired:
-                error_msg = "Execution timeout: Plotting code ran too long."
+                error_msg = "执行超时: 绘图代码运行时间过长。"
                 print(f"❌ {error_msg}")
                 conversation.append({"role": "assistant", "content": ai_response})
-                conversation.append(
-                    {"role": "user", "content": f"Your generated code execution timed out. Please optimize the code to run faster."})
+                conversation.append({"role": "user", "content": f"你生成的代码执行超时了。请优化代码，使其能快速执行。"})
             except Exception as e:
-                error_msg = f"Execution exception: {str(e)}"
+                error_msg = f"执行异常: {str(e)}"
                 print(f"❌ {error_msg}")
                 os.remove(script_name)
                 return f"绘图时发生未知错误: {error_msg}"
@@ -2942,4 +2932,5 @@ def process_draw_input(query: str) -> str:
         return plot_result
     except Exception as e:
         return f"❌ 画图失败: {str(e)}"
+
 
