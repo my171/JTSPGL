@@ -50,9 +50,9 @@ const STATUS_ORDER = [
 const statusColorMap = {
   待审核: "gray",
   已取消: "red",
-  待出库: "yellow",
+  待发货: "yellow",
   待收货: "yellow",
-  已完成: "green",
+  已收货: "green",
 };
 
 onMounted(async () => {

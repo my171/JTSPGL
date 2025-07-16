@@ -42,9 +42,7 @@ const storeName = localStorage.getItem("store_name");
 
 // 权限过滤后的审批流
 const filteredApprovals = computed(() => {
-  return approvalRequests.filter((a) => {
-    return a.from === storeName || a.to === storeName;
-  });
+  return approvalRequests;
 })
 
 const handleNewApproval = (record) => {

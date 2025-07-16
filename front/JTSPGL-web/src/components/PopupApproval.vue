@@ -42,7 +42,7 @@
         </button>
 
         <button
-          v-if="approval.status === '待出库'"
+          v-if="approval.status === '待发货'"
           class="btn btn-warning me-2"
           @click="ship"
         >
@@ -113,7 +113,7 @@ watch(
       approval.value.from === storeName;
 
     canCancel.value =
-      ["待审核", "待出库"].includes(approval.value?.status) &&
+      ["待审核", "待发货"].includes(approval.value?.status) &&
       (userRole === "admin" ||
         (isCreator && (userRole === "warehouse" || userRole === "store")));
   }
@@ -169,9 +169,9 @@ const approveAccepted = async () => {
 
     const { approval_time: approvedAt } = response.data;
 
-    approval.value.status = "待出库";
+    approval.value.status = "待发货";
     approval.value.approvedAt = approvedAt;
-    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-待出库`;
+    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-待发货`;
 
     emit("update-approval", approval.value);
   } catch (err) {
@@ -205,14 +205,25 @@ const ship = async () => {
     const response = await axios.post("http://localhost:5000/api/shipment", {
       approval_id: approval.value.id,
     });
+    switch(response.data.successType){
+      case 0:{
+        const { shippedAt } = response.data;
 
-    const { shippedAt } = response.data;
+        approval.value.status = "待收货";
+        approval.value.shippedAt = shippedAt;
+        approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-${approval.value.status}`;
 
-    approval.value.status = "待收货";
-    approval.value.shippedAt = shippedAt;
-    approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-${approval.value.status}`;
-
-    emit("update-approval", approval.value);
+        emit("update-approval", approval.value);
+        break;
+      }
+      case 1:{
+        alert("发货失败：商品不足");
+        break;
+      }
+      case 2:{
+        alert("发货失败：" + response.data.err);
+      }
+    }
   } catch (err) {
     alert(`发货失败：${err.message}`);
   }
@@ -222,13 +233,13 @@ const ship = async () => {
 const receive = async () => {
   if (!approval.value) return;
   try {
-    const response = await axios.post("http://localhost:5000/api/shipment", {
+    const response = await axios.post((approval.value.to.startsWith("WH"))?"http://localhost:5000/api/receipt/warehouse" : "http://localhost:5000/api/receipt/store", {
       approval_id: approval.value.id,
     });
 
     const { receivedAt } = response.data;
 
-    approval.value.status = "已完成";
+    approval.value.status = "已收货";
     approval.value.receivedAt = receivedAt;
     approval.value.display = `${approval.value.from}-${approval.value.product}-${approval.value.quantity}-${approval.value.status}`;
 

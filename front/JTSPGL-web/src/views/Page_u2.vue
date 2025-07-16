@@ -39,15 +39,10 @@ const popupApproval = ref(null);
 const approvalRequests = reactive([]); // 所有审批流记录
 
 
-const userRole = localStorage.getItem("user_role");
-const warehouseName = localStorage.getItem("warehouse_name");
+const warehouseName = localStorage.getItem("DetailInfo");
 
-
-// 过滤后的审批流（带权限控制）
 const filteredApprovals = computed(() => {
-  return approvalRequests.filter((a) => {
-    return a.from === warehouseName || a.to === warehouseName;
-  });
+  return approvalRequests;//.filter(a => true); // 仍然返回普通数组，但 computed 会追踪依赖
 });
 
 // 新增审批记录

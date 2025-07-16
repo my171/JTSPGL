@@ -242,7 +242,7 @@ const transfer = async () => {
         //rejected_time: null,
         shipment_time: null,
         receipt_time: null,
-        display: `${fromWarehouse}-${transferProduct.value}-${transferQty.value}-待审核`,
+        display: `${selectedWarehouse.value}-${transferProduct.value}-${transferQty.value}-待审核`,
       });
     }
   } catch (err) {

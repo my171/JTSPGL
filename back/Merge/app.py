@@ -6,9 +6,9 @@ from datetime import datetime
 from database import DBPool
 from flask_cors import CORS
 from predict import predict_future_sales
-from tts_main import text_to_sqlite
-from JudgeWhichToExecute.jwte import GetJudge
-from agentrag1 import main
+#from tts_main import text_to_sqlite
+#from JudgeWhichToExecute.jwte import GetJudge
+#from agentrag1 import main
 
 import sys
 import locale
@@ -79,19 +79,19 @@ def chatting():
         if not input_text:
             return jsonify({'error': '输入文本为空'}), 400
         
-        judgeResult = GetJudge(input_text)
-        if judgeResult == "Y":
-            result = text_to_sqlite(input_text)
-            return jsonify({
-                'isString': True,
-                'result': result
-            })
-        else:
-            (isString, result) = main(input_text + "\n\n以下为查询到的相关数据，若出现数据冲突，优先采用这些数据:\n\n" + text_to_sqlite(input_text + "\n\n仅查询以上需求可能需要的相关数据，禁止对数据库内数据进行任何修改"))
-            return jsonify({
-                'isString': isString,
-                'result': result
-            })
+        # judgeResult = GetJudge(input_text)
+        # if judgeResult == "Y":
+        #     result = text_to_sqlite(input_text)
+        #     return jsonify({
+        #         'isString': True,
+        #         'result': result
+        #     })
+        # else:
+        #     (isString, result) = main(input_text + "\n\n以下为查询到的相关数据，若出现数据冲突，优先采用这些数据:\n\n" + text_to_sqlite(input_text + "\n\n仅查询以上需求可能需要的相关数据，禁止对数据库内数据进行任何修改"))
+        #     return jsonify({
+        #         'isString': isString,
+        #         'result': result
+        #     })
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -828,7 +828,7 @@ def shipment():
                     WHERE approval_id = %s
                 """
                 cur.execute(query, (approval_id, ))
-                approval_data = cur.fetchone()[0]
+                approval_data = cur.fetchone()
                 quantity, product_id, from_location_id = approval_data
                 # Query the inventory
                 query = """
@@ -840,7 +840,7 @@ def shipment():
                 cur.execute(query, (from_location_id, product_id, ))
                 rest_quantity = cur.fetchone()[0]
                 # Check if the inventory is sufficient
-                if quantity < rest_quantity:
+                if quantity > rest_quantity:
                     return jsonify({
                         "successType": 1,
                     })
@@ -873,7 +873,7 @@ def shipment():
                     )
                     VALUES (%s, %s, %s, %s, %s)
                 """
-                cur.execute(insert_sql, [insert_params, ])
+                cur.execute(insert_sql, insert_params)
                 # Update the warehouse_inventory table
                 update_params = (-quantity, current_date, from_location_id, product_id)
                 update_sql = """
@@ -884,7 +884,7 @@ def shipment():
                     WHERE warehouse_id = %s
                     AND product_id = %s
                 """
-                cur.execute(update_sql, [update_params, ])
+                cur.execute(update_sql, update_params)
                 conn.commit()
                 return jsonify({
                     "successType": 0,
@@ -892,6 +892,7 @@ def shipment():
                 })
 
     except Exception as e:
+        print(str(e))
         return jsonify({
             "successType": 2,
             "err": str(e)
@@ -916,7 +917,7 @@ def receipt_warehouse():
                     WHERE approval_id = %s
                 """
                 cur.execute(query, (approval_id, ))
-                approval_data = cur.fetchone()[0]
+                approval_data = cur.fetchone()
                 quantity, product_id, to_location_id = approval_data
                 # Update the transfer_approval table
                 update_sql = """
@@ -947,7 +948,7 @@ def receipt_warehouse():
                     )
                     VALUES (%s, %s, %s, %s, %s)
                 """
-                cur.execute(insert_sql, [insert_params, ])
+                cur.execute(insert_sql, insert_params)
                 # Update the warehouse_inventory table
                 update_params = (quantity, current_date, to_location_id, product_id)
                 update_sql = """
@@ -958,7 +959,7 @@ def receipt_warehouse():
                     WHERE warehouse_id = %s
                     AND product_id = %s
                 """
-                cur.execute(update_sql, [update_params, ])
+                cur.execute(update_sql, update_params)
                 conn.commit()
                 return jsonify({
                     "successType": 0,
@@ -966,6 +967,7 @@ def receipt_warehouse():
                 })
 
     except Exception as e:
+        print(str(e))
         return jsonify({
             "successType": 1,
             "err": str(e)
@@ -989,7 +991,7 @@ def receipt_store():
                     WHERE approval_id = %s
                 """
                 cur.execute(query, (approval_id, ))
-                approval_data = cur.fetchone()[0]
+                approval_data = cur.fetchone()
                 quantity, product_id, from_location_id, store_id = approval_data
                 # Update the transfer_approval table
                 update_sql = """
@@ -1004,7 +1006,7 @@ def receipt_store():
                 update_sql = """
                     UPDATE store_inventory
                     SET 
-                        store_quantity = store_quantity + %s,
+                        stock_quantity = stock_quantity + %s,
                         last_updated = %s
                     WHERE store_id = %s
                     AND product_id = %s
@@ -1039,6 +1041,7 @@ def receipt_store():
                 })
 
     except Exception as e:
+        print(str(e))
         return jsonify({
             "successType": 1,
             "err": str(e)
