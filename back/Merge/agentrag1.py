@@ -2823,8 +2823,8 @@ def display_result(result: Dict):
 
     return (True, "\n".join(lines))
 
-
-rag = AgenticRAGSystem()
+if not rag:
+    rag = AgenticRAGSystem()
 
 def main(query: str):
     # print("🚀 === 智能多Agent RAG仓库管理系统（支持画图功能） ===")
@@ -2876,10 +2876,10 @@ def main(query: str):
     text = display_result(result)
     return text
 
-# Flask集成支持
-def create_rag_app():
-    """创建Flask集成的RAG应用实例"""
-    return AgenticRAGSystem()
+# # Flask集成支持
+# def create_rag_app():
+#     """创建Flask集成的RAG应用实例"""
+#     return AgenticRAGSystem()
 
 # 画图功能支持
 def is_drawing_request(question: str) -> bool:
@@ -2891,49 +2891,49 @@ def is_drawing_request(question: str) -> bool:
 if __name__ == "__main__":
     main()
 
-def process_terminal_input(query: str) -> str:
-    """处理一次终端输入，返回终端风格输出（只保留answer部分）"""
-    global rag
-    if rag is None:
-        rag = AgenticRAGSystem()
-    if query.lower() in ['quit', 'exit', '退出', 'q']:
-        rag.memory_agent.clear_memory()
-        return '🧹 正在清空对话记忆...\n✅ 对话记忆已清空\n👋 系统已关闭'
-    if query.lower() == 'clear':
-        rag.memory_agent.clear_memory()
-        return '🧹 对话记忆已清空'
-    try:
-        result = rag.process_query(query)
-        # 只返回终端风格的主回答内容
-        return result.get('answer', '无回答')
-    except Exception as e:
-        return f'❌ 处理失败: {str(e)}'
+# def process_terminal_input(query: str) -> str:
+#     """处理一次终端输入，返回终端风格输出（只保留answer部分）"""
+#     global rag
+#     if rag is None:
+#         rag = AgenticRAGSystem()
+#     if query.lower() in ['quit', 'exit', '退出', 'q']:
+#         rag.memory_agent.clear_memory()
+#         return '🧹 正在清空对话记忆...\n✅ 对话记忆已清空\n👋 系统已关闭'
+#     if query.lower() == 'clear':
+#         rag.memory_agent.clear_memory()
+#         return '🧹 对话记忆已清空'
+#     try:
+#         result = rag.process_query(query)
+#         # 只返回终端风格的主回答内容
+#         return result.get('answer', '无回答')
+#     except Exception as e:
+#         return f'❌ 处理失败: {str(e)}'
 
-def process_draw_input(query: str) -> str:
-    """专门处理画图请求，结合数据库数据，返回图片路径或错误信息"""
-    global rag
-    if rag is None:
-        rag = AgenticRAGSystem()
-    try:
-        # 1. 用数据库Agent生成SQL
-        sql = rag.db_agent.generate_sql(query)
-        plot_data = None
-        if sql:
-            plot_data = rag.db_agent.get_data_for_plotting(sql)
-        db_data_context = ''
-        if plot_data and len(plot_data) > 0:
-            import json
-            db_data_context = json.dumps(plot_data, ensure_ascii=False, indent=2)
-        # 2. 只用数据库数据作图
-        plot_result = rag.drawing_agent.draw(query, db_data_context)
-        if '成功' in plot_result and '文件保存在' in plot_result:
-            # 提取图片路径
-            import re
-            m = re.search(r'文件保存在: (.+)', plot_result)
-            if m:
-                return m.group(1).strip()
-        return plot_result
-    except Exception as e:
-        return f"❌ 画图失败: {str(e)}"
+# def process_draw_input(query: str) -> str:
+#     """专门处理画图请求，结合数据库数据，返回图片路径或错误信息"""
+#     global rag
+#     if rag is None:
+#         rag = AgenticRAGSystem()
+#     try:
+#         # 1. 用数据库Agent生成SQL
+#         sql = rag.db_agent.generate_sql(query)
+#         plot_data = None
+#         if sql:
+#             plot_data = rag.db_agent.get_data_for_plotting(sql)
+#         db_data_context = ''
+#         if plot_data and len(plot_data) > 0:
+#             import json
+#             db_data_context = json.dumps(plot_data, ensure_ascii=False, indent=2)
+#         # 2. 只用数据库数据作图
+#         plot_result = rag.drawing_agent.draw(query, db_data_context)
+#         if '成功' in plot_result and '文件保存在' in plot_result:
+#             # 提取图片路径
+#             import re
+#             m = re.search(r'文件保存在: (.+)', plot_result)
+#             if m:
+#                 return m.group(1).strip()
+#         return plot_result
+#     except Exception as e:
+#         return f"❌ 画图失败: {str(e)}"
 
 
