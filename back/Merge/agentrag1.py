@@ -25,17 +25,18 @@ from langchain.prompts import PromptTemplate
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from collections import deque
+from config import Config
 import re
 import textwrap
 import subprocess  # 添加绘图功能
 import sys  # 添加绘图功能
 import time  # 添加绘图功能
 # PostgreSQL配置
-PG_HOST = os.getenv('PG_HOST', '192.168.28.135')
-PG_PORT = os.getenv('PG_PORT', '5432')
-PG_NAME = os.getenv('PG_NAME', 'companylink')
-PG_USER = os.getenv('PG_USER', 'myuser')
-PG_PASSWORD = os.getenv('PG_PASSWORD', '123456abc.')
+PG_HOST = Config.DB_HOST
+PG_PORT = Config.DB_PORT
+PG_NAME = Config.DB_NAME
+PG_USER = Config.DB_USER
+PG_PASSWORD = Config.DB_PASSWORD
 
 #本地知识库所需要pdf文件路径
 PDF_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'knowledge_pdfs')
@@ -2052,8 +2053,7 @@ class DrawingAgent:
             code = re.sub(r"plt\\.savefig\\s*\\(['\"].*?['\"]\\)", "", code, flags=re.DOTALL)
             # 强制添加保存和显示命令
             code += f"\n\n# Adding save and show commands by the system #wh_add_draw\n"
-            code += f"plt.savefig('{plot_filename}', dpi=300, bbox_inches='tight') #wh_add_draw\n"
-            code += f"plt.show() #wh_add_draw\n"
+            code += f"plt.savefig('front\\JTSPGL-web\\{plot_filename}', dpi=300, bbox_inches='tight') #wh_add_draw\n"
             script_name = f"temp_plot_{timestamp}_{attempt}.py"
             with open(script_name, "w", encoding="utf-8") as f:
                 f.write(code)
@@ -2070,7 +2070,7 @@ class DrawingAgent:
                 if result.returncode == 0 and os.path.exists(plot_filename):
                     print(f"✅ 绘图成功! 图像已保存到: {os.path.abspath(plot_filename)}")
                     os.remove(script_name)
-                    return f"绘图成功，文件保存在: {os.path.abspath(plot_filename)}"
+                    return (True, f"{plot_filename}")
                 else:
                     error_msg = f"代码执行失败或未生成图像文件。\nReturn Code: {result.returncode}\nStderr: {result.stderr}"
                     print(f"❌ {error_msg}")
@@ -2086,11 +2086,11 @@ class DrawingAgent:
                 error_msg = f"执行异常: {str(e)}"
                 print(f"❌ {error_msg}")
                 os.remove(script_name)
-                return f"绘图时发生未知错误: {error_msg}"
+                return (False, f"绘图时发生未知错误: {error_msg}")
             finally:
                 if os.path.exists(script_name):
                     os.remove(script_name)
-        return f"⚠️ 经过 {max_attempts} 次尝试，仍然无法成功生成图像。"
+        return (False, f"⚠️ 经过 {max_attempts} 次尝试，仍然无法成功生成图像。")
 
 class TopAgent:
     """TopAgent - 作为中枢大脑，负责理解、分析和Agent协调"""
@@ -2356,10 +2356,10 @@ class TopAgent:
                 print("📊 检测到通用画图需求，将使用示例数据...")
             
             # 调用绘图Agent
-            plot_result = self.drawing_agent.draw(question, db_data_context)
+            success, plot_result = self.drawing_agent.draw(question, db_data_context)
             
             # 构建用户友好的回答
-            if "成功" in plot_result:
+            if success:
                 if data_summary:
                     user_answer = f"🎨 已根据数据库信息生成图表\n\n{data_summary}\n\n{plot_result}"
                 else:
@@ -2383,7 +2383,7 @@ class TopAgent:
                     "requires_drawing": True
                 },
                 "semantic_results": [],
-                "plot_path": plot_result if "成功" in plot_result else None
+                "plot_path": plot_result if success else None
             }
         
         # 1. 语义检索增强
@@ -2750,28 +2750,28 @@ class AgenticRAGSystem:
         print("🧹 系统资源已清理")
 
 # FastAPI接口
-app = FastAPI(title="智能多Agent RAG API")
-class QueryRequest(BaseModel):
-    question: str
+#app = FastAPI(title="智能多Agent RAG API")
+#class QueryRequest(BaseModel):
+#    question: str
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global rag
-    rag = AgenticRAGSystem()
-    yield
-    rag.close()
+#@asynccontextmanager
+#async def lifespan(app: FastAPI):
+#    global rag
+#    rag = AgenticRAGSystem()
+#    yield
+#    rag.close()
 
-app = FastAPI(lifespan=lifespan)
+#app = FastAPI(lifespan=lifespan)
 
-@app.post("/query")
-def query_api(req: QueryRequest):
-    try:
-        result = rag.process_query(req.question)
-        return result
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+#@app.post("/query")
+#def query_api(req: QueryRequest):
+#    try:
+#        result = rag.process_query(req.question)
+#        return result
+#    except Exception as e:
+#        return JSONResponse(status_code=500, content={"error": str(e)})
 
-def display_result(result: Dict) -> str:
+def display_result(result: Dict):
     """格式化显示结果，返回字符串（不显示数据库状态、Agent决策分析、信息来源和SQL相关内容）"""
     lines = []
     lines.append("" + "="*50)
@@ -2786,7 +2786,7 @@ def display_result(result: Dict) -> str:
         if result.get("plot_path"):
             lines.append("✅ 图像已尝试在窗口中显示，并已保存到本地。")
         # 对于画图功能，不显示其他技术细节
-        return "\n".join(lines)
+        return (False, result.get("plot_path"))
 
     # 置信度和相关性
     if 'confidence' in result:
@@ -2821,7 +2821,7 @@ def display_result(result: Dict) -> str:
         lines.append("📄 PDF检索:")
         lines.append(result['pdf_result'])
 
-    return "\n".join(lines)
+    return (True, "\n".join(lines))
 
 
 rag = AgenticRAGSystem()
@@ -2833,58 +2833,48 @@ def main(query: str):
     # print("🔚 输入'退出'、'quit'、'exit'或'q'结束会话")
     # print("🧹 输入'clear'清空对话记忆\n")
     text = ""
-    try:
-        if not query:
-            text = "请重新输入"
-        if query.lower() in ['quit', 'exit', '退出', 'q']:
-            print("🧹 正在清空对话记忆...")
-            rag.memory_agent.clear_memory()
-            print("✅ 对话记忆已清空")
-        if query.lower() == 'clear':
-            rag.memory_agent.clear_memory()
-            print("🧹 对话记忆已清空")
+
+    if not query:
+        text = "请重新输入"
         
-        # 检查是否是画图需求
-        drawing_keywords = ["画图", "绘制", "图表", "可视化", "柱状图", "折线图", "饼图", "plot", "draw", "chart"]
-        is_drawing_request = any(keyword in query for keyword in drawing_keywords)
-        
-        if is_drawing_request:
-            print("🎨 检测到画图需求，启动绘图流程...")
-            # 画图功能静默处理，不显示技术细节
+    if query.lower() == 'clear':
+        rag.memory_agent.clear_memory()
+        print("🧹 对话记忆已清空")
+    
+    # 检查是否是画图需求
+    drawing_keywords = ["画图", "绘制", "图表", "可视化", "柱状图", "折线图", "饼图", "plot", "draw", "chart"]
+    is_drawing_request = any(keyword in query for keyword in drawing_keywords)
+    
+    if is_drawing_request:
+        print("🎨 检测到画图需求，启动绘图流程...")
+        # 画图功能静默处理，不显示技术细节
+        import sys
+        class DummyFile:
+            def write(self, x): 
+                # 只显示画图相关的输出
+                if any(keyword in x for keyword in ["🎨", "📊", "✅", "❌", "绘图", "画图", "图像", "图表"]):
+                    sys.__stdout__.write(x)
+        old_stdout = sys.stdout
+        sys.stdout = DummyFile()
+        result = rag.process_query(query)
+        sys.stdout = old_stdout
+    else:
+        # 只在调试模式下显示SQL相关日志
+        import os
+        if os.getenv('RAG_DEBUG', '0') == '1':
+            result = rag.process_query(query)
+        else:
+            # 临时屏蔽SQL相关print
             import sys
             class DummyFile:
-                def write(self, x): 
-                    # 只显示画图相关的输出
-                    if any(keyword in x for keyword in ["🎨", "📊", "✅", "❌", "绘图", "画图", "图像", "图表"]):
-                        sys.__stdout__.write(x)
+                def write(self, x): pass
             old_stdout = sys.stdout
             sys.stdout = DummyFile()
             result = rag.process_query(query)
             sys.stdout = old_stdout
-        else:
-            # 只在调试模式下显示SQL相关日志
-            import os
-            if os.getenv('RAG_DEBUG', '0') == '1':
-                result = rag.process_query(query)
-            else:
-                # 临时屏蔽SQL相关print
-                import sys
-                class DummyFile:
-                    def write(self, x): pass
-                old_stdout = sys.stdout
-                sys.stdout = DummyFile()
-                result = rag.process_query(query)
-                sys.stdout = old_stdout
-        
-        text = display_result(result)
-        print("===========")
-        print("===========")
-        print("===========")
-        print("===========")
-        return text
-    finally:
-        rag.close()
-        print("\n👋 系统已关闭")
+    
+    text = display_result(result)
+    return text
 
 # Flask集成支持
 def create_rag_app():
