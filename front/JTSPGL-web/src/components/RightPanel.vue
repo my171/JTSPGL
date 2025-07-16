@@ -1,6 +1,6 @@
 <template>
   <div class="col-md-3 right-panel" :style="{ transform: panelTransform }">
-    <h5>AI 实时预警</h5>
+    <h5>实时预警</h5>
     <textarea class="form-control mb-3" rows="3" readonly>暂无预警</textarea>
 
     <h5 class="mt-4">审批流进度</h5>

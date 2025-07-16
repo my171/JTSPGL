@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 class Config:
 
     DB_HOST = '192.168.28.135'

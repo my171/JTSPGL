@@ -204,7 +204,19 @@ const sell = async () => {
     case 2:alert("仓库内商品库存不足");break;
     case 3:alert("卖出成功");break;
     case 4:alert(`卖出失败：${res.data.err}`);break;
-    case 5:alert("卖出成功");break;
+    case 5:alert("卖出成功，但库存量触发预警，系统自动发出调货申请。");break;
+  }
+  if(res.data.successType == 5){
+    emit("new-approval", {
+      id: Math.random().toString(36).substring(2, 9),
+      product: transferProduct.value,
+      quantity: transferQty.value,
+      status: "待审核",
+      from: fromWhName,
+      to: storeName.value,
+      request_time: new Date().toISOString(),
+      display: `${fromWhName}-${transferProduct.value}-${transferQty.value}-待审核`,
+    });
   }
 };
 
