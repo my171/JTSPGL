@@ -187,8 +187,8 @@ const transfer = async () => {
     warehouseList.value.find((w) => w.id === selectedWarehouse.value)?.name ||
     "";
   const res = await axios.post("http://localhost:5000/api/request", {
-    fromWarehouseID: selectedWarehouse.value,
-    warehouse_id: warehouseId.value,
+    from_id: selectedWarehouse.value,
+    to_id: warehouseId.value,
     product_id: transferProduct.value,
     quantity: transferQty.value,
   });
@@ -199,10 +199,10 @@ const transfer = async () => {
       product: transferProduct.value,
       quantity: transferQty.value,
       status: "待审核",
-      from: localStorage.getItem("warehouse_name"),
+      from: localStorage.getItem("DetailInfo"),
       to: toWarehouse,
       request_time: new Date().toISOString(),
-      display: `${localStorage.getItem("warehouse_name")}-${
+      display: `${localStorage.getItem("DetailInfo")}-${
         transferProduct.value
       }-${transferQty.value}-待审核`,
     });

@@ -56,12 +56,34 @@ const statusColorMap = {
 };
 
 onMounted(async () => {
-  const res = await axios.get("http://localhost:5000/api/approval/fetch_all", {
-  });
-  const approvalList = res.data;
-  approvalList.forEach((appr) => {
-    props.approvalRequests.push(appr);
-  });
+  const info = localStorage.getItem("DetailInfo");
+  if (info == "ADMIN"){
+    const res = await axios.get("http://localhost:5000/api/approval/fetch_all",
+      {
+        params: {
+          role : 1,
+        },
+      }
+    );
+    const approvalList = res.data;
+    approvalList.forEach((appr) => {
+      props.approvalRequests.push(appr);
+    });
+  }
+  else{
+    const res = await axios.get("http://localhost:5000/api/approval/fetch_all",
+      {
+        params: {
+          role : 2,
+          id : info,
+        },
+      }
+    );
+    const approvalList = res.data;
+    approvalList.forEach((appr) => {
+      props.approvalRequests.push(appr);
+    });
+  }
 });
 
 const groupedApprovals = computed(() => {
