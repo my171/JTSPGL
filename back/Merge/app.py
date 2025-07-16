@@ -6,9 +6,9 @@ from datetime import datetime
 from database import DBPool
 from flask_cors import CORS
 from predict import predict_future_sales
-#from tts_main import text_to_sqlite
-#from JudgeWhichToExecute.jwte import GetJudge
-#from agentrag1 import main
+from tts_main import text_to_sqlite
+from JudgeWhichToExecute.jwte import GetJudge
+from agentrag1 import main
 
 import sys
 import locale
@@ -79,19 +79,19 @@ def chatting():
         if not input_text:
             return jsonify({'error': '输入文本为空'}), 400
         
-        # judgeResult = GetJudge(input_text)
-        # if judgeResult == "Y":
-        #     result = text_to_sqlite(input_text)
-        #     return jsonify({
-        #         'isString': True,
-        #         'result': result
-        #     })
-        # else:
-        #     (isString, result) = main(input_text + "\n\n以下为查询到的相关数据，若出现数据冲突，优先采用这些数据:\n\n" + text_to_sqlite(input_text + "\n\n仅查询以上需求可能需要的相关数据，禁止对数据库内数据进行任何修改"))
-        #     return jsonify({
-        #         'isString': isString,
-        #         'result': result
-        #     })
+        judgeResult = GetJudge(input_text)
+        if judgeResult == "Y":
+            result = text_to_sqlite(input_text)
+            return jsonify({
+                'isString': True,
+                'result': result
+            })
+        else:
+            (isString, result) = main(input_text + "\n\n以下为查询到的相关数据，若出现数据冲突，优先采用这些数据:\n\n" + text_to_sqlite(input_text + "\n\n仅查询以上需求可能需要的相关数据，禁止对数据库内数据进行任何修改"))
+            return jsonify({
+                'isString': isString,
+                'result': result
+            })
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -605,6 +605,7 @@ def sell():
                     "successType": 3
                 })
     except Exception as e:
+        print(str(e))
         return jsonify({
             "successType": 4, 
             "err": str(e)
