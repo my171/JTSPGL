@@ -2812,10 +2812,12 @@ def display_result(result: Dict):
         lines.append("")
         lines.append("🧠 知识库片段:")
         lines.append(result['knowledge_context'])
+    '''
     if result.get('db_result'):
         lines.append("")
         lines.append("💾 数据库分析:")
         lines.append(result['db_result'])
+    '''
     if result.get('pdf_result'):
         lines.append("")
         lines.append("📄 PDF检索:")
