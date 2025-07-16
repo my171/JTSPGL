@@ -87,7 +87,7 @@ def chatting():
                 'result': result
             })
         else:
-            (isString, result) = main(input_text + "\n\n以下是可能的相关数据:\n\n" + text_to_sqlite(input_text + "\n\n仅查询以上需求可能需要的相关数据，禁止对数据库内数据进行任何修改"))
+            (isString, result) = main(input_text + "\n\n以下为查询到的相关数据，若出现数据冲突，优先采用这些数据:\n\n" + text_to_sqlite(input_text + "\n\n仅查询以上需求可能需要的相关数据，禁止对数据库内数据进行任何修改"))
             return jsonify({
                 'isString': isString,
                 'result': result
