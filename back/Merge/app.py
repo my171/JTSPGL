@@ -594,7 +594,7 @@ def sell():
                             %s, %s, %s, %s, %s, %s, %s
                         )
                     """
-                    cur.execute(insert_sql, (approval_id, product_id, warehouse_id, store_id, quantity, '待审核', current_time, ))
+                    cur.execute(insert_sql, (approval_id, product_id, warehouse_id, store_id, predict_sales - rest_quantity + quantity, '待审核', current_time, ))
                     conn.commit()
                     return jsonify({
                         "successType": 5,

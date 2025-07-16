@@ -42,13 +42,20 @@ class GM11Model:
             raise RuntimeError("请先调用 fit() 方法训练模型")
 
         # 灰色预测方程的解
-        pred_ago = (self.original_data[0] - self.b / self.a) * np.exp(
-            -self.a * np.arange(1, len(self.original_data) + steps)
-        ) + self.b / self.a
+        # pred_ago = (self.original_data[0] - self.b / self.a) * np.exp(
+        #     -self.a * np.arange(1, len(self.original_data) + steps)
+        # ) + self.b / self.a
+        n = len(self.original_data)
+        pred_ago = np.zeros(n + steps)
+        pred_ago[0] = self.original_data[0]
+
+        for k in range(1, n + steps):
+            pred_ago[k] = (self.original_data[0] - self.b / self.a) * np.exp(-self.a * k) + self.b / self.a
 
         # 累减还原 (IAGO)
         pred = np.diff(pred_ago, prepend=0)
-        return pred[-steps:].tolist()
+        # return pred[-steps:].tolist()
+        return pred[n:].tolist()
 
 def predict_future_sales(
     historical_sales: List[Union[int, float]],
@@ -83,9 +90,9 @@ def predict_future_sales(
 # 示例使用
 if __name__ == "__main__":
     # 历史数据 (假设输入是连续的月份)
-    historical_sales = [120, 135, 148, 160, 175]  # 过去5个月的销量
-    historical_months = ["2023-01", "2023-02", "2023-03", "2023-04", "2023-05"]
-    target_month = "2023-08"  # 预测8月的销量
+    historical_sales = [100, 100, 100, 100]
+    historical_months = ["2025-03", "2025-04", "2025-05", "2025-06", ]
+    target_month = "2025-07"
 
     try:
         pred = predict_future_sales(historical_sales, historical_months, target_month)
