@@ -1,11 +1,19 @@
 <template>
-  <div class="container-fluid">
-    <div class="row">
+  <div class="container-fluid h-100 d-flex flex-column">
+    <div class="row flex-grow-1 overflow-hidden">
       <!-- 左侧：地图和聊天区域 -->
-      <div class="col-md-9 left-panel">
+      <div class="col-md-9 d-flex flex-column px-3 py-3">
         <HeaderTime />
-        <WarehouseMap @show-warehouse="showWarehouseInfo" />
-        <ChatBox />
+        <WarehouseMap @show-warehouse="showWarehouseInfo" ref="warehouseMap" />
+
+        <!-- 分隔条 -->
+        <div
+          class="resizer"
+          @mousedown="startResizing"
+          title="拖动以调整高度"
+        ></div>
+
+        <ChatBox class="chat-box" :style="{ height: chatBoxHeight + 'px' }" />
       </div>
 
       <RightPanel
@@ -16,11 +24,7 @@
     </div>
 
     <!-- 弹出面板 -->
-    <PopupStore
-      ref="popupStore"
-      @close="closeStorePopup"
-      @new-approval="handleNewApproval"
-    />
+    <PopupStore ref="popupStore" @close="closeStorePopup" @new-approval="handleNewApproval" />
     <PopupWarehouse
       ref="popupWarehouse"
       @close="closeWarehousePopup"
@@ -36,7 +40,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from "vue";
+import { ref, reactive, onMounted, onBeforeUnmount } from "vue";
 
 import HeaderTime from "@components/HeaderTime.vue";
 import WarehouseMap from "@components/WarehouseMap.vue";
@@ -52,7 +56,8 @@ const popupWarehouse = ref(null);
 const popupApproval = ref(null);
 
 const approvalRequests = reactive([]); // 所有审批流记录
-const selectedApprovalId = ref(null);
+const chatBoxHeight = ref(200); // 初始高度
+const isResizing = ref(false);
 
 const showWarehouseInfo = (id, name) => {
   rightPanel.value.movePanel();
@@ -91,6 +96,44 @@ const closeWarehousePopup = () => {
 const closeApprovalPopup = () => {
   rightPanel.value.resetPanel();
 };
+
+const startResizing = (e) => {
+  isResizing.value = true;
+  document.addEventListener("mousemove", handleMouseMove);
+  document.addEventListener("mouseup", stopResizing);
+};
+
+const handleMouseMove = (e) => {
+  if (!isResizing.value) return;
+
+  // 当前鼠标 Y 坐标
+  const mouseY = e.clientY;
+
+  // ChatBox 的最小高度限制
+  const minHeight = 100;
+  // 页面总高度
+  const totalHeight = window.innerHeight;
+
+  // 计算 ChatBox 的高度 = 页面底部 - 鼠标 Y 坐标
+  let newHeight = totalHeight - mouseY +80;
+
+  // 限制最小高度
+  if (newHeight < minHeight) newHeight = minHeight;
+
+  chatBoxHeight.value = newHeight;
+}
+
+const stopResizing = () => {
+  isResizing.value = false;
+  document.removeEventListener("mousemove", handleMouseMove);
+  document.removeEventListener("mouseup", stopResizing);
+};
+
+// 清理事件监听器
+onBeforeUnmount(() => {
+  document.removeEventListener("mousemove", handleMouseMove);
+  document.removeEventListener("mouseup", stopResizing);
+});
 </script>
 
 <style scoped>
@@ -101,5 +144,26 @@ const closeApprovalPopup = () => {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+.resizer {
+  height: 5px;
+  background-color: #ccc;
+  cursor: ns-resize;
+  position: relative;
+  z-index: 0;
+  margin: 4px 0;
+}
+
+.resizer::after {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 0;
+  height: 15px;
+  width: 100%;
+  background-color: transparent;
+  cursor: ns-resize;
+  z-index: 1;
 }
 </style>
