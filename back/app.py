@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, request, jsonify
 from config import Config
+from calendar import monthrange
 from datetime import datetime
+from math import ceil
 from database import DBPool
 from flask_cors import CORS
 from predict import predict_future_sales
@@ -29,6 +31,9 @@ app.config.from_object(Config)
 
 def is_positive_integer(num):
     return (type(num) == int and num > 0)
+
+def get_month_days(year, month):
+    return monthrange(year, month)[1]
 
 @app.route('/api/verify', methods = ['POST'])
 def UserVerify():
@@ -350,6 +355,7 @@ def get_store_name_by_id():
         print(str(e))
         return jsonify({
             "err": str(e)}), 500
+
 # Query the product info of a certain store 
 @app.route('/api/store/products', methods = ['GET'])
 def get_product_info():
@@ -563,7 +569,8 @@ def sell():
                     historical_sales.append(each_sale)
 
                 predict_sales = predict_future_sales(historical_sales[::-1], historical_months[::-1], target_month)
-                if (predict_sales * current_date.day / 30.0 > rest_quantity - quantity):
+                replenish_quantity = predict_sales * ( 1 - ( current_date.day - 1 ) / get_month_days(current_date.year, current_date.month) ) - rest_quantity + quantity
+                if replenish_quantity  > 0:
                     # Query the warehouse_id
                     query = """
                         SELECT warehouse_id
@@ -594,7 +601,7 @@ def sell():
                             %s, %s, %s, %s, %s, %s, %s
                         )
                     """
-                    cur.execute(insert_sql, (approval_id, product_id, warehouse_id, store_id, int(predict_sales) - rest_quantity + quantity, '待审核', current_time, ))
+                    cur.execute(insert_sql, (approval_id, product_id, warehouse_id, store_id, ceil(replenish_quantity), '待审核', current_time, ))
                     conn.commit()
                     return jsonify({
                         "successType": 5,
