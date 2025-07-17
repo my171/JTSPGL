@@ -1,10 +1,10 @@
 class Config:
 
-    DB_HOST = '127.0.0.1'
+    DB_HOST = '192.168.28.135'
     DB_PORT = '5432'
-    DB_NAME = 'postgres'
-    DB_USER = 'postgres'
-    DB_PASSWORD = 'ab12AB!@'
+    DB_NAME = 'companylink'
+    DB_USER = 'myuser'
+    DB_PASSWORD = '123456abc.'
     client_encoding='utf8'
     
     SQLALCHEMY_DATABASE_URI = f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?client_encoding=utf8'
