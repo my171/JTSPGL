@@ -353,10 +353,6 @@ def get_store_name_by_id():
                 """
                 cur.execute(check, (store_id, ))
                 result = cur.fetchone()
-                if result is None:
-                    return jsonify({
-                        "successType": 1
-                    })
                 name = result[0]
                 return jsonify({
                     "successType": 0,
