@@ -98,6 +98,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
+import { showToast } from '@/utils/toast'
 
 const emit = defineEmits(["new-approval"]);
 
@@ -190,7 +191,7 @@ const transferIn = async () => {
       receipt_time: null,
       display: `${selectedWarehouseId.value}-${transferProduct.value}-${transferQty.value}-待审核`,
     });
-    alert("调货申请已提交");
+    showToast("调货申请已提交", "success");
   }
 };
 
