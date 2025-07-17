@@ -224,17 +224,18 @@ label {
 .submit-btn {
   width: 100%;
   padding: 12px;
-  background-color: #4a90e2;
+  background: linear-gradient(45deg, #518cea, #77b7f4);
   color: white;
   border: none;
   border-radius: 8px;
   font-size: 16px;
   cursor: pointer;
-  transition: background-color 0.3s;
 }
 
 .submit-btn:hover {
-  background-color: #357ab8;
+  background: linear-gradient(45deg, #3a76d8, #5ca2e6);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 87, 255, 0.35);
 }
 
 .error-message {

@@ -150,7 +150,7 @@ const queryProduct = async () => {
   });
   switch(res.data.successType){
     case 0:
-      productResult.value = "查询失败：商品编号不存在";break;
+      showToast("查询失败：商品编号不存在", "success");break;
     case 1:
       productResult.value = res.data.name + ": 未查询到销售记录\n商店库存量: " + res.data.inventory;break;
     case 2:
@@ -206,7 +206,7 @@ const sell = async () => {
     case 0:alert("商品编号不存在");break;
     case 1:alert("请输入正整数");break;
     case 2:alert("仓库内商品库存不足");break;
-    case 3:alert("卖出成功");break;
+    case 3:showToast("卖出成功","success");break;
     case 4:alert(`卖出失败：${res.data.err}`);break;
     case 5:alert("卖出成功，但库存量触发预警，系统自动发出调货申请。");break;
   }
