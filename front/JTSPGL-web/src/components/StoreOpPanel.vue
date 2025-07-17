@@ -266,4 +266,19 @@ const predict = async () => {
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
+
+.operations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 两列自动适应 */
+  gap: 1rem;
+}
+
+.card {
+  height: 180px; /* 所有卡片统一高度 */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+
 </style>

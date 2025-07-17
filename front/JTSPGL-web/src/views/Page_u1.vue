@@ -115,7 +115,7 @@ const handleMouseMove = (e) => {
   const totalHeight = window.innerHeight;
 
   // 计算 ChatBox 的高度 = 页面底部 - 鼠标 Y 坐标
-  let newHeight = totalHeight - mouseY +80;
+  let newHeight = totalHeight - mouseY + 100;
 
   // 限制最小高度
   if (newHeight < minHeight) newHeight = minHeight;

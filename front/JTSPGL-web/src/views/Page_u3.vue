@@ -5,8 +5,10 @@
       <!-- 左侧替换为商店操作界面 -->
       <div class="col-md-9 left-panel">
         <HeaderTime />
-        <StoreOpPanel @new-approval="handleNewApproval" />
-        <div class="flex-grow-1 d-flex flex-column">
+        <div class="store-op-container mb-3" style="flex: 0 0 auto;">
+          <StoreOpPanel @new-approval="handleNewApproval" />
+        </div>
+        <div class="chat-container">
           <ChatBox />
         </div>
       </div>
@@ -77,6 +79,23 @@ html, body {
   flex-direction: column;
   gap: 1rem;
 }
+
+
+.store-op-container {
+  min-height: 360px; /* 增加最小高度 */
+  overflow-y: auto; /* 内容多时可滚动 */
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.chat-container .chat-box {
+  height: 320px !important; /* 提升聊天框高度 */
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
 
 .left-panel > .row,
 .left-panel > .container-fluid {

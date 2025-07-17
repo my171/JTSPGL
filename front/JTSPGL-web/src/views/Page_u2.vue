@@ -8,7 +8,7 @@
         <WarehouseOpPanel @new-approval="handleNewApproval" />
 
         <!-- ChatBox 区域 -->
-        <div class="mt-3 mb-4"> <!-- mb-4 提供底部留白 -->
+        <div class="chat-container mt-3 mb-4"> <!-- mb-4 提供底部留白 -->
           <ChatBox />
         </div>
       </div>
@@ -88,4 +88,17 @@ html, body {
   flex-direction: column;
   justify-content: space-between;
 }
+
+.chat-container {
+  width: 96%; /* 微微缩窄 */
+  margin: 0 auto; /* 水平居中 */
+  padding: 0;
+}
+
+.chat-box {
+  height: 320px !important; /* 提高高度 */
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
 </style>

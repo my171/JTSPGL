@@ -42,7 +42,7 @@ const panelTransform = ref("translateX(0)");
 const STATUS_ORDER = [
   "待审核",
   "已取消",
-  "待出库",
+  "待发货",
   "待收货",
   "已完成"
 ];
