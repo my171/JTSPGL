@@ -8,7 +8,7 @@
         <WarehouseOpPanel @new-approval="handleNewApproval" />
 
         <!-- ChatBox 区域 -->
-        <div class="chat-container mt-3 mb-4"> <!-- mb-4 提供底部留白 -->
+        <div class="chat-container my-0.5"> <!-- mb-4 提供底部留白 -->
           <ChatBox />
         </div>
       </div>

@@ -49,7 +49,7 @@
               {{ w.name }}
             </option>
           </select>
-          <button class="btn btn-primary" @click="transferIn">
+          <button class="btn btn-warning" @click="transferIn">
             调货
           </button>
         </div>
@@ -71,7 +71,7 @@
             class="form-control me-2"
             style="flex: 1"
           />
-          <button class="btn btn-primary" @click="sell">卖出</button>
+          <button class="btn btn-success" @click="sell">卖出</button>
         </div>
       </div>
       
@@ -85,7 +85,7 @@
             class="form-control me-2"
             style="flex: 1"
           />
-          <button class="btn btn-primary" @click="predict">预测</button>
+          <button class="btn btn-danger" @click="predict">预测</button>
         </div>
         <div class="card-body" v-if="predictResult">
           <pre>{{ predictResult }}</pre>
@@ -100,7 +100,7 @@ import { ref, onMounted } from "vue";
 import axios from "axios";
 import { showToast } from '@/utils/toast'
 
-const emit = defineEmits(["new-approval", "addwarn"]);
+const emit = defineEmits(["new-approval"]);
 
 // 当前商店信息（来自登录后本地存储）
 const storeName = ref('');
@@ -179,12 +179,12 @@ const transferIn = async () => {
 
   if (res.data.successType === 3) {
     emit("new-approval", {
-      id: res.data.approval_id,
+      id: Math.random().toString(36).substring(2, 9),
       product: transferProduct.value,
       quantity: transferQty.value,
       status: "待审核",
       from: selectedWarehouseId.value,
-      to: storeId.value,
+      to: storeName.value,
       request_time: new Date().toISOString(),
       approved_time: null,
       shipment_time: null,
@@ -208,28 +208,21 @@ const sell = async () => {
     case 2:alert("仓库内商品库存不足");break;
     case 3:alert("卖出成功");break;
     case 4:alert(`卖出失败：${res.data.err}`);break;
-    case 5:{
-      alert("卖出成功，但库存量触发预警，系统自动发出调货申请。");
-
-    };break;
+    case 5:alert("卖出成功，但库存量触发预警，系统自动发出调货申请。");break;
   }
   if(res.data.successType == 5){
-    emit("addwarn", 
-      `商品${sellProduct.value}库存告警\n`
-    );
-
     emit("new-approval", {
-      id: res.data.approval_id,
-      product: sellProduct.value,
-      quantity: res.data.qty_num,
+      id: Math.random().toString(36).substring(2, 9),
+      product: transferProduct.value,
+      quantity: transferQty.value,
       status: "待审核",
-      from: res.data.warehouse_id,
+      from: fromWhName,
       to: storeName.value,
       request_time: new Date().toISOString(),
       approved_time: null,
       shipment_time: null,
       receipt_time: null,
-      display: `${res.data.warehouse_id}-${sellProduct.value}-${res.data.qty_num}-待审核`,
+      display: `${fromWhName}-${transferProduct.value}-${transferQty.value}-待审核`,
     });
   }
 };

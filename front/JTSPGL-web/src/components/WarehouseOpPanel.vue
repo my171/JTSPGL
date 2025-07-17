@@ -5,10 +5,10 @@
       <h4 class="mb-0"><strong>仓库操作中心</strong></h4>
       <h5 class="mb-0">当前仓库：{{ warehouseName }}</h5>
     </div>
-
+    <!-- 商品库存查询 --> <!-- 补货操作 -->
     <div class="operations-grid">
-      <!-- 商品库存查询 -->
-      <div class="card mb-3">
+      
+      <div class="card mb-3 fixed-height-card">
         <div class="card-header">商品库存查询</div>
         <div class="card-body d-flex align-items-center">
           <input
@@ -24,7 +24,7 @@
         </div>
       </div>
       <!-- 补货操作 -->
-      <div class="card mb-3">
+      <div class="card mb-3 fixed-height-card">
         <div class="card-header">补货操作</div>
         <div class="card-body d-flex align-items-center gap-2">
           <input
@@ -41,6 +41,7 @@
           />
           <button class="btn btn-success" @click="replenish">补货</button>
         </div>
+      </div>
       </div>
       <!-- 调货操作 -->
       <div class="card mb-3">
@@ -85,7 +86,6 @@
         </div>
       </div>
     </div>
-  </div>
 </template>
 
 <script setup>
@@ -215,7 +215,7 @@ const transfer = async () => {
 <style scoped>
 .operations-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr; /* 两列 */
+  grid-template-columns: 1fr 1fr; /* 两列 */
   grid-template-rows: auto auto; /* 两行 */
   gap: 1rem; /* 卡片间距 */
 }
@@ -223,6 +223,21 @@ const transfer = async () => {
 .warehouse-op-panel {
   padding: 20px;
 }
+
+.fixed-height-card {
+  display: flex;
+  flex-direction: column;
+  height: 200px; /* 设置你想要的固定高度 */
+  overflow-y: auto; /* 内容多时可滚动 */
+}
+
+
+.card-header {
+  background: linear-gradient(to left, #e7e7e7, #e1e1e1);
+  color: rgb(32, 31, 31);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 .card {
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
