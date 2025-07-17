@@ -54,7 +54,7 @@
 import { ref } from "vue";
 import axios from "axios";
 
-const emit = defineEmits(["close"]);
+const emit = defineEmits(["new-approval", "close", "addwarn"]);
 
 const isVisible = ref(false);
 const storeName = ref("");
@@ -184,7 +184,25 @@ const sell = async () => {
       case 2:alert("仓库内商品库存不足");break;
       case 3:alert("卖出成功");break;
       case 4:alert(`卖出失败：${response.data.err}`);break;
-      case 5:alert("卖出成功");break;
+      case 5:alert("卖出成功，但库存量触发预警，系统自动发出调货申请。");break;
+    }
+    if(response.data.successType == 5){
+      emit("addwarn", 
+        `商品${sellProduct.value}库存告警`
+      );
+      emit("new-approval", {
+        id: response.data.approval_id,
+        product: sellProduct.value,
+        quantity: response.data.qty_num,
+        status: "待审核",
+        from: response.data.warehouse_id,
+        to: storeId.value,
+        request_time: new Date().toISOString(),
+        approved_time: null,
+        shipment_time: null,
+        receipt_time: null,
+        display: `${response.data.warehouse_id}-${sellProduct.value}-${response.data.qty_num}-待审核`,
+      });
     }
   } catch (err) {
     alert(`卖出失败：${err.message}`);

@@ -569,6 +569,15 @@ def sell():
                     historical_sales.append(each_sale)
 
                 predict_sales = predict_future_sales(historical_sales[::-1], historical_months[::-1], target_month)
+
+                update_sql = """
+                    UPDATE store_inventory
+                    SET safety_stock = %s
+                    WHERE product_id = %s
+                    AND store_id = %s
+                """
+                cur.execute(update_sql, (ceil(predict_sales * ( 1 - ( current_date.day - 1 ) / get_month_days(current_date.year, current_date.month) )), product_id, store_id, ))
+
                 replenish_quantity = predict_sales * ( 1 - ( current_date.day - 1 ) / get_month_days(current_date.year, current_date.month) ) - rest_quantity + quantity
                 if replenish_quantity  > 0:
                     # Query the warehouse_id
@@ -605,11 +614,17 @@ def sell():
                     conn.commit()
                     return jsonify({
                         "successType": 5,
-                        "approval_id": approval_id
+                        "approval_id": approval_id,
+                        "need_count": ceil(predict_sales * ( 1 - ( current_date.day - 1 ) / get_month_days(current_date.year, current_date.month) )),
+                        "warehouse_id": warehouse_id,
+                        "qty_num": ceil(replenish_quantity)
                     })
                 conn.commit()
                 return jsonify({
-                    "successType": 3
+                    "successType": 3,
+                    "need_count": ceil(predict_sales * ( 1 - ( current_date.day - 1 ) / get_month_days(current_date.year, current_date.month) )),
+                    "warehouse_id": warehouse_id,
+                    "qty_num": ceil(replenish_quantity)
                 })
     except Exception as e:
         print(str(e))
@@ -617,7 +632,7 @@ def sell():
             "successType": 4, 
             "err": str(e)
         }), 500
-    
+
 # Send request
 @app.route('/api/request', methods = ['POST'])
 def request_approval():

@@ -24,7 +24,12 @@
     </div>
 
     <!-- 弹出面板 -->
-    <PopupStore ref="popupStore" @close="closeStorePopup" @new-approval="handleNewApproval" />
+    <PopupStore 
+      ref="popupStore"
+      @close="closeStorePopup" 
+      @new-approval="handleNewApproval"
+      @addwarn="addwarning" 
+    />
     <PopupWarehouse
       ref="popupWarehouse"
       @close="closeWarehousePopup"
@@ -134,6 +139,10 @@ onBeforeUnmount(() => {
   document.removeEventListener("mousemove", handleMouseMove);
   document.removeEventListener("mouseup", stopResizing);
 });
+
+const addwarning = (text) => {
+  rightPanel.value.addwarning(text);
+}
 </script>
 
 <style scoped>

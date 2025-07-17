@@ -65,6 +65,7 @@ const showApprovalDetail = (id) => {
 const closeApprovalPopup = () => {
   rightPanel.value.resetPanel();
 };
+
 </script>
 
 <style scoped>

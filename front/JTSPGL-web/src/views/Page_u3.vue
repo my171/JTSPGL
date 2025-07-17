@@ -6,7 +6,10 @@
       <div class="col-md-9 left-panel">
         <HeaderTime />
         <div class="store-op-container mb-3" style="flex: 0 0 auto;">
-          <StoreOpPanel @new-approval="handleNewApproval" />
+          <StoreOpPanel 
+            @new-approval="handleNewApproval" 
+            @addwarn="addwarning" 
+          />
         </div>
         <div class="chat-container">
           <ChatBox />
@@ -64,6 +67,10 @@ const showApprovalDetail = (id) => {
 const closeApprovalPopup = () => {
   rightPanel.value.resetPanel();
 };
+
+const addwarning = (text) => {
+  rightPanel.value.addwarning(text);
+}
 </script>
 
 <style scoped>

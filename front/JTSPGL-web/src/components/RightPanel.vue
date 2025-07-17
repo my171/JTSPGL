@@ -1,7 +1,7 @@
 <template>
   <div class="col-md-3 right-panel" :style="{ transform: panelTransform }">
     <h5>实时预警</h5>
-    <textarea class="form-control mb-3" rows="3" readonly>暂无预警</textarea>
+    <textarea class="form-control mb-3" rows="3" readonly>{{warningText}}</textarea>
 
     <h5 class="mt-4">审批流进度</h5>
 
@@ -29,6 +29,8 @@ import { computed, onMounted, ref } from "vue";
 import axios from "axios";
 
 const emit = defineEmits(["show-approval"]);
+
+const warningText = ref("");
 
 const props = defineProps({
   approvalRequests: {
@@ -114,9 +116,14 @@ const resetPanel = () => {
   panelTransform.value = "translateX(0)";
 };
 
+const addwarning = (text) => {
+  warningText.value += text;
+};
+
 defineExpose({
   movePanel,
   resetPanel,
+  addwarning,
 });
 </script>
 
