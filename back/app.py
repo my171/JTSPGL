@@ -157,7 +157,8 @@ def predict_function():
                         AND EXTRACT(MONTH FROM sale_date) = %s
                     """
                     cur.execute(query, each_param)
-                    each_sale = cur.fetchone()[0]
+                    result = cur.fetchone()
+                    each_sale = result[0]
                     # Check if sales record exists
                     if each_sale is None:
                         return jsonify({
@@ -347,9 +348,14 @@ def get_store_name_by_id():
                 """
                 cur.execute(check, (store_id, ))
                 result = cur.fetchone()
+                if result is None:
+                    return jsonify({
+                        "successType": 1
+                    })
                 name = result[0]
                 return jsonify({
-                    "name": name, 
+                    "successType": 0,
+                    "name": name
                 })
     except Exception as e:
         print(str(e))
@@ -383,11 +389,12 @@ def get_product_info():
                     WHERE product_id = %s
                 """
                 cur.execute(check, (product_id, ))
-                name = cur.fetchone()[0]
-                if not name:
+                result = cur.fetchone()
+                if result is None:
                     return jsonify({
                         "successType": 0
                     })
+                name = result[0]
                 # Query the store inventory
                 query = """
                     SELECT stock_quantity
@@ -559,13 +566,14 @@ def sell():
                         AND EXTRACT(MONTH FROM sale_date) = %s
                     """
                     cur.execute(query, each_param)
-                    each_sale = cur.fetchone()[0]
+                    result = cur.fetchone()
                     # Check if sales record exists, else terminate the prediction, and return ordinary result
-                    if each_sale is None:
+                    if result is None:
                         conn.commit()
                         return jsonify({
                             "successType": 3
                         })
+                    each_sale = result[0]
                     historical_sales.append(each_sale)
 
                 predict_sales = predict_future_sales(historical_sales[::-1], historical_months[::-1], target_month)

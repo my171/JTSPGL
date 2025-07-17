@@ -1,4 +1,0 @@
-SQL执行失败: "\nSELECT p.product_id, p.product_name, p.category, p.unit_price, p.cost_price, p.barcode\nFROM product p\nWHERE 1=1\n AND p.category = 'ELECTRONICS' ORDER BY p.unit_price ASC LIMIT 20"\n错误: server closed the connection unexpectedly
-	This probably means the server terminated abnormally
-	before or while processing the request.
-\n
