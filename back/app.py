@@ -124,6 +124,11 @@ def predict_function():
             year -= 1
         previous_months.append((year, month))
         historical_months.append(f"{year}-{month:02d}")
+    # Change history months, since there is no data for the past few months, just for test
+    historical_months = ["2024-11", "2024-10", "2024-09", "2024-08", "2024-07"]
+    previous_months = [(2024, 11), (2024, 10), (2024, 9), (2024, 8), (2024, 7)]
+    target_month = "2024-12"
+    # End Change
     query_params = []
     for year_month_pair in previous_months:
         query_params.append((product_id, store_id, year_month_pair[0], year_month_pair[1]))
@@ -550,6 +555,11 @@ def sell():
                         year -= 1
                     previous_months.append((year, month))
                     historical_months.append(f"{year}-{month:02d}")
+                # Change history months, since there is no data for the past few months, just for test
+                historical_months = ["2024-11", "2024-10", "2024-09", "2024-08", "2024-07"]
+                previous_months = [(2024, 11), (2024, 10), (2024, 9), (2024, 8), (2024, 7)]
+                target_month = "2024-12"
+                # End Change
                 query_params = []
                 for year_month_pair in previous_months:
                     query_params.append((product_id, store_id, year_month_pair[0], year_month_pair[1]))
