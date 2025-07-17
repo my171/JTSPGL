@@ -9,7 +9,7 @@ from database import DBPool
 from flask_cors import CORS
 from predict import predict_future_sales
 from tts_main import text_to_sqlite
-from JudgeWhichToExecute.jwte import GetJudge
+from jwte import GetJudge
 from agentrag1 import main
 
 import sys
@@ -168,7 +168,7 @@ def predict_function():
                 predict_sales = predict_future_sales(historical_sales[::-1], historical_months[::-1], target_month)
                 return jsonify({
                     "successType": 0,
-                    "predict_sales": format(predict_sales, '.2f')
+                    "predict_sales": ceil(predict_sales)
                 })
     except Exception as e:
         return jsonify({
