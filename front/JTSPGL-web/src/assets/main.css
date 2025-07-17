@@ -1,3 +1,5 @@
+/*全局覆盖 Bootstrap 样式
+*/
 body {
   background-color: #f5f7fa;
   font-family: "Segoe UI", sans-serif;
@@ -10,4 +12,96 @@ body {
 
 .input-group .btn {
   z-index: 1;
+}
+
+.btn {
+  font-weight: bold;
+  border-radius: 10px;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* primary 按钮 - 主操作 */
+.btn.btn-primary {
+  background: linear-gradient(45deg, #518cea, #77b7f4);
+  color: white;
+  border: none;
+}
+.btn.btn-primary:hover {
+  background: linear-gradient(45deg, #3a76d8, #5ca2e6);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 87, 255, 0.35);
+}
+.btn.btn-primary:focus,
+.btn.btn-primary:active {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.3);
+}
+
+/* success 按钮 - 成功 / 提交 */
+.btn.btn-success {
+  background: linear-gradient(45deg, #4cd964, #6ce982);
+  color: white;
+  border: none;
+}
+.btn.btn-success:hover {
+  background: linear-gradient(45deg, #3bb754, #5ab770);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 217, 100, 0.35);
+}
+.btn.btn-success:focus,
+.btn.btn-success:active {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(76, 217, 100, 0.3);
+}
+
+/* warning 按钮 - 警告 / 修改 */
+.btn.btn-warning {
+  background: linear-gradient(45deg, #ffb142, #ffd26f);
+  color: white;
+  border: none;
+}
+.btn.btn-warning:hover {
+  background: linear-gradient(45deg, #f9a329, #fcb955);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 179, 66, 0.35);
+}
+.btn.btn-warning:focus,
+.btn.btn-warning:active {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 179, 66, 0.3);
+}
+
+/* danger 按钮 - 删除 / 危险操作 */
+.btn.btn-danger {
+  background: linear-gradient(45deg, #ff4d4d, #ff7a7a);
+  color: white;
+  border: none;
+}
+.btn.btn-danger:hover {
+  background: linear-gradient(45deg, #e63939, #f26969);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 50, 50, 0.35);
+}
+.btn.btn-danger:focus,
+.btn.btn-danger:active {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 50, 50, 0.3);
+}
+
+/* secondary 按钮 - 次要操作 */
+.btn.btn-secondary {
+  background: linear-gradient(45deg, #8c9eff, #b2c8f5);
+  color: white;
+  border: none;
+}
+.btn.btn-secondary:hover {
+  background: linear-gradient(45deg, #6a7efc, #9db6f0);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(140, 158, 255, 0.35);
+}
+.btn.btn-secondary:focus,
+.btn.btn-secondary:active {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(140, 158, 255, 0.3);
 }

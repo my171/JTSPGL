@@ -49,7 +49,7 @@
               {{ w.name }}
             </option>
           </select>
-          <button class="btn btn-warning" @click="transferIn" style="flex: 1">
+          <button class="btn btn-primary" @click="transferIn">
             调货
           </button>
         </div>
@@ -71,7 +71,7 @@
             class="form-control me-2"
             style="flex: 1"
           />
-          <button class="btn btn-success" @click="sell">卖出</button>
+          <button class="btn btn-primary" @click="sell">卖出</button>
         </div>
       </div>
       
@@ -85,7 +85,7 @@
             class="form-control me-2"
             style="flex: 1"
           />
-          <button class="btn btn-danger" @click="predict">预测</button>
+          <button class="btn btn-primary" @click="predict">预测</button>
         </div>
         <div class="card-body" v-if="predictResult">
           <pre>{{ predictResult }}</pre>
@@ -253,19 +253,37 @@ const predict = async () => {
   height: 100%; /* 使卡片高度一致 */
   display: flex;
   flex-direction: column;
+  background: linear-gradient(180deg, #ffffff, #f7f9fc);
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease-in-out;
 }
+
 
 .card-body {
   flex: 1; /* 使卡片内容区域填充剩余空间 */
 }
 
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  background: linear-gradient(to right, #518cea, #77b7f4);
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 .store-op-panel {
   padding: 1px;
+  background: linear-gradient(135deg, #c0d8f7, #f0f7ff);
+  padding: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
-.card {
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
+
 
 .operations-grid {
   display: grid;

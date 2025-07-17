@@ -19,18 +19,20 @@
         </div>
       </div>
     </div>
-    <div class="chat-input-area">
-      <div class="input-group">
-        <input
-          type="text"
-          class="form-control"
-          v-model="inputMessage"
-          placeholder="请输入您的问题..."
-          @keyup.enter="sendMessage"
-        />
-        <button class="btn btn-dark" @click="sendMessage">发送</button>
-      </div>
-    </div>
+    <div class="chat-input-area d-flex align-items-center">
+  <div class="chat-input flex-grow-1 me-2">
+    <input
+      type="text"
+      class="form-control"
+      v-model="inputMessage"
+      placeholder="请输入您的问题..."
+      @keyup.enter="sendMessage"
+    />
+  </div>
+  <div class="chat-send-btn">
+    <button class="btn btn-primary" @click="sendMessage">发送</button>
+  </div>
+</div>
   </div>
 </template>
 
