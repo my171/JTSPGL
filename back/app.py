@@ -9,7 +9,7 @@ from database import DBPool
 from flask_cors import CORS
 from predict import predict_future_sales
 from tts_main import text_to_sqlite
-from JudgeWhichToExecute.jwte import GetJudge
+from jwte import GetJudge
 from agentrag1 import main
 
 import sys
