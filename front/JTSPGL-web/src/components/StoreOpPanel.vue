@@ -159,7 +159,7 @@ const queryProduct = async () => {
         res.data.unit_price +
         " 销量:" +
         res.data.quantity +
-        "\n商店库存量: " + res.data.inventory;
+        "\n商店库存量: " + res.data.store_inventory;
       break;
   }
 };
@@ -169,9 +169,9 @@ const transferIn = async () => {
   const fromWhName =
     warehouseList.value.find((w) => w.id === selectedWarehouseId.value)?.name ||
     "";
-  const res = await axios.post("http://localhost:5000/api/supply", {
-    fromWarehouseID: selectedWarehouseId.value,
-    store_id: storeId.value,
+  const res = await axios.post("http://localhost:5000/api/request", {
+    from_id: selectedWarehouseId.value,
+    to_id: storeId.value,
     product_id: transferProduct.value,
     quantity: transferQty.value,
   });
@@ -182,10 +182,13 @@ const transferIn = async () => {
       product: transferProduct.value,
       quantity: transferQty.value,
       status: "待审核",
-      from: fromWhName,
+      from: selectedWarehouseId.value,
       to: storeName.value,
       request_time: new Date().toISOString(),
-      display: `${fromWhName}-${transferProduct.value}-${transferQty.value}-待审核`,
+      approved_time: null,
+      shipment_time: null,
+      receipt_time: null,
+      display: `${selectedWarehouseId.value}-${transferProduct.value}-${transferQty.value}-待审核`,
     });
     alert("调货申请已提交");
   }
@@ -215,6 +218,9 @@ const sell = async () => {
       from: fromWhName,
       to: storeName.value,
       request_time: new Date().toISOString(),
+      approved_time: null,
+      shipment_time: null,
+      receipt_time: null,
       display: `${fromWhName}-${transferProduct.value}-${transferQty.value}-待审核`,
     });
   }

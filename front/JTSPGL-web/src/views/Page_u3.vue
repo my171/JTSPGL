@@ -17,6 +17,11 @@
         :approvalRequests="filteredApprovals"
         @show-approval="showApprovalDetail"
       />
+      <PopupApproval
+        ref="popupApproval"
+        :approvalRequests="approvalRequests"
+        @close="closeApprovalPopup"
+      />
     </div>
   </div>
 </template>

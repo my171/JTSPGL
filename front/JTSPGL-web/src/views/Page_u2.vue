@@ -3,7 +3,7 @@
   <div class="container-fluid h-100 d-flex flex-column">
     <div class="row flex-grow-1 overflow-hidden">
       <!-- 左侧：仓库操作界面和聊天区域 -->
-      <div class="col-md-9 d-flex flex-column px-3 py-3" style="position: relative;">
+      <div class="col-md-9 d-flex flex-column px-3 py-3" style="position: relative; z-index: 0;">
         <HeaderTime />
         <WarehouseOpPanel @new-approval="handleNewApproval" />
 
@@ -18,6 +18,11 @@
         ref="rightPanel"
         :approvalRequests="filteredApprovals"
         @show-approval="showApprovalDetail"
+      />
+      <PopupApproval
+        ref="popupApproval"
+        :approvalRequests="approvalRequests"
+        @close="closeApprovalPopup"
       />
     </div>
   </div>

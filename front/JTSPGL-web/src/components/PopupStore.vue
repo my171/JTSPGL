@@ -121,7 +121,7 @@ const transferIn = async () => {
     const fromWarehouseName =
       warehouseList.value.find((w) => w.id === selectedWarehouseId.value)
         ?.name || "";
-    const response = await axios.post("http://localhost:5000/api/supply", {
+    const response = await axios.post("http://localhost:5000/api/request", {
       from_id: selectedWarehouseId.value,
       to_id: storeId.value,
       product_id: transferProduct.value,
@@ -152,20 +152,17 @@ const transferIn = async () => {
     }
     if (response.data.successType == 3) {
       emit("new-approval", {
-        id: data.approval_id,
+        id: response.data.approval_id,
         product: transferProduct.value,
         quantity: transferQty.value,
         status: "待审核",
-        from: fromWarehouseName, //?????????????????????????
-        //fromWarehouse is not defined
-        to: storeName.value, //?????????????????????????
-        //currentWarehouseName is not defined
-        request_time: data.request_time,
+        from: selectedWarehouseId.value,
+        to: storeName.value,
+        request_time: response.data.request_time,
         approved_time: null,
         shipment_time: null,
         receipt_time: null,
-        // display 字段用于右侧面板按钮显示
-        display: `${fromWarehouseName}-${transferProduct.value}-${transferQty.value}-待审核`,
+        display: `${selectedWarehouseId.value}-${transferProduct.value}-${transferQty.value}-待审核`,
       });
     }
   } catch (err) {

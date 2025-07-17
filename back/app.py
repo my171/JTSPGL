@@ -693,15 +693,29 @@ def request_approval():
 @app.route('/api/approval/fetch_all', methods = ['GET'])
 def approval_fetch_all():
     try:
+        role = request.args.get('role')
         with DBPool.get_connection() as conn:
             with conn.cursor() as cur:
-                query = """
-                    SELECT *
-                    FROM transfer_approval
-                    WHERE (status != '已取消' AND status != '已收货')
-                    OR age(CURRENT_DATE, request_time) <= '1 month'::interval
-                """
-                cur.execute(query)
+                if role == '1':
+                    query = """
+                        SELECT *
+                        FROM transfer_approval
+                        WHERE (status != '已取消' AND status != '已收货')
+                        OR age(CURRENT_DATE, request_time) <= '1 month'::interval
+                    """
+                    cur.execute(query)
+                else:
+                    id = request.args.get('id')
+                    query = """
+                        SELECT *
+                        FROM transfer_approval
+                        WHERE (from_location_id = %s OR to_location_id = %s)
+                        AND(
+                            (status != '已取消' AND status != '已收货')
+                            OR age(CURRENT_DATE, request_time) <= '1 month'::interval
+                        )
+                    """
+                    cur.execute(query, (id, id, ))
                 return jsonify([{
                     "id":row[0],
                     "product": row[1],
