@@ -131,12 +131,13 @@ defineExpose({
 <style scoped>
 .right-panel {
   height: 100vh;
-  background-color: #ffffff;
-  border-left: 1px solid #ddd;
+  background: linear-gradient(to bottom left, #f8f9f9, #f7f9fc);
   padding: 20px;
   overflow-y: auto;
   transition: transform 0.3s ease-in-out;
+  color: rgb(0, 0, 0)
 }
+
 
 .approval-button {
   width: 100%;
@@ -162,6 +163,7 @@ defineExpose({
   background-color: #bcbbbb;
   color: #333;
   transform: scale(1.02);
+  box-shadow: 0 4px 8px #bcbbbb;
 }
 
 .status-red {
@@ -175,6 +177,7 @@ defineExpose({
   background-color: #f65c5c;
   color: #842029;
   transform: scale(1.02);
+  box-shadow: 0 4px 8px #f65c5c;
 }
 
 .status-yellow {
@@ -188,10 +191,11 @@ defineExpose({
   background-color: #f8e6a8;
   color: #664d03;
   transform: scale(1.02);
+  box-shadow: 0 4px 8px #f8e6a8;
 }
 
 .status-green {
-  background-color: rgb(174, 238, 174);
+  background-color: #aeeeae;
   color: #0f5132;
   border: 1px solid #bfffbf;
   transition: transform 0.1s ease;
@@ -201,5 +205,12 @@ defineExpose({
   background-color: rgb(157, 240, 157);
   color: #0f5132;
   transform: scale(1.02);
+  box-shadow: 0 4px 8px rgb(157, 240, 157);
+}
+
+.form-control {
+  background: linear-gradient(to bottom right, #e7e9ec, #f5f7fa);
+  border: none;
+  box-shadow: none;
 }
 </style>

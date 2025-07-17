@@ -40,7 +40,6 @@
 import { ref, nextTick } from "vue";
 import axios from "axios";
 import { showToast } from '@/utils/toast'
-
 const inputMessage = ref("");
 const messages = ref([]);
 const chatHistory = ref(null);
@@ -116,9 +115,8 @@ const scrollToBottom = () => {
 
 <style scoped>
 .chat-box {
-  background-color: #fff;
-  padding: 10px;
-  border: 1px solid #ccc;
+  background: linear-gradient(to bottom right, #f5f7fa, #f5f7fa);
+  padding: 12px;
   border-radius: 8px;
   height: 230px;
   display: flex;
@@ -137,7 +135,7 @@ const scrollToBottom = () => {
   flex-direction: column;
   gap: 6px;
   padding: 10px;
-  background-color: #f9f9f9;
+  background: linear-gradient(to bottom right, #eef0f3, #fafcff);
   border-radius: 8px;
 }
 
@@ -166,6 +164,12 @@ const scrollToBottom = () => {
   background-color: #e0f0ff;
   border-top-left-radius: 0;
 }
+
+.receiver .chat-message,
+.sender .chat-message {
+  background-color: rgba(255, 255, 255, 0.8); /* 半透明白底，提升可读性 */
+}
+
 
 .sender .chat-message {
   background-color: #d1e7dd;

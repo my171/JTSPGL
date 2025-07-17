@@ -8,7 +8,7 @@
     <div class="operations-grid">
       <!-- 商品信息查询 -->
       <div class="card">
-        <div class="card-header">商品库存与销量</div>
+        <div class="card-header">查询 库存 与 销量</div>
         <div class="card-body d-flex align-items-center">
           <input
             v-model="queryInput"
@@ -25,7 +25,7 @@
 
       <!-- 调货 -->
       <div class="card">
-        <div class="card-header">从仓库调货</div>
+        <div class="card-header">调货 申请</div>
         <div class="card-body d-flex flex-wrap align-items-center gap-2">
           <input
             v-model="transferProduct"
@@ -44,7 +44,7 @@
             class="form-select"
             style="flex: 1"
           >
-            <option disabled value="">选择调出仓库</option>
+            <option disabled value="">选 择 调 出 仓 库</option>
             <option v-for="w in warehouseList" :key="w.id" :value="w.id">
               {{ w.name }}
             </option>
@@ -57,7 +57,7 @@
 
       <!-- 卖出商品 -->
       <div class="card">
-        <div class="card-header">卖出商品</div>
+        <div class="card-header">卖出 商品</div>
         <div class="card-body d-flex align-items-center gap-2">
           <input
             v-model="sellProduct"
@@ -77,7 +77,7 @@
       
       <!-- 销量预测 -->
       <div class="card">
-        <div class="card-header">销量预测</div>
+        <div class="card-header">销量 预测</div>
         <div class="card-body d-flex align-items-center gap-2">
           <input
             v-model="sellPredict"
@@ -279,14 +279,14 @@ const predict = async () => {
 }
 
 .card-header {
-  background: linear-gradient(to right, #518cea, #77b7f4);
-  color: white;
+  background: linear-gradient(to left, #e7e7e7, #e1e1e1);
+  color: rgb(32, 31, 31);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .store-op-panel {
-  padding: 1px;
-  background: linear-gradient(135deg, #c0d8f7, #f0f7ff);
+  padding: 0px;
+  background: linear-gradient(135deg,  #f5f7fa, #f5f7fa);/*#c1d9fa, #f7f9fc*/
   padding: 1rem;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);

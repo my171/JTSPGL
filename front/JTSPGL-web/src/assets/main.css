@@ -105,3 +105,8 @@ body {
   outline: none;
   box-shadow: 0 0 0 3px rgba(140, 158, 255, 0.3);
 }
+
+.right-panel.bg-gradient {
+  background: linear-gradient(to bottom right, #518cea, #77b7f4);
+  color: rgb(0, 0, 0);
+}
