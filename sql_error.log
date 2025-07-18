@@ -1,0 +1,5 @@
+SQL执行失败: '\nSELECT \n    st.store_id,\n    st.store_name,\n    st.address,\n    st.opened_date,\n    w.warehouse_name,\n    COUNT(DISTINCT s.sales_id) as sales_count,\n    SUM(s.quantity) as total_sales_quantity,\n    SUM(s.total_amount) as total_sales_amount,\n    COUNT(DISTINCT si.product_id) as product_count,\n    SUM(si.stock_quantity) as total_stock\nFROM store st\nLEFT JOIN warehouse w ON st.warehouse_id = w.warehouse_id\nLEFT JOIN sales s ON st.store_id = s.store_id\nLEFT JOIN store_inventory si ON st.store_id = si.store_id\nWHERE 1=1\n GROUP BY st.store_id, st.store_name, st.address, st.opened_date, w.warehouse_name ORDER BY total_sales_amount DESC LIMIT 20'\n错误: 错误:  字段 s.total_amount 不存在
+LINE 10:     SUM(s.total_amount) as total_sales_amount,
+                 ^
+HINT:  也许您想要引用列"s.total_amound"。
+\n

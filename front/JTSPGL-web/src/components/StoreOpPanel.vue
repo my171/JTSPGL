@@ -100,7 +100,7 @@ import { ref, onMounted } from "vue";
 import axios from "axios";
 import { showToast } from '@/utils/toast'
 
-const emit = defineEmits(["new-approval"]);
+const emit = defineEmits(["new-approval", "addwarn"]);
 
 // 当前商店信息（来自登录后本地存储）
 const storeName = ref('');
@@ -150,7 +150,7 @@ const queryProduct = async () => {
   });
   switch(res.data.successType){
     case 0:
-      showToast("查询失败：商品编号不存在", "success");break;
+      showToast("查询失败：商品编号不存在", "danger");break;
     case 1:
       productResult.value = res.data.name + ": 未查询到销售记录\n商店库存量: " + res.data.inventory;break;
     case 2:
@@ -208,21 +208,24 @@ const sell = async () => {
     case 2:alert("仓库内商品库存不足");break;
     case 3:showToast("卖出成功","success");break;
     case 4:alert(`卖出失败：${res.data.err}`);break;
-    case 5:alert("卖出成功，但库存量触发预警，系统自动发出调货申请。");break;
+    case 5:showToast("卖出成功，但库存量触发预警，系统自动发出调货申请。", "warning");break;
   }
   if(res.data.successType == 5){
+    emit("addwarn", 
+      `商品${sellProduct.value}库存告警\n`
+    );
     emit("new-approval", {
-      id: Math.random().toString(36).substring(2, 9),
-      product: transferProduct.value,
-      quantity: transferQty.value,
+      id: res.data.approval_id,
+      product: sellProduct.value,
+      quantity: res.data.qty_num,
       status: "待审核",
-      from: fromWhName,
-      to: storeName.value,
+      from: res.data.warehouse_id,
+      to: storeId.value,
       request_time: new Date().toISOString(),
       approved_time: null,
       shipment_time: null,
       receipt_time: null,
-      display: `${fromWhName}-${transferProduct.value}-${transferQty.value}-待审核`,
+      display: `${res.data.warehouse_id}-${sellProduct.value}-${res.data.qty_num}-待审核`,
     });
   }
 };

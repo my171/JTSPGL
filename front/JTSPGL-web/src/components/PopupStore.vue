@@ -183,13 +183,13 @@ const sell = async () => {
       case 0:alert("商品编号不存在");break;
       case 1:alert("请输入正整数");break;
       case 2:alert("仓库内商品库存不足");break;
-      case 3:alert("卖出成功");break;
+      case 3:showToast("卖出成功","success");break;
       case 4:alert(`卖出失败：${response.data.err}`);break;
-      case 5:alert("卖出成功，但库存量触发预警，系统自动发出调货申请。");break;
+      case 5:showToast("卖出成功，但库存量触发预警，系统自动发出调货申请。", "danger");break;
     }
     if(response.data.successType == 5){
       emit("addwarn", 
-        `商品${sellProduct.value}库存告警`
+        `商品${sellProduct.value}库存告警\n`
       );
       emit("new-approval", {
         id: response.data.approval_id,

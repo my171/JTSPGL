@@ -7,6 +7,8 @@ class Config:
     DB_PASSWORD = '123456abc.'
     client_encoding='utf8'
     
+
+    
     SQLALCHEMY_DATABASE_URI = f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?client_encoding=utf8'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = 'your-secret-key-here' 
